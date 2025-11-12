@@ -1017,16 +1017,20 @@ var Collaboration = class extends HTMLElement {
 		if (this.provider) this.provider.disconnect();
 	}
 	async #init() {
-		const name = "Example User";
-		const color = "#958DF1";
-		const id = "main";
-		const doc = new Doc();
-		const awareness = new Awareness(doc);
+		const name = this.getAttribute("name") || "Example User";
+		const color = this.getAttribute("color") || "#958DF1";
+		const channelName = this.getAttribute("channel-name") || "SyncChannel";
+		const rawParams = this.getAttribute("channel-params") || "{}";
+		const channelParams = typeof rawParams === "string" ? JSON.parse(rawParams) : rawParams;
+		const disableBc = this.hasAttribute("disable-bc") ? this.getAttribute("disable-bc") !== "false" : true;
+		const consumerInstance = this.consumer || consumer;
+		const doc = this.doc || new Doc();
+		const awareness = this.awareness || new Awareness(doc);
 		const docMap = /* @__PURE__ */ new Map();
 		docMap.set(id, doc);
-		const provider = new WebsocketProvider(doc, consumer, "SyncChannel", { id: "2" }, {
+		const provider = new WebsocketProvider(doc, consumerInstance, channelName, channelParams, {
 			awareness,
-			disableBc: true
+			disableBc
 		});
 		const binding = createBinding(this.editor, provider, id, doc, docMap);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);

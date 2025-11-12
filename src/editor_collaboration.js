@@ -51,19 +51,26 @@ export class Collaboration extends HTMLElement {
   }
 
   async #init() {
-    const opts = {};
-    const name = 'Example User';
-    const color = '#958DF1';
+    // Get configurable values from attributes or use defaults
+    const name = this.getAttribute('name') || 'Example User';
+    const color = this.getAttribute('color') || '#958DF1';
+    const channelName = this.getAttribute('channel-name') || 'SyncChannel';
+    const rawParams = this.getAttribute('channel-params') || '{}';
+    const channelParams = typeof rawParams === 'string' ? JSON.parse(rawParams) : rawParams;
+    const disableBc = this.hasAttribute('disable-bc') 
+      ? this.getAttribute('disable-bc') !== 'false' 
+      : true;
 
-    const id = 'main';
-    const doc = new Doc();
-    const awareness = new Awareness(doc);
+    // Use provided consumer, doc, awareness or create new ones
+    const consumerInstance = this.consumer || consumer;
+    const doc = this.doc || new Doc();
+    const awareness = this.awareness || new Awareness(doc);
 
     // const docMap = new Map([[id, doc]]);
     const docMap = new Map();
     docMap.set(id, doc);
 
-    const provider = new WebsocketProvider(doc, consumer, "SyncChannel", { id: "2" }, { awareness, disableBc: true });
+    const provider = new WebsocketProvider(doc, consumerInstance, channelName, channelParams, { awareness, disableBc });
 
     // Create binding first to initialize Yjs types
     const binding = createBinding(this.editor, provider, id, doc, docMap);
