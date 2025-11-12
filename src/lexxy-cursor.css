@@ -1,0 +1,152 @@
+/* Lexxy Cursor Manager Styles */
+
+.lexxy-cursor-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.lexxy-cursor {
+  position: absolute;
+  pointer-events: none;
+  transition: transform 0.1s ease;
+  z-index: 1001;
+}
+
+.lexxy-cursor-caret {
+  position: absolute;
+  width: 1px;
+  height: 100%;
+  opacity: 0.8;
+}
+
+.lexxy-cursor-label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 500;
+  white-space: nowrap;
+  margin-bottom: 2px;
+  pointer-events: none;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  animation: lexxy-label-fade-in 0.3s ease;
+}
+
+@keyframes lexxy-label-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lexxy-selection {
+  position: absolute;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.lexxy-selection-rect {
+  position: absolute;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  transition: opacity 0.2s ease;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .lexxy-selection-rect {
+    mix-blend-mode: screen;
+  }
+}
+
+/* Hide cursors when editor loses focus */
+.lexxy-editor:not(:focus-within) .lexxy-cursor {
+  opacity: 0.3;
+}
+
+.lexxy-editor:not(:focus-within) .lexxy-cursor-label {
+  opacity: 0.6;
+}
+
+/* Smooth cursor transitions during scrolling */
+.lexxy-cursor-overlay.scrolling .lexxy-cursor {
+  transition: none;
+}
+
+.lexxy-cursor-overlay.scrolling .lexxy-selection-rect {
+  transition: none;
+}
+
+/* Cursor colors for different users */
+.lexxy-cursor[data-user-color="1"] { background-color: #FF6B6B; }
+.lexxy-cursor[data-user-color="2"] { background-color: #4ECDC4; }
+.lexxy-cursor[data-user-color="3"] { background-color: #45B7D1; }
+.lexxy-cursor[data-user-color="4"] { background-color: #96CEB4; }
+.lexxy-cursor[data-user-color="5"] { background-color: #FFEAA7; }
+.lexxy-cursor[data-user-color="6"] { background-color: #DDA0DD; }
+.lexxy-cursor[data-user-color="7"] { background-color: #98D8C8; }
+.lexxy-cursor[data-user-color="8"] { background-color: #FFD93D; }
+.lexxy-cursor[data-user-color="9"] { background-color: #6C5CE7; }
+.lexxy-cursor[data-user-color="10"] { background-color: #A8E6CF; }
+
+/* Performance optimizations */
+.lexxy-cursor,
+.lexxy-selection-rect {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+
+/* Ensure editor container is positioned */
+.lexxy-editor {
+  position: relative;
+}
+
+/* Handle RTL languages */
+[dir="rtl"] .lexxy-cursor-label {
+  left: auto;
+  right: 0;
+}
+
+/* Accessibility: High contrast mode support */
+@media (prefers-contrast: high) {
+  .lexxy-cursor {
+    width: 3px;
+  }
+
+  .lexxy-cursor-label {
+    border: 1px solid currentColor;
+  }
+
+  .lexxy-selection-rect {
+    border-width: 3px;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .lexxy-cursor-label {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+}
+
+/* Print styles - hide collaboration cursors */
+@media print {
+  .lexxy-cursor-overlay {
+    display: none;
+  }
+}

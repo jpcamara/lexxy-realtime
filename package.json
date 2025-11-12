@@ -1,0 +1,32 @@
+{
+  "name": "lexxy-realtime",
+  "version": "0.0.1",
+  "description": "Realtime Lexxy",
+  "homepage": "https://github.com/jpcamara/lexxy-realtime#readme",
+  "bugs": {
+    "url": "https://github.com/jpcamara/lexxy-realtime/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jpcamara/lexxy-realtime.git"
+  },
+  "license": "MIT",
+  "author": "JP Camara jp@jpcamara.com",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rolldown -c"
+  },
+  "dependencies": {
+    "@37signals/lexxy": "0.1.20-beta",
+    "@anycable/web": "*",
+    "@lexical/yjs": "*",
+    "@y-rb/actioncable": "^0.2.1",
+    "y-protocols": "*"
+  },
+  "devDependencies": {
+    "@rollup/plugin-terser": "^0.4.4",
+    "rolldown": "^1.0.0-beta.49"
+  }
+}
