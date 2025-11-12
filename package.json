@@ -13,7 +13,7 @@
   "license": "MIT",
   "author": "JP Camara jp@jpcamara.com",
   "type": "module",
-  "main": "index.js",
+  "main": "dist/lexxy-realtime.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "rolldown -c"
