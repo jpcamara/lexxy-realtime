@@ -16,13 +16,14 @@
   "main": "dist/lexxy-realtime.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rolldown -c"
+    "build": "rolldown -c",
+    "build:watch": "rolldown --watch -c"
   },
   "dependencies": {
     "@37signals/lexxy": "0.1.20-beta",
     "@anycable/web": "*",
     "@lexical/yjs": "*",
-    "@y-rb/actioncable": "^0.2.1",
+    "@y-rb/actioncable": "^0.3.0",
     "y-protocols": "*"
   },
   "devDependencies": {

@@ -52,6 +52,7 @@ export class Collaboration extends HTMLElement {
 
   async #init() {
     // Get configurable values from attributes or use defaults
+    const id = this.getAttribute('id') || 'main';
     const name = this.getAttribute('name') || 'Example User';
     const color = this.getAttribute('color') || '#958DF1';
     const channelName = this.getAttribute('channel-name') || 'SyncChannel';
