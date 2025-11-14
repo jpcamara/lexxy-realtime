@@ -1,15 +1,408 @@
 import { createBinding, initLocalState, syncLexicalUpdateToYjs, syncYjsChangesToLexical } from "@lexical/yjs";
 import { Doc } from "yjs";
-import { Awareness } from "y-protocols/awareness";
 import { createConsumer } from "@anycable/web";
 import { WebsocketProvider } from "@y-rb/actioncable";
 import { $getNodeByKey, $getSelection, $isRangeSelection } from "lexical";
 
-//#region ../lexxy-realtime/src/consumer.js
+//#region node_modules/lib0/math.js
+/**
+* Common Math expressions.
+*
+* @module math
+*/
+const floor = Math.floor;
+const isNaN = Number.isNaN;
+
+//#endregion
+//#region node_modules/lib0/set.js
+/**
+* Utility module to work with sets.
+*
+* @module set
+*/
+const create$1 = () => /* @__PURE__ */ new Set();
+
+//#endregion
+//#region node_modules/lib0/array.js
+/**
+* Transforms something array-like to an actual Array.
+*
+* @function
+* @template T
+* @param {ArrayLike<T>|Iterable<T>} arraylike
+* @return {T}
+*/
+const from = Array.from;
+const isArray$1 = Array.isArray;
+
+//#endregion
+//#region node_modules/lib0/time.js
+/**
+* Return current unix time.
+*
+* @return {number}
+*/
+const getUnixTime = Date.now;
+
+//#endregion
+//#region node_modules/lib0/map.js
+/**
+* Utility module to work with key-value stores.
+*
+* @module map
+*/
+/**
+* Creates a new Map instance.
+*
+* @function
+* @return {Map<any, any>}
+*
+* @function
+*/
+const create = () => /* @__PURE__ */ new Map();
+/**
+* Get map property. Create T if property is undefined and set T on map.
+*
+* ```js
+* const listeners = map.setIfUndefined(events, 'eventName', set.create)
+* listeners.add(listener)
+* ```
+*
+* @function
+* @template {Map<any, any>} MAP
+* @template {MAP extends Map<any,infer V> ? function():V : unknown} CF
+* @param {MAP} map
+* @param {MAP extends Map<infer K,any> ? K : unknown} key
+* @param {CF} createT
+* @return {ReturnType<CF>}
+*/
+const setIfUndefined = (map, key, createT) => {
+	let set = map.get(key);
+	if (set === void 0) map.set(key, set = createT());
+	return set;
+};
+
+//#endregion
+//#region node_modules/lib0/observable.js
+/**
+* Observable class prototype.
+*
+* @module observable
+*/
+/* c8 ignore start */
+/**
+* Handles named events.
+*
+* @deprecated
+* @template N
+*/
+var Observable = class {
+	constructor() {
+		/**
+		* Some desc.
+		* @type {Map<N, any>}
+		*/
+		this._observers = create();
+	}
+	/**
+	* @param {N} name
+	* @param {function} f
+	*/
+	on(name, f) {
+		setIfUndefined(this._observers, name, create$1).add(f);
+	}
+	/**
+	* @param {N} name
+	* @param {function} f
+	*/
+	once(name, f) {
+		/**
+		* @param  {...any} args
+		*/
+		const _f = (...args) => {
+			this.off(name, _f);
+			f(...args);
+		};
+		this.on(name, _f);
+	}
+	/**
+	* @param {N} name
+	* @param {function} f
+	*/
+	off(name, f) {
+		const observers = this._observers.get(name);
+		if (observers !== void 0) {
+			observers.delete(f);
+			if (observers.size === 0) this._observers.delete(name);
+		}
+	}
+	/**
+	* Emit a named event. All registered event listeners that listen to the
+	* specified name will receive the event.
+	*
+	* @todo This should catch exceptions
+	*
+	* @param {N} name The event name.
+	* @param {Array<any>} args The arguments that are applied to the event listener.
+	*/
+	emit(name, args) {
+		return from((this._observers.get(name) || create()).values()).forEach((f) => f(...args));
+	}
+	destroy() {
+		this._observers = create();
+	}
+};
+/* c8 ignore end */
+
+//#endregion
+//#region node_modules/lib0/object.js
+/**
+* @param {Object<string,any>} obj
+*/
+const keys = Object.keys;
+/**
+* @deprecated use object.size instead
+* @param {Object<string,any>} obj
+* @return {number}
+*/
+const length = (obj) => keys(obj).length;
+/**
+* Calls `Object.prototype.hasOwnProperty`.
+*
+* @param {any} obj
+* @param {string|number|symbol} key
+* @return {boolean}
+*/
+const hasProperty = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+//#endregion
+//#region node_modules/lib0/traits.js
+const EqualityTraitSymbol = Symbol("Equality");
+/**
+* @typedef {{ [EqualityTraitSymbol]:(other:EqualityTrait)=>boolean }} EqualityTrait
+*/
+
+//#endregion
+//#region node_modules/lib0/function.js
+/**
+* Common functions and function call helpers.
+*
+* @module function
+*/
+/* c8 ignore start */
+/**
+* @param {any} a
+* @param {any} b
+* @return {boolean}
+*/
+const equalityDeep = (a, b) => {
+	if (a === b) return true;
+	if (a == null || b == null || a.constructor !== b.constructor) return false;
+	if (a[EqualityTraitSymbol] != null) return a[EqualityTraitSymbol](b);
+	switch (a.constructor) {
+		case ArrayBuffer:
+			a = new Uint8Array(a);
+			b = new Uint8Array(b);
+		case Uint8Array:
+			if (a.byteLength !== b.byteLength) return false;
+			for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+			break;
+		case Set:
+			if (a.size !== b.size) return false;
+			for (const value of a) if (!b.has(value)) return false;
+			break;
+		case Map:
+			if (a.size !== b.size) return false;
+			for (const key of a.keys()) if (!b.has(key) || !equalityDeep(a.get(key), b.get(key))) return false;
+			break;
+		case Object:
+			if (length(a) !== length(b)) return false;
+			for (const key in a) if (!hasProperty(a, key) || !equalityDeep(a[key], b[key])) return false;
+			break;
+		case Array:
+			if (a.length !== b.length) return false;
+			for (let i = 0; i < a.length; i++) if (!equalityDeep(a[i], b[i])) return false;
+			break;
+		default: return false;
+	}
+	return true;
+};
+/* c8 ignore stop */
+const isArray = isArray$1;
+
+//#endregion
+//#region node_modules/y-protocols/awareness.js
+const outdatedTimeout = 3e4;
+/**
+* @typedef {Object} MetaClientState
+* @property {number} MetaClientState.clock
+* @property {number} MetaClientState.lastUpdated unix timestamp
+*/
+/**
+* The Awareness class implements a simple shared state protocol that can be used for non-persistent data like awareness information
+* (cursor, username, status, ..). Each client can update its own local state and listen to state changes of
+* remote clients. Every client may set a state of a remote peer to `null` to mark the client as offline.
+*
+* Each client is identified by a unique client id (something we borrow from `doc.clientID`). A client can override
+* its own state by propagating a message with an increasing timestamp (`clock`). If such a message is received, it is
+* applied if the known state of that client is older than the new state (`clock < newClock`). If a client thinks that
+* a remote client is offline, it may propagate a message with
+* `{ clock: currentClientClock, state: null, client: remoteClient }`. If such a
+* message is received, and the known clock of that client equals the received clock, it will override the state with `null`.
+*
+* Before a client disconnects, it should propagate a `null` state with an updated clock.
+*
+* Awareness states must be updated every 30 seconds. Otherwise the Awareness instance will delete the client state.
+*
+* @extends {Observable<string>}
+*/
+var Awareness = class extends Observable {
+	/**
+	* @param {Y.Doc} doc
+	*/
+	constructor(doc) {
+		super();
+		this.doc = doc;
+		/**
+		* @type {number}
+		*/
+		this.clientID = doc.clientID;
+		/**
+		* Maps from client id to client state
+		* @type {Map<number, Object<string, any>>}
+		*/
+		this.states = /* @__PURE__ */ new Map();
+		/**
+		* @type {Map<number, MetaClientState>}
+		*/
+		this.meta = /* @__PURE__ */ new Map();
+		this._checkInterval = setInterval(() => {
+			const now = getUnixTime();
+			if (this.getLocalState() !== null && outdatedTimeout / 2 <= now - this.meta.get(this.clientID).lastUpdated) this.setLocalState(this.getLocalState());
+			/**
+			* @type {Array<number>}
+			*/
+			const remove = [];
+			this.meta.forEach((meta, clientid) => {
+				if (clientid !== this.clientID && outdatedTimeout <= now - meta.lastUpdated && this.states.has(clientid)) remove.push(clientid);
+			});
+			if (remove.length > 0) removeAwarenessStates(this, remove, "timeout");
+		}, floor(outdatedTimeout / 10));
+		doc.on("destroy", () => {
+			this.destroy();
+		});
+		this.setLocalState({});
+	}
+	destroy() {
+		this.emit("destroy", [this]);
+		this.setLocalState(null);
+		super.destroy();
+		clearInterval(this._checkInterval);
+	}
+	/**
+	* @return {Object<string,any>|null}
+	*/
+	getLocalState() {
+		return this.states.get(this.clientID) || null;
+	}
+	/**
+	* @param {Object<string,any>|null} state
+	*/
+	setLocalState(state) {
+		const clientID = this.clientID;
+		const currLocalMeta = this.meta.get(clientID);
+		const clock = currLocalMeta === void 0 ? 0 : currLocalMeta.clock + 1;
+		const prevState = this.states.get(clientID);
+		if (state === null) this.states.delete(clientID);
+		else this.states.set(clientID, state);
+		this.meta.set(clientID, {
+			clock,
+			lastUpdated: getUnixTime()
+		});
+		const added = [];
+		const updated = [];
+		const filteredUpdated = [];
+		const removed = [];
+		if (state === null) removed.push(clientID);
+		else if (prevState == null) {
+			if (state != null) added.push(clientID);
+		} else {
+			updated.push(clientID);
+			if (!equalityDeep(prevState, state)) filteredUpdated.push(clientID);
+		}
+		if (added.length > 0 || filteredUpdated.length > 0 || removed.length > 0) this.emit("change", [{
+			added,
+			updated: filteredUpdated,
+			removed
+		}, "local"]);
+		this.emit("update", [{
+			added,
+			updated,
+			removed
+		}, "local"]);
+	}
+	/**
+	* @param {string} field
+	* @param {any} value
+	*/
+	setLocalStateField(field, value) {
+		const state = this.getLocalState();
+		if (state !== null) this.setLocalState({
+			...state,
+			[field]: value
+		});
+	}
+	/**
+	* @return {Map<number,Object<string,any>>}
+	*/
+	getStates() {
+		return this.states;
+	}
+};
+/**
+* Mark (remote) clients as inactive and remove them from the list of active peers.
+* This change will be propagated to remote clients.
+*
+* @param {Awareness} awareness
+* @param {Array<number>} clients
+* @param {any} origin
+*/
+const removeAwarenessStates = (awareness, clients, origin) => {
+	const removed = [];
+	for (let i = 0; i < clients.length; i++) {
+		const clientID = clients[i];
+		if (awareness.states.has(clientID)) {
+			awareness.states.delete(clientID);
+			if (clientID === awareness.clientID) {
+				const curMeta = awareness.meta.get(clientID);
+				awareness.meta.set(clientID, {
+					clock: curMeta.clock + 1,
+					lastUpdated: getUnixTime()
+				});
+			}
+			removed.push(clientID);
+		}
+	}
+	if (removed.length > 0) {
+		awareness.emit("change", [{
+			added: [],
+			updated: [],
+			removed
+		}, origin]);
+		awareness.emit("update", [{
+			added: [],
+			updated: [],
+			removed
+		}, origin]);
+	}
+};
+
+//#endregion
+//#region src/consumer.js
 const consumer = createConsumer({ protocol: "actioncable-v1-ext-json" });
 
 //#endregion
-//#region ../lexxy-realtime/src/lexxy-cursor-manager.js
+//#region src/lexxy-cursor-manager.js
 /**
 * - Live carets with user-colored labels
 * - Selection range highlights spanning disjoint rects
@@ -600,7 +993,7 @@ function syncLocalCursorPosition(editor, provider) {
 }
 
 //#endregion
-//#region ../lexxy-realtime/src/editor_collaboration.js
+//#region src/editor_collaboration.js
 var Collaboration = class extends HTMLElement {
 	connectedCallback() {
 		this.editorElement = this.closest("lexxy-editor");
@@ -686,7 +1079,7 @@ function registerCollaborationListeners(editor, provider, binding) {
 }
 
 //#endregion
-//#region ../lexxy-realtime/src/index.js
+//#region src/index.js
 customElements.define("lexxy-collaboration", Collaboration);
 
 //#endregion
