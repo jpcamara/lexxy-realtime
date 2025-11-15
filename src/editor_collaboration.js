@@ -66,12 +66,11 @@ export class Collaboration extends HTMLElement {
     const consumerInstance = this.consumer || consumer;
     const doc = this.doc || new Doc();
     const awareness = this.awareness || new Awareness(doc);
+    const provider = this.provider || new WebsocketProvider(doc, consumerInstance, channelName, channelParams, { awareness, disableBc });
 
     // const docMap = new Map([[id, doc]]);
     const docMap = new Map();
     docMap.set(id, doc);
-
-    const provider = new WebsocketProvider(doc, consumerInstance, channelName, channelParams, { awareness, disableBc });
 
     // Create binding first to initialize Yjs types
     const binding = createBinding(this.editor, provider, id, doc, docMap);

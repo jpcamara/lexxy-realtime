@@ -1027,12 +1027,12 @@ var Collaboration = class extends HTMLElement {
 		const consumerInstance = this.consumer || consumer;
 		const doc = this.doc || new Doc();
 		const awareness = this.awareness || new Awareness(doc);
-		const docMap = /* @__PURE__ */ new Map();
-		docMap.set(id, doc);
-		const provider = new WebsocketProvider(doc, consumerInstance, channelName, channelParams, {
+		const provider = this.provider || new WebsocketProvider(doc, consumerInstance, channelName, channelParams, {
 			awareness,
 			disableBc
 		});
+		const docMap = /* @__PURE__ */ new Map();
+		docMap.set(id, doc);
 		const binding = createBinding(this.editor, provider, id, doc, docMap);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
 		awareness.setLocalStateField("user", {
