@@ -1,7 +1,6 @@
 import { createBinding, initLocalState, syncLexicalUpdateToYjs, syncYjsChangesToLexical } from "@lexical/yjs";
+import * as Y from "yjs";
 import { Doc } from "yjs";
-import { createConsumer } from "@anycable/web";
-import { WebsocketProvider } from "@y-rb/actioncable";
 import { $getNodeByKey, $getSelection, $isRangeSelection } from "lexical";
 
 //#region node_modules/lib0/math.js
@@ -11,7 +10,80 @@ import { $getNodeByKey, $getSelection, $isRangeSelection } from "lexical";
 * @module math
 */
 const floor = Math.floor;
+/**
+* @function
+* @param {number} a
+* @param {number} b
+* @return {number} The smaller element of a and b
+*/
+const min = (a, b) => a < b ? a : b;
+/**
+* @function
+* @param {number} a
+* @param {number} b
+* @return {number} The bigger element of a and b
+*/
+const max = (a, b) => a > b ? a : b;
+const isNaN$1 = Number.isNaN;
+
+//#endregion
+//#region node_modules/lib0/binary.js
+const BIT8 = 128;
+const BIT18 = 1 << 17;
+const BIT19 = 1 << 18;
+const BIT20 = 1 << 19;
+const BIT21 = 1 << 20;
+const BIT22 = 1 << 21;
+const BIT23 = 1 << 22;
+const BIT24 = 1 << 23;
+const BIT25 = 1 << 24;
+const BIT26 = 1 << 25;
+const BIT27 = 1 << 26;
+const BIT28 = 1 << 27;
+const BIT29 = 1 << 28;
+const BIT30 = 1 << 29;
+const BIT31 = 1 << 30;
+const BIT32 = 1 << 31;
+const BITS7 = 127;
+const BITS17 = BIT18 - 1;
+const BITS18 = BIT19 - 1;
+const BITS19 = BIT20 - 1;
+const BITS20 = BIT21 - 1;
+const BITS21 = BIT22 - 1;
+const BITS22 = BIT23 - 1;
+const BITS23 = BIT24 - 1;
+const BITS24 = BIT25 - 1;
+const BITS25 = BIT26 - 1;
+const BITS26 = BIT27 - 1;
+const BITS27 = BIT28 - 1;
+const BITS28 = BIT29 - 1;
+const BITS29 = BIT30 - 1;
+const BITS30 = BIT31 - 1;
+/**
+* @type {number}
+*/
+const BITS31 = 2147483647;
+/**
+* @type {number}
+*/
+const BITS32 = 4294967295;
+
+//#endregion
+//#region node_modules/lib0/number.js
+/**
+* Utility helpers for working with numbers.
+*
+* @module number
+*/
+const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
+const MIN_SAFE_INTEGER = Number.MIN_SAFE_INTEGER;
+const LOWEST_INT32 = 1 << 31;
+const HIGHEST_INT32 = BITS31;
+const HIGHEST_UINT32 = BITS32;
+/* c8 ignore next */
+const isInteger = Number.isInteger || ((num) => typeof num === "number" && isFinite(num) && floor(num) === num);
 const isNaN = Number.isNaN;
+const parseInt$1 = Number.parseInt;
 
 //#endregion
 //#region node_modules/lib0/set.js
@@ -20,7 +92,7 @@ const isNaN = Number.isNaN;
 *
 * @module set
 */
-const create$1 = () => /* @__PURE__ */ new Set();
+const create$2 = () => /* @__PURE__ */ new Set();
 
 //#endregion
 //#region node_modules/lib0/array.js
@@ -34,6 +106,416 @@ const create$1 = () => /* @__PURE__ */ new Set();
 */
 const from = Array.from;
 const isArray$1 = Array.isArray;
+
+//#endregion
+//#region node_modules/lib0/string.js
+/**
+* Utility module to work with strings.
+*
+* @module string
+*/
+const fromCharCode = String.fromCharCode;
+const fromCodePoint = String.fromCodePoint;
+/**
+* The largest utf16 character.
+* Corresponds to Uint8Array([255, 255]) or charcodeof(2x2^8)
+*/
+const MAX_UTF16_CHARACTER = fromCharCode(65535);
+/**
+* @param {string} str
+* @return {Uint8Array}
+*/
+const _encodeUtf8Polyfill = (str) => {
+	const encodedString = unescape(encodeURIComponent(str));
+	const len = encodedString.length;
+	const buf = new Uint8Array(len);
+	for (let i = 0; i < len; i++) buf[i] = encodedString.codePointAt(i);
+	return buf;
+};
+/* c8 ignore next */
+const utf8TextEncoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
+/**
+* @param {string} str
+* @return {Uint8Array}
+*/
+const _encodeUtf8Native = (str) => utf8TextEncoder.encode(str);
+/**
+* @param {string} str
+* @return {Uint8Array}
+*/
+/* c8 ignore next */
+const encodeUtf8 = utf8TextEncoder ? _encodeUtf8Native : _encodeUtf8Polyfill;
+/* c8 ignore next */
+let utf8TextDecoder = typeof TextDecoder === "undefined" ? null : new TextDecoder("utf-8", {
+	fatal: true,
+	ignoreBOM: true
+});
+/* c8 ignore start */
+if (utf8TextDecoder && utf8TextDecoder.decode(new Uint8Array()).length === 1)
+ /* c8 ignore next */
+utf8TextDecoder = null;
+
+//#endregion
+//#region node_modules/lib0/encoding.js
+/**
+* Efficient schema-less binary encoding with support for variable length encoding.
+*
+* Use [lib0/encoding] with [lib0/decoding]. Every encoding function has a corresponding decoding function.
+*
+* Encodes numbers in little-endian order (least to most significant byte order)
+* and is compatible with Golang's binary encoding (https://golang.org/pkg/encoding/binary/)
+* which is also used in Protocol Buffers.
+*
+* ```js
+* // encoding step
+* const encoder = encoding.createEncoder()
+* encoding.writeVarUint(encoder, 256)
+* encoding.writeVarString(encoder, 'Hello world!')
+* const buf = encoding.toUint8Array(encoder)
+* ```
+*
+* ```js
+* // decoding step
+* const decoder = decoding.createDecoder(buf)
+* decoding.readVarUint(decoder) // => 256
+* decoding.readVarString(decoder) // => 'Hello world!'
+* decoding.hasContent(decoder) // => false - all data is read
+* ```
+*
+* @module encoding
+*/
+/**
+* A BinaryEncoder handles the encoding to an Uint8Array.
+*/
+var Encoder = class {
+	constructor() {
+		this.cpos = 0;
+		this.cbuf = new Uint8Array(100);
+		/**
+		* @type {Array<Uint8Array>}
+		*/
+		this.bufs = [];
+	}
+};
+/**
+* @function
+* @return {Encoder}
+*/
+const createEncoder = () => new Encoder();
+/**
+* The current length of the encoded data.
+*
+* @function
+* @param {Encoder} encoder
+* @return {number}
+*/
+const length$1 = (encoder) => {
+	let len = encoder.cpos;
+	for (let i = 0; i < encoder.bufs.length; i++) len += encoder.bufs[i].length;
+	return len;
+};
+/**
+* Transform to Uint8Array.
+*
+* @function
+* @param {Encoder} encoder
+* @return {Uint8Array} The created ArrayBuffer.
+*/
+const toUint8Array = (encoder) => {
+	const uint8arr = new Uint8Array(length$1(encoder));
+	let curPos = 0;
+	for (let i = 0; i < encoder.bufs.length; i++) {
+		const d = encoder.bufs[i];
+		uint8arr.set(d, curPos);
+		curPos += d.length;
+	}
+	uint8arr.set(new Uint8Array(encoder.cbuf.buffer, 0, encoder.cpos), curPos);
+	return uint8arr;
+};
+/**
+* Write one byte to the encoder.
+*
+* @function
+* @param {Encoder} encoder
+* @param {number} num The byte that is to be encoded.
+*/
+const write = (encoder, num) => {
+	const bufferLen = encoder.cbuf.length;
+	if (encoder.cpos === bufferLen) {
+		encoder.bufs.push(encoder.cbuf);
+		encoder.cbuf = new Uint8Array(bufferLen * 2);
+		encoder.cpos = 0;
+	}
+	encoder.cbuf[encoder.cpos++] = num;
+};
+/**
+* Write a variable length unsigned integer. Max encodable integer is 2^53.
+*
+* @function
+* @param {Encoder} encoder
+* @param {number} num The number that is to be encoded.
+*/
+const writeVarUint = (encoder, num) => {
+	while (num > BITS7) {
+		write(encoder, BIT8 | BITS7 & num);
+		num = floor(num / 128);
+	}
+	write(encoder, BITS7 & num);
+};
+/**
+* A cache to store strings temporarily
+*/
+const _strBuffer = new Uint8Array(3e4);
+const _maxStrBSize = _strBuffer.length / 3;
+/**
+* Write a variable length string.
+*
+* @function
+* @param {Encoder} encoder
+* @param {String} str The string that is to be encoded.
+*/
+const _writeVarStringNative = (encoder, str) => {
+	if (str.length < _maxStrBSize) {
+		/* c8 ignore next */
+		const written = utf8TextEncoder.encodeInto(str, _strBuffer).written || 0;
+		writeVarUint(encoder, written);
+		for (let i = 0; i < written; i++) write(encoder, _strBuffer[i]);
+	} else writeVarUint8Array(encoder, encodeUtf8(str));
+};
+/**
+* Write a variable length string.
+*
+* @function
+* @param {Encoder} encoder
+* @param {String} str The string that is to be encoded.
+*/
+const _writeVarStringPolyfill = (encoder, str) => {
+	const encodedString = unescape(encodeURIComponent(str));
+	const len = encodedString.length;
+	writeVarUint(encoder, len);
+	for (let i = 0; i < len; i++) write(encoder, encodedString.codePointAt(i));
+};
+/**
+* Write a variable length string.
+*
+* @function
+* @param {Encoder} encoder
+* @param {String} str The string that is to be encoded.
+*/
+/* c8 ignore next */
+const writeVarString = utf8TextEncoder && utf8TextEncoder.encodeInto ? _writeVarStringNative : _writeVarStringPolyfill;
+/**
+* Append fixed-length Uint8Array to the encoder.
+*
+* @function
+* @param {Encoder} encoder
+* @param {Uint8Array} uint8Array
+*/
+const writeUint8Array = (encoder, uint8Array) => {
+	const bufferLen = encoder.cbuf.length;
+	const cpos = encoder.cpos;
+	const leftCopyLen = min(bufferLen - cpos, uint8Array.length);
+	const rightCopyLen = uint8Array.length - leftCopyLen;
+	encoder.cbuf.set(uint8Array.subarray(0, leftCopyLen), cpos);
+	encoder.cpos += leftCopyLen;
+	if (rightCopyLen > 0) {
+		encoder.bufs.push(encoder.cbuf);
+		encoder.cbuf = new Uint8Array(max(bufferLen * 2, rightCopyLen));
+		encoder.cbuf.set(uint8Array.subarray(leftCopyLen));
+		encoder.cpos = rightCopyLen;
+	}
+};
+/**
+* Append an Uint8Array to Encoder.
+*
+* @function
+* @param {Encoder} encoder
+* @param {Uint8Array} uint8Array
+*/
+const writeVarUint8Array = (encoder, uint8Array) => {
+	writeVarUint(encoder, uint8Array.byteLength);
+	writeUint8Array(encoder, uint8Array);
+};
+
+//#endregion
+//#region node_modules/lib0/error.js
+/**
+* Error helpers.
+*
+* @module error
+*/
+/**
+* @param {string} s
+* @return {Error}
+*/
+/* c8 ignore next */
+const create$1 = (s) => new Error(s);
+
+//#endregion
+//#region node_modules/lib0/decoding.js
+/**
+* Efficient schema-less binary decoding with support for variable length encoding.
+*
+* Use [lib0/decoding] with [lib0/encoding]. Every encoding function has a corresponding decoding function.
+*
+* Encodes numbers in little-endian order (least to most significant byte order)
+* and is compatible with Golang's binary encoding (https://golang.org/pkg/encoding/binary/)
+* which is also used in Protocol Buffers.
+*
+* ```js
+* // encoding step
+* const encoder = encoding.createEncoder()
+* encoding.writeVarUint(encoder, 256)
+* encoding.writeVarString(encoder, 'Hello world!')
+* const buf = encoding.toUint8Array(encoder)
+* ```
+*
+* ```js
+* // decoding step
+* const decoder = decoding.createDecoder(buf)
+* decoding.readVarUint(decoder) // => 256
+* decoding.readVarString(decoder) // => 'Hello world!'
+* decoding.hasContent(decoder) // => false - all data is read
+* ```
+*
+* @module decoding
+*/
+const errorUnexpectedEndOfArray = create$1("Unexpected end of array");
+const errorIntegerOutOfRange = create$1("Integer out of Range");
+/**
+* A Decoder handles the decoding of an Uint8Array.
+*/
+var Decoder = class {
+	/**
+	* @param {Uint8Array} uint8Array Binary data to decode
+	*/
+	constructor(uint8Array) {
+		/**
+		* Decoding target.
+		*
+		* @type {Uint8Array}
+		*/
+		this.arr = uint8Array;
+		/**
+		* Current decoding position.
+		*
+		* @type {number}
+		*/
+		this.pos = 0;
+	}
+};
+/**
+* @function
+* @param {Uint8Array} uint8Array
+* @return {Decoder}
+*/
+const createDecoder = (uint8Array) => new Decoder(uint8Array);
+/**
+* Create an Uint8Array view of the next `len` bytes and advance the position by `len`.
+*
+* Important: The Uint8Array still points to the underlying ArrayBuffer. Make sure to discard the result as soon as possible to prevent any memory leaks.
+*            Use `buffer.copyUint8Array` to copy the result into a new Uint8Array.
+*
+* @function
+* @param {Decoder} decoder The decoder instance
+* @param {number} len The length of bytes to read
+* @return {Uint8Array}
+*/
+const readUint8Array = (decoder, len) => {
+	const view = new Uint8Array(decoder.arr.buffer, decoder.pos + decoder.arr.byteOffset, len);
+	decoder.pos += len;
+	return view;
+};
+/**
+* Read variable length Uint8Array.
+*
+* Important: The Uint8Array still points to the underlying ArrayBuffer. Make sure to discard the result as soon as possible to prevent any memory leaks.
+*            Use `buffer.copyUint8Array` to copy the result into a new Uint8Array.
+*
+* @function
+* @param {Decoder} decoder
+* @return {Uint8Array}
+*/
+const readVarUint8Array = (decoder) => readUint8Array(decoder, readVarUint(decoder));
+/**
+* Read one byte as unsigned integer.
+* @function
+* @param {Decoder} decoder The decoder instance
+* @return {number} Unsigned 8-bit integer
+*/
+const readUint8 = (decoder) => decoder.arr[decoder.pos++];
+/**
+* Read unsigned integer (32bit) with variable length.
+* 1/8th of the storage is used as encoding overhead.
+*  * numbers < 2^7 is stored in one bytlength
+*  * numbers < 2^14 is stored in two bylength
+*
+* @function
+* @param {Decoder} decoder
+* @return {number} An unsigned integer.length
+*/
+const readVarUint = (decoder) => {
+	let num = 0;
+	let mult = 1;
+	const len = decoder.arr.length;
+	while (decoder.pos < len) {
+		const r = decoder.arr[decoder.pos++];
+		num = num + (r & BITS7) * mult;
+		mult *= 128;
+		if (r < BIT8) return num;
+		/* c8 ignore start */
+		if (num > MAX_SAFE_INTEGER) throw errorIntegerOutOfRange;
+	}
+	throw errorUnexpectedEndOfArray;
+};
+/**
+* We don't test this function anymore as we use native decoding/encoding by default now.
+* Better not modify this anymore..
+*
+* Transforming utf8 to a string is pretty expensive. The code performs 10x better
+* when String.fromCodePoint is fed with all characters as arguments.
+* But most environments have a maximum number of arguments per functions.
+* For effiency reasons we apply a maximum of 10000 characters at once.
+*
+* @function
+* @param {Decoder} decoder
+* @return {String} The read String.
+*/
+/* c8 ignore start */
+const _readVarStringPolyfill = (decoder) => {
+	let remainingLen = readVarUint(decoder);
+	if (remainingLen === 0) return "";
+	else {
+		let encodedString = String.fromCodePoint(readUint8(decoder));
+		if (--remainingLen < 100) while (remainingLen--) encodedString += String.fromCodePoint(readUint8(decoder));
+		else while (remainingLen > 0) {
+			const nextLen = remainingLen < 1e4 ? remainingLen : 1e4;
+			const bytes = decoder.arr.subarray(decoder.pos, decoder.pos + nextLen);
+			decoder.pos += nextLen;
+			encodedString += String.fromCodePoint.apply(null, bytes);
+			remainingLen -= nextLen;
+		}
+		return decodeURIComponent(escape(encodedString));
+	}
+};
+/* c8 ignore stop */
+/**
+* @function
+* @param {Decoder} decoder
+* @return {String} The read String
+*/
+const _readVarStringNative = (decoder) => utf8TextDecoder.decode(readVarUint8Array(decoder));
+/**
+* Read string of variable length
+* * varUint is used to store the length of the string
+*
+* @function
+* @param {Decoder} decoder
+* @return {String} The read String
+*
+*/
+/* c8 ignore next */
+const readVarString = utf8TextDecoder ? _readVarStringNative : _readVarStringPolyfill;
 
 //#endregion
 //#region node_modules/lib0/time.js
@@ -109,7 +591,7 @@ var Observable = class {
 	* @param {function} f
 	*/
 	on(name, f) {
-		setIfUndefined(this._observers, name, create$1).add(f);
+		setIfUndefined(this._observers, name, create$2).add(f);
 	}
 	/**
 	* @param {N} name
@@ -232,6 +714,9 @@ const isArray = isArray$1;
 
 //#endregion
 //#region node_modules/y-protocols/awareness.js
+/**
+* @module awareness-protocol
+*/
 const outdatedTimeout = 3e4;
 /**
 * @typedef {Object} MetaClientState
@@ -396,10 +881,214 @@ const removeAwarenessStates = (awareness, clients, origin) => {
 		}, origin]);
 	}
 };
+/**
+* @param {Awareness} awareness
+* @param {Array<number>} clients
+* @return {Uint8Array}
+*/
+const encodeAwarenessUpdate = (awareness, clients, states = awareness.states) => {
+	const len = clients.length;
+	const encoder = createEncoder();
+	writeVarUint(encoder, len);
+	for (let i = 0; i < len; i++) {
+		const clientID = clients[i];
+		const state = states.get(clientID) || null;
+		const clock = awareness.meta.get(clientID).clock;
+		writeVarUint(encoder, clientID);
+		writeVarUint(encoder, clock);
+		writeVarString(encoder, JSON.stringify(state));
+	}
+	return toUint8Array(encoder);
+};
+/**
+* @param {Awareness} awareness
+* @param {Uint8Array} update
+* @param {any} origin This will be added to the emitted change event
+*/
+const applyAwarenessUpdate = (awareness, update, origin) => {
+	const decoder = createDecoder(update);
+	const timestamp = getUnixTime();
+	const added = [];
+	const updated = [];
+	const filteredUpdated = [];
+	const removed = [];
+	const len = readVarUint(decoder);
+	for (let i = 0; i < len; i++) {
+		const clientID = readVarUint(decoder);
+		let clock = readVarUint(decoder);
+		const state = JSON.parse(readVarString(decoder));
+		const clientMeta = awareness.meta.get(clientID);
+		const prevState = awareness.states.get(clientID);
+		const currClock = clientMeta === void 0 ? 0 : clientMeta.clock;
+		if (currClock < clock || currClock === clock && state === null && awareness.states.has(clientID)) {
+			if (state === null) if (clientID === awareness.clientID && awareness.getLocalState() != null) clock++;
+			else awareness.states.delete(clientID);
+			else awareness.states.set(clientID, state);
+			awareness.meta.set(clientID, {
+				clock,
+				lastUpdated: timestamp
+			});
+			if (clientMeta === void 0 && state !== null) added.push(clientID);
+			else if (clientMeta !== void 0 && state === null) removed.push(clientID);
+			else if (state !== null) {
+				if (!equalityDeep(state, prevState)) filteredUpdated.push(clientID);
+				updated.push(clientID);
+			}
+		}
+	}
+	if (added.length > 0 || filteredUpdated.length > 0 || removed.length > 0) awareness.emit("change", [{
+		added,
+		updated: filteredUpdated,
+		removed
+	}, origin]);
+	if (added.length > 0 || updated.length > 0 || removed.length > 0) awareness.emit("update", [{
+		added,
+		updated,
+		removed
+	}, origin]);
+};
 
 //#endregion
-//#region src/consumer.js
-const consumer = createConsumer({ protocol: "actioncable-v1-ext-json" });
+//#region src/custom_yjs_provider.js
+/**
+* Custom Yjs ActionCable Provider
+*
+* Implements a simple "dumb passthrough" protocol where the backend
+* stores and forwards base64-encoded Yjs updates without understanding them.
+*
+* Protocol:
+* - Client -> Server:
+*   - { type: "update", update: base64, client_id: number }
+*   - { type: "awareness", update: base64 }
+*
+* - Server -> Client:
+*   - { type: "sync", updates: [base64, ...] } (on subscribe)
+*   - { type: "update", update: base64 }
+*   - { type: "awareness", update: base64 }
+*/
+function uint8ArrayToBase64(uint8Array) {
+	const binaryString = Array.from(uint8Array).map((byte) => String.fromCharCode(byte)).join("");
+	return btoa(binaryString);
+}
+function base64ToUint8Array(base64) {
+	const binaryString = atob(base64);
+	const bytes = new Uint8Array(binaryString.length);
+	for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+	return bytes;
+}
+/**
+* options: {
+*   awareness?: Awareness
+* }
+*/
+var CustomYjsProvider = class {
+	#updateHandler;
+	#awarenessUpdateHandler;
+	#synced;
+	constructor(doc, consumer, channelName, channelParams = {}, options = {}) {
+		this.doc = doc;
+		this.consumer = consumer;
+		this.channelName = channelName;
+		this.channelParams = channelParams;
+		this.awareness = options.awareness || null;
+		this.subscription = null;
+		this.connected = false;
+		this.#synced = false;
+		this.#updateHandler = (update, origin) => {
+			if (origin === this) return;
+			if (this.subscription) {
+				const base64Update = uint8ArrayToBase64(update);
+				this.subscription.send({
+					type: "update",
+					update: base64Update,
+					client_id: this.doc.clientID
+				});
+			}
+		};
+		this.#awarenessUpdateHandler = (change, origin) => {
+			if (origin === this) return;
+			const added = change.added || [];
+			const updated = change.updated || [];
+			const removed = change.removed || [];
+			const changedClients = added.concat(updated).concat(removed);
+			if (!this.awareness) return;
+			const awarenessUpdate = encodeAwarenessUpdate(this.awareness, changedClients);
+			if (this.subscription && this.connected) {
+				const awarenessMessage = {
+					type: "awareness",
+					update: uint8ArrayToBase64(awarenessUpdate)
+				};
+				if (this.subscription.whisper) this.subscription.whisper(awarenessMessage);
+				else this.subscription.send(awarenessMessage);
+			}
+		};
+	}
+	connect() {
+		if (this.subscription) return;
+		this.subscription = this.consumer.subscriptions.create({
+			channel: this.channelName,
+			...this.channelParams
+		}, {
+			connected: () => {
+				this.connected = true;
+			},
+			disconnected: () => {
+				this.connected = false;
+				this.#synced = false;
+			},
+			received: (data) => {
+				this.#handleMessage(data);
+			}
+		});
+		this.doc.on("update", this.#updateHandler);
+		if (this.awareness) this.awareness.on("update", this.#awarenessUpdateHandler);
+	}
+	disconnect() {
+		if (!this.subscription) return;
+		this.doc.off("update", this.#updateHandler);
+		if (this.awareness) this.awareness.off("update", this.#awarenessUpdateHandler);
+		this.consumer.subscriptions.remove(this.subscription);
+		this.subscription = null;
+		this.connected = false;
+		this.#synced = false;
+	}
+	destroy() {
+		this.disconnect();
+	}
+	get synced() {
+		return this.#synced;
+	}
+	#handleMessage(data) {
+		switch (data.type) {
+			case "sync":
+				this.#handleSync(data.updates);
+				break;
+			case "update":
+				this.#handleUpdate(data.update);
+				break;
+			case "awareness":
+				this.#handleAwareness(data.update);
+				break;
+			default: console.warn("CustomYjsProvider: Unknown message type", data.type);
+		}
+	}
+	#handleSync(updates) {
+		updates.forEach((base64Update, index) => {
+			const update = base64ToUint8Array(base64Update);
+			Y.applyUpdate(this.doc, update, this);
+		});
+		this.#synced = true;
+	}
+	#handleUpdate(base64Update) {
+		const update = base64ToUint8Array(base64Update);
+		Y.applyUpdate(this.doc, update, this);
+	}
+	#handleAwareness(base64Update) {
+		if (!this.awareness) return;
+		const update = base64ToUint8Array(base64Update);
+		applyAwarenessUpdate(this.awareness, update, this);
+	}
+};
 
 //#endregion
 //#region src/lexxy-cursor-manager.js
@@ -1023,14 +1712,10 @@ var Collaboration = class extends HTMLElement {
 		const channelName = this.getAttribute("channel-name") || "SyncChannel";
 		const rawParams = this.getAttribute("channel-params") || "{}";
 		const channelParams = typeof rawParams === "string" ? JSON.parse(rawParams) : rawParams;
-		const disableBc = this.hasAttribute("disable-bc") ? this.getAttribute("disable-bc") !== "false" : true;
-		const consumerInstance = this.consumer || consumer;
+		this.hasAttribute("disable-bc") && this.getAttribute("disable-bc");
 		const doc = this.doc || new Doc();
 		const awareness = this.awareness || new Awareness(doc);
-		const provider = this.provider || new WebsocketProvider(doc, consumerInstance, channelName, channelParams, {
-			awareness,
-			disableBc
-		});
+		const provider = this.provider || new CustomYjsProvider(doc, this.consumer, channelName, channelParams, { awareness });
 		const docMap = /* @__PURE__ */ new Map();
 		docMap.set(id, doc);
 		const binding = createBinding(this.editor, provider, id, doc, docMap);

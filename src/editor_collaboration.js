@@ -2,13 +2,11 @@ import {
   createBinding,
   syncLexicalUpdateToYjs,
   syncYjsChangesToLexical,
-  initLocalState,
-  syncCursorPositions
+  initLocalState
 } from '@lexical/yjs';
 import { Doc } from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
-import { consumer } from './consumer';
-import { WebsocketProvider } from "@y-rb/actioncable";
+import { CustomYjsProvider } from './custom_yjs_provider';
 import { LexxyCursorManager, syncLocalCursorPosition } from './lexxy-cursor-manager';
 
 export class Collaboration extends HTMLElement {
@@ -62,11 +60,9 @@ export class Collaboration extends HTMLElement {
       ? this.getAttribute('disable-bc') !== 'false' 
       : true;
 
-    // Use provided consumer, doc, awareness or create new ones
-    const consumerInstance = this.consumer || consumer;
     const doc = this.doc || new Doc();
     const awareness = this.awareness || new Awareness(doc);
-    const provider = this.provider || new WebsocketProvider(doc, consumerInstance, channelName, channelParams, { awareness, disableBc });
+    const provider = this.provider || new CustomYjsProvider(doc, this.consumer, channelName, channelParams, { awareness });
 
     // const docMap = new Map([[id, doc]]);
     const docMap = new Map();
