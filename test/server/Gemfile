@@ -1,0 +1,10 @@
+source "https://rubygems.org"
+
+# Minimal Rails for ActionCable + a controller; ActiveRecord is never loaded.
+gem "rails", "~> 8.0"
+gem "puma"
+
+# The library under test. Path-pinned to the local checkout so tests exercise
+# the latest yrb-lite (reliable delivery + causal-gap protection), not a
+# published version.
+gem "yrb-lite", path: "../../../yrb-lite"

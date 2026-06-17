@@ -15,9 +15,13 @@
   "type": "module",
   "main": "dist/lexxy-realtime.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "patch-package",
     "build": "rolldown -c",
-    "build:watch": "rolldown --watch -c"
+    "build:watch": "rolldown --watch -c",
+    "build:test": "rolldown -c test/browser/rolldown.config.mjs",
+    "test": "node test/run.mjs",
+    "test:headless": "node test/run.mjs --headless",
+    "test:browser": "node test/run.mjs --browser"
   },
   "dependencies": {
     "@37signals/lexxy": "0.1.20-beta",
@@ -26,7 +30,10 @@
     "y-protocols": "*"
   },
   "devDependencies": {
+    "@rails/actioncable": "^8.1.300",
     "@rollup/plugin-terser": "^0.4.4",
+    "agent-browser": "^0.28.0",
+    "patch-package": "^8.0.1",
     "rolldown": "^1.0.0-beta.49"
   }
 }

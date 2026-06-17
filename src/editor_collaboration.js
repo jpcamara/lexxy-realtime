@@ -6,7 +6,7 @@ import {
 } from '@lexical/yjs';
 import { Doc } from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
-import { CustomYjsProvider } from './custom_yjs_provider';
+import { YrbLiteProvider } from './yrb_lite_provider';
 import { LexxyCursorManager, syncLocalCursorPosition } from './lexxy-cursor-manager';
 
 export class Collaboration extends HTMLElement {
@@ -14,18 +14,11 @@ export class Collaboration extends HTMLElement {
     this.editorElement = this.closest("lexxy-editor")
     this.editor = this.editorElement.editor
 
-    // Check if editor is already initialized or wait for it
-    if (this.editor && this.editor.isReady && this.editor.isReady()) {
-      console.log('Editor already initialized, starting collaboration');
-      this.#init();
-    } else if (this.editor) {
-      // Editor exists but might not be ready, just init
-      console.log('Editor exists, starting collaboration');
+    // Init now if the editor is already present, otherwise wait for it.
+    if (this.editor) {
       this.#init();
     } else {
-      // No editor yet, wait for initialization event
-      this.editorElement.addEventListener(`lexxy:initialize`, (...args) => {
-        console.log('Editor initialized event, starting collaboration', args);
+      this.editorElement.addEventListener('lexxy:initialize', () => {
         this.editor = this.editorElement.editor;
         this.#init();
       }, { once: true });
@@ -62,44 +55,24 @@ export class Collaboration extends HTMLElement {
 
     const doc = this.doc || new Doc();
     const awareness = this.awareness || new Awareness(doc);
-    const provider = this.provider || new CustomYjsProvider(doc, this.consumer, channelName, channelParams, { awareness });
+    const provider = this.provider ||
+      new YrbLiteProvider(doc, this.consumer, channelName, channelParams, { awareness, disableBc });
 
-    // const docMap = new Map([[id, doc]]);
     const docMap = new Map();
     docMap.set(id, doc);
 
-    // Create binding first to initialize Yjs types
+    // Bind the editor to Yjs and register the editor<->Yjs sync listeners
+    // before touching awareness, so the first updates are observed.
     const binding = createBinding(this.editor, provider, id, doc, docMap);
-
-    // Register collaboration listeners before other initialization
     const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
 
-    // Set user state in awareness BEFORE initLocalState
-    awareness.setLocalStateField('user', {
-      name: name,
-      color: color,
-    });
-
-    // Set initial heartbeat timestamp
-    awareness.setLocalStateField('lastSeen', Date.now());
-
-    // Initialize local state with the same user info
-    // This function might override our user settings, so let's set them again after
+    // Seed local presence: user identity + a heartbeat the cursor manager uses
+    // to reap inactive peers. initLocalState may set the user field itself, so
+    // set ours afterwards to be authoritative.
     initLocalState(provider, name, color, true, { name, color });
-
-    // Set user state again to make sure it persists
-    awareness.setLocalStateField('user', {
-      name: name,
-      color: color,
-    });
-
-    // Set heartbeat again to ensure it's present
+    awareness.setLocalStateField('user', { name, color });
     awareness.setLocalStateField('lastSeen', Date.now());
 
-    // Use our custom cursor manager instead of the React-based one
-    // syncCursorPositions(binding, provider, { cursorBuilder: undefined });
-
-    // Initialize the custom cursor manager after provider is connected
     const containerElement = this.editorElement.querySelector('.lexxy-editor-container') || this.editorElement;
     this.cursorManager = new LexxyCursorManager(this.editor, provider, containerElement);
 

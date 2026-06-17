@@ -1,0 +1,5 @@
+data/
+log/
+tmp/
+.bundle/
+public/app.js

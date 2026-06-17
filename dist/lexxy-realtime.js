@@ -122,6 +122,24 @@ const fromCodePoint = String.fromCodePoint;
 */
 const MAX_UTF16_CHARACTER = fromCharCode(65535);
 /**
+* @param {string} s
+* @return {string}
+*/
+const toLowerCase = (s) => s.toLowerCase();
+const trimLeftRegex = /^\s*/g;
+/**
+* @param {string} s
+* @return {string}
+*/
+const trimLeft = (s) => s.replace(trimLeftRegex, "");
+const fromCamelCaseRegex = /([A-Z])/g;
+/**
+* @param {string} s
+* @param {string} separator
+* @return {string}
+*/
+const fromCamelCase = (s, separator) => trimLeft(s.replace(fromCamelCaseRegex, (match) => `${separator}${toLowerCase(match)}`));
+/**
 * @param {string} str
 * @return {Uint8Array}
 */
@@ -601,9 +619,9 @@ var Observable = class {
 		/**
 		* @param  {...any} args
 		*/
-		const _f = (...args) => {
+		const _f = (...args$1) => {
 			this.off(name, _f);
-			f(...args);
+			f(...args$1);
 		};
 		this.on(name, _f);
 	}
@@ -627,8 +645,8 @@ var Observable = class {
 	* @param {N} name The event name.
 	* @param {Array<any>} args The arguments that are applied to the event listener.
 	*/
-	emit(name, args) {
-		return from((this._observers.get(name) || create()).values()).forEach((f) => f(...args));
+	emit(name, args$1) {
+		return from((this._observers.get(name) || create()).values()).forEach((f) => f(...args$1));
 	}
 	destroy() {
 		this._observers = create();
@@ -709,6 +727,14 @@ const equalityDeep = (a, b) => {
 	}
 	return true;
 };
+/**
+* @template V
+* @template {V} OPTS
+*
+* @param {V} value
+* @param {Array<OPTS>} options
+*/
+const isOneOf = (value, options) => options.includes(value);
 /* c8 ignore stop */
 const isArray = isArray$1;
 
@@ -949,144 +975,709 @@ const applyAwarenessUpdate = (awareness, update, origin) => {
 };
 
 //#endregion
-//#region src/custom_yjs_provider.js
+//#region node_modules/y-protocols/sync.js
 /**
-* Custom Yjs ActionCable Provider
-*
-* Implements a simple "dumb passthrough" protocol where the backend
-* stores and forwards base64-encoded Yjs updates without understanding them.
-*
-* Protocol:
-* - Client -> Server:
-*   - { type: "update", update: base64, client_id: number }
-*   - { type: "awareness", update: base64 }
-*
-* - Server -> Client:
-*   - { type: "sync", updates: [base64, ...] } (on subscribe)
-*   - { type: "update", update: base64 }
-*   - { type: "awareness", update: base64 }
+* @module sync-protocol
 */
-function uint8ArrayToBase64(uint8Array) {
-	const binaryString = Array.from(uint8Array).map((byte) => String.fromCharCode(byte)).join("");
-	return btoa(binaryString);
-}
-function base64ToUint8Array(base64) {
-	const binaryString = atob(base64);
-	const bytes = new Uint8Array(binaryString.length);
-	for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+/**
+* @typedef {Map<number, number>} StateMap
+*/
+/**
+* Core Yjs defines two message types:
+* • YjsSyncStep1: Includes the State Set of the sending client. When received, the client should reply with YjsSyncStep2.
+* • YjsSyncStep2: Includes all missing structs and the complete delete set. When received, the client is assured that it
+*   received all information from the remote client.
+*
+* In a peer-to-peer network, you may want to introduce a SyncDone message type. Both parties should initiate the connection
+* with SyncStep1. When a client received SyncStep2, it should reply with SyncDone. When the local client received both
+* SyncStep2 and SyncDone, it is assured that it is synced to the remote client.
+*
+* In a client-server model, you want to handle this differently: The client should initiate the connection with SyncStep1.
+* When the server receives SyncStep1, it should reply with SyncStep2 immediately followed by SyncStep1. The client replies
+* with SyncStep2 when it receives SyncStep1. Optionally the server may send a SyncDone after it received SyncStep2, so the
+* client knows that the sync is finished.  There are two reasons for this more elaborated sync model: 1. This protocol can
+* easily be implemented on top of http and websockets. 2. The server should only reply to requests, and not initiate them.
+* Therefore it is necessary that the client initiates the sync.
+*
+* Construction of a message:
+* [messageType : varUint, message definition..]
+*
+* Note: A message does not include information about the room name. This must to be handled by the upper layer protocol!
+*
+* stringify[messageType] stringifies a message definition (messageType is already read from the bufffer)
+*/
+const messageYjsSyncStep1 = 0;
+const messageYjsSyncStep2 = 1;
+const messageYjsUpdate = 2;
+/**
+* Create a sync step 1 message based on the state of the current shared document.
+*
+* @param {encoding.Encoder} encoder
+* @param {Y.Doc} doc
+*/
+const writeSyncStep1 = (encoder, doc) => {
+	writeVarUint(encoder, messageYjsSyncStep1);
+	const sv = Y.encodeStateVector(doc);
+	writeVarUint8Array(encoder, sv);
+};
+/**
+* @param {encoding.Encoder} encoder
+* @param {Y.Doc} doc
+* @param {Uint8Array} [encodedStateVector]
+*/
+const writeSyncStep2 = (encoder, doc, encodedStateVector) => {
+	writeVarUint(encoder, messageYjsSyncStep2);
+	writeVarUint8Array(encoder, Y.encodeStateAsUpdate(doc, encodedStateVector));
+};
+/**
+* Read SyncStep1 message and reply with SyncStep2.
+*
+* @param {decoding.Decoder} decoder The reply to the received message
+* @param {encoding.Encoder} encoder The received message
+* @param {Y.Doc} doc
+*/
+const readSyncStep1 = (decoder, encoder, doc) => writeSyncStep2(encoder, doc, readVarUint8Array(decoder));
+/**
+* Read and apply Structs and then DeleteStore to a y instance.
+*
+* @param {decoding.Decoder} decoder
+* @param {Y.Doc} doc
+* @param {any} transactionOrigin
+*/
+const readSyncStep2 = (decoder, doc, transactionOrigin) => {
+	try {
+		Y.applyUpdate(doc, readVarUint8Array(decoder), transactionOrigin);
+	} catch (error) {
+		console.error("Caught error while handling a Yjs update", error);
+	}
+};
+/**
+* @param {encoding.Encoder} encoder
+* @param {Uint8Array} update
+*/
+const writeUpdate = (encoder, update) => {
+	writeVarUint(encoder, messageYjsUpdate);
+	writeVarUint8Array(encoder, update);
+};
+/**
+* Read and apply Structs and then DeleteStore to a y instance.
+*
+* @param {decoding.Decoder} decoder
+* @param {Y.Doc} doc
+* @param {any} transactionOrigin
+*/
+const readUpdate = readSyncStep2;
+/**
+* @param {decoding.Decoder} decoder A message received from another client
+* @param {encoding.Encoder} encoder The reply message. Does not need to be sent if empty.
+* @param {Y.Doc} doc
+* @param {any} transactionOrigin
+*/
+const readSyncMessage = (decoder, encoder, doc, transactionOrigin) => {
+	const messageType = readVarUint(decoder);
+	switch (messageType) {
+		case messageYjsSyncStep1:
+			readSyncStep1(decoder, encoder, doc);
+			break;
+		case messageYjsSyncStep2:
+			readSyncStep2(decoder, doc, transactionOrigin);
+			break;
+		case messageYjsUpdate:
+			readUpdate(decoder, doc, transactionOrigin);
+			break;
+		default: throw new Error("Unknown message type");
+	}
+	return messageType;
+};
+
+//#endregion
+//#region node_modules/y-protocols/auth.js
+const messagePermissionDenied = 0;
+/**
+* @callback PermissionDeniedHandler
+* @param {any} y
+* @param {string} reason
+*/
+/**
+*
+* @param {decoding.Decoder} decoder
+* @param {Y.Doc} y
+* @param {PermissionDeniedHandler} permissionDeniedHandler
+*/
+const readAuthMessage = (decoder, y, permissionDeniedHandler) => {
+	switch (readVarUint(decoder)) {
+		case messagePermissionDenied: permissionDeniedHandler(y, readVarString(decoder));
+	}
+};
+
+//#endregion
+//#region node_modules/lib0/conditions.js
+/**
+* Often used conditions.
+*
+* @module conditions
+*/
+/**
+* @template T
+* @param {T|null|undefined} v
+* @return {T|null}
+*/
+/* c8 ignore next */
+const undefinedToNull = (v) => v === void 0 ? null : v;
+
+//#endregion
+//#region node_modules/lib0/storage.js
+/**
+* Isomorphic variable storage.
+*
+* Uses LocalStorage in the browser and falls back to in-memory storage.
+*
+* @module storage
+*/
+/* c8 ignore start */
+var VarStoragePolyfill = class {
+	constructor() {
+		this.map = /* @__PURE__ */ new Map();
+	}
+	/**
+	* @param {string} key
+	* @param {any} newValue
+	*/
+	setItem(key, newValue) {
+		this.map.set(key, newValue);
+	}
+	/**
+	* @param {string} key
+	*/
+	getItem(key) {
+		return this.map.get(key);
+	}
+};
+/* c8 ignore stop */
+/**
+* @type {any}
+*/
+let _localStorage = new VarStoragePolyfill();
+let usePolyfill = true;
+/* c8 ignore start */
+try {
+	if (typeof localStorage !== "undefined" && localStorage) {
+		_localStorage = localStorage;
+		usePolyfill = false;
+	}
+} catch (e) {}
+/* c8 ignore stop */
+/**
+* This is basically localStorage in browser, or a polyfill in nodejs
+*/
+/* c8 ignore next */
+const varStorage = _localStorage;
+/**
+* A polyfill for `addEventListener('storage', event => {..})` that does nothing if the polyfill is being used.
+*
+* @param {function({ key: string, newValue: string, oldValue: string }): void} eventHandler
+* @function
+*/
+/* c8 ignore next */
+const onChange = (eventHandler) => usePolyfill || addEventListener("storage", eventHandler);
+/**
+* A polyfill for `removeEventListener('storage', event => {..})` that does nothing if the polyfill is being used.
+*
+* @param {function({ key: string, newValue: string, oldValue: string }): void} eventHandler
+* @function
+*/
+/* c8 ignore next */
+const offChange = (eventHandler) => usePolyfill || removeEventListener("storage", eventHandler);
+
+//#endregion
+//#region node_modules/lib0/environment.js
+/**
+* Isomorphic module to work access the environment (query params, env variables).
+*
+* @module environment
+*/
+/* c8 ignore next 2 */
+const isNode = typeof process !== "undefined" && process.release && /node|io\.js/.test(process.release.name) && Object.prototype.toString.call(typeof process !== "undefined" ? process : 0) === "[object process]";
+/* c8 ignore next */
+const isBrowser = typeof window !== "undefined" && typeof document !== "undefined" && !isNode;
+/* c8 ignore next 3 */
+const isMac = typeof navigator !== "undefined" ? /Mac/.test(navigator.platform) : false;
+/**
+* @type {Map<string,string>}
+*/
+let params;
+const args = [];
+/* c8 ignore start */
+const computeParams = () => {
+	if (params === void 0) if (isNode) {
+		params = create();
+		const pargs = process.argv;
+		let currParamName = null;
+		for (let i = 0; i < pargs.length; i++) {
+			const parg = pargs[i];
+			if (parg[0] === "-") {
+				if (currParamName !== null) params.set(currParamName, "");
+				currParamName = parg;
+			} else if (currParamName !== null) {
+				params.set(currParamName, parg);
+				currParamName = null;
+			} else args.push(parg);
+		}
+		if (currParamName !== null) params.set(currParamName, "");
+	} else if (typeof location === "object") {
+		params = create();
+		(location.search || "?").slice(1).split("&").forEach((kv) => {
+			if (kv.length !== 0) {
+				const [key, value] = kv.split("=");
+				params.set(`--${fromCamelCase(key, "-")}`, value);
+				params.set(`-${fromCamelCase(key, "-")}`, value);
+			}
+		});
+	} else params = create();
+	return params;
+};
+/* c8 ignore stop */
+/**
+* @param {string} name
+* @return {boolean}
+*/
+/* c8 ignore next */
+const hasParam = (name) => computeParams().has(name);
+/**
+* @param {string} name
+* @return {string|null}
+*/
+/* c8 ignore next 4 */
+const getVariable = (name) => isNode ? undefinedToNull(process.env[name.toUpperCase().replaceAll("-", "_")]) : undefinedToNull(varStorage.getItem(name));
+/**
+* @param {string} name
+* @return {boolean}
+*/
+/* c8 ignore next 2 */
+const hasConf = (name) => hasParam("--" + name) || getVariable(name) !== null;
+/* c8 ignore next */
+const production = hasConf("production");
+/* c8 ignore next 2 */
+const forceColor = isNode && isOneOf(process.env.FORCE_COLOR, [
+	"true",
+	"1",
+	"2"
+]);
+/* c8 ignore start */
+/**
+* Color is enabled by default if the terminal supports it.
+*
+* Explicitly enable color using `--color` parameter
+* Disable color using `--no-color` parameter or using `NO_COLOR=1` environment variable.
+* `FORCE_COLOR=1` enables color and takes precedence over all.
+*/
+const supportsColor = forceColor || !hasParam("--no-colors") && !hasConf("no-color") && (!isNode || process.stdout.isTTY) && (!isNode || hasParam("--color") || getVariable("COLORTERM") !== null || (getVariable("TERM") || "").includes("color"));
+/* c8 ignore stop */
+
+//#endregion
+//#region node_modules/lib0/buffer.js
+/**
+* Utility functions to work with buffers (Uint8Array).
+*
+* @module buffer
+*/
+/**
+* @param {number} len
+*/
+const createUint8ArrayFromLen = (len) => new Uint8Array(len);
+/**
+* Create Uint8Array with initial content from buffer
+*
+* @param {ArrayBuffer} buffer
+* @param {number} byteOffset
+* @param {number} length
+*/
+const createUint8ArrayViewFromArrayBuffer = (buffer, byteOffset, length$2) => new Uint8Array(buffer, byteOffset, length$2);
+/**
+* Create Uint8Array with initial content from buffer
+*
+* @param {ArrayBuffer} buffer
+*/
+const createUint8ArrayFromArrayBuffer = (buffer) => new Uint8Array(buffer);
+/* c8 ignore start */
+/**
+* @param {Uint8Array} bytes
+* @return {string}
+*/
+const toBase64Browser = (bytes) => {
+	let s = "";
+	for (let i = 0; i < bytes.byteLength; i++) s += fromCharCode(bytes[i]);
+	return btoa(s);
+};
+/* c8 ignore stop */
+/**
+* @param {Uint8Array} bytes
+* @return {string}
+*/
+const toBase64Node = (bytes) => Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString("base64");
+/* c8 ignore start */
+/**
+* @param {string} s
+* @return {Uint8Array}
+*/
+const fromBase64Browser = (s) => {
+	const a = atob(s);
+	const bytes = createUint8ArrayFromLen(a.length);
+	for (let i = 0; i < a.length; i++) bytes[i] = a.charCodeAt(i);
 	return bytes;
-}
+};
+/* c8 ignore stop */
 /**
-* options: {
-*   awareness?: Awareness
-* }
+* @param {string} s
 */
-var CustomYjsProvider = class {
-	#updateHandler;
-	#awarenessUpdateHandler;
-	#synced;
-	constructor(doc, consumer, channelName, channelParams = {}, options = {}) {
+const fromBase64Node = (s) => {
+	const buf = Buffer.from(s, "base64");
+	return createUint8ArrayViewFromArrayBuffer(buf.buffer, buf.byteOffset, buf.byteLength);
+};
+/* c8 ignore next */
+const toBase64$1 = isBrowser ? toBase64Browser : toBase64Node;
+/* c8 ignore next */
+const fromBase64$1 = isBrowser ? fromBase64Browser : fromBase64Node;
+
+//#endregion
+//#region node_modules/lib0/broadcastchannel.js
+/**
+* Helpers for cross-tab communication using broadcastchannel with LocalStorage fallback.
+*
+* ```js
+* // In browser window A:
+* broadcastchannel.subscribe('my events', data => console.log(data))
+* broadcastchannel.publish('my events', 'Hello world!') // => A: 'Hello world!' fires synchronously in same tab
+*
+* // In browser window B:
+* broadcastchannel.publish('my events', 'hello from tab B') // => A: 'hello from tab B'
+* ```
+*
+* @module broadcastchannel
+*/
+/**
+* @typedef {Object} Channel
+* @property {Set<function(any, any):any>} Channel.subs
+* @property {any} Channel.bc
+*/
+/**
+* @type {Map<string, Channel>}
+*/
+const channels = /* @__PURE__ */ new Map();
+/* c8 ignore start */
+var LocalStoragePolyfill = class {
+	/**
+	* @param {string} room
+	*/
+	constructor(room) {
+		this.room = room;
+		/**
+		* @type {null|function({data:ArrayBuffer}):void}
+		*/
+		this.onmessage = null;
+		/**
+		* @param {any} e
+		*/
+		this._onChange = (e) => e.key === room && this.onmessage !== null && this.onmessage({ data: fromBase64$1(e.newValue || "") });
+		onChange(this._onChange);
+	}
+	/**
+	* @param {ArrayBuffer} buf
+	*/
+	postMessage(buf) {
+		varStorage.setItem(this.room, toBase64$1(createUint8ArrayFromArrayBuffer(buf)));
+	}
+	close() {
+		offChange(this._onChange);
+	}
+};
+/* c8 ignore stop */
+/* c8 ignore next */
+const BC = typeof BroadcastChannel === "undefined" ? LocalStoragePolyfill : BroadcastChannel;
+/**
+* @param {string} room
+* @return {Channel}
+*/
+const getChannel = (room) => setIfUndefined(channels, room, () => {
+	const subs = create$2();
+	const bc = new BC(room);
+	/**
+	* @param {{data:ArrayBuffer}} e
+	*/
+	/* c8 ignore next */
+	bc.onmessage = (e) => subs.forEach((sub) => sub(e.data, "broadcastchannel"));
+	return {
+		bc,
+		subs
+	};
+});
+/**
+* Subscribe to global `publish` events.
+*
+* @function
+* @param {string} room
+* @param {function(any, any):any} f
+*/
+const subscribe = (room, f) => {
+	getChannel(room).subs.add(f);
+	return f;
+};
+/**
+* Unsubscribe from `publish` global events.
+*
+* @function
+* @param {string} room
+* @param {function(any, any):any} f
+*/
+const unsubscribe = (room, f) => {
+	const channel = getChannel(room);
+	const unsubscribed = channel.subs.delete(f);
+	if (unsubscribed && channel.subs.size === 0) {
+		channel.bc.close();
+		channels.delete(room);
+	}
+	return unsubscribed;
+};
+/**
+* Publish data to all subscribers (including subscribers on this tab)
+*
+* @function
+* @param {string} room
+* @param {any} data
+* @param {any} [origin]
+*/
+const publish = (room, data, origin = null) => {
+	const c = getChannel(room);
+	c.bc.postMessage(data);
+	c.subs.forEach((sub) => sub(data, origin));
+};
+
+//#endregion
+//#region src/yrb_lite_provider.js
+const MessageType = {
+	Sync: 0,
+	Awareness: 1,
+	Auth: 2,
+	QueryAwareness: 3
+};
+const toBase64 = (bin) => btoa(Array.from(bin, (b) => String.fromCharCode(b)).join(""));
+const fromBase64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const messageHandlers = {
+	[MessageType.Sync]: (encoder, decoder, provider, emitSynced) => {
+		writeVarUint(encoder, MessageType.Sync);
+		const syncMessageType = readSyncMessage(decoder, encoder, provider.doc, provider);
+		if (emitSynced && syncMessageType === messageYjsSyncStep2 && !provider.synced) provider.synced = true;
+	},
+	[MessageType.QueryAwareness]: (encoder, _decoder, provider) => {
+		writeVarUint(encoder, MessageType.Awareness);
+		writeVarUint8Array(encoder, encodeAwarenessUpdate(provider.awareness, Array.from(provider.awareness.getStates().keys())));
+	},
+	[MessageType.Awareness]: (_encoder, decoder, provider) => {
+		applyAwarenessUpdate(provider.awareness, readVarUint8Array(decoder), provider);
+	},
+	[MessageType.Auth]: (_encoder, decoder, provider) => {
+		readAuthMessage(decoder, provider.doc, (_ydoc, reason) => console.warn(`Permission denied to access ${provider.channelName}.\n${reason}`));
+	}
+};
+var YrbLiteProvider = class {
+	constructor(doc, consumer, channelName, channelParams = {}, { awareness = new Awareness(doc), disableBc = true, reliable = true, resendInterval = 1e3, maxUnconfirmedResends = 8 } = {}) {
 		this.doc = doc;
 		this.consumer = consumer;
 		this.channelName = channelName;
 		this.channelParams = channelParams;
-		this.awareness = options.awareness || null;
+		this.awareness = awareness;
+		this.disableBc = disableBc;
+		this.bcChannelName = `${channelName}_${Object.entries(channelParams).map(([k, v]) => `${k}-${v}`).join("_")}`;
 		this.subscription = null;
-		this.connected = false;
-		this.#synced = false;
-		this.#updateHandler = (update, origin) => {
+		this.bcconnected = false;
+		this._synced = false;
+		this.reliable = reliable;
+		this.resendInterval = resendInterval;
+		this.maxUnconfirmedResends = maxUnconfirmedResends;
+		this.pending = [];
+		this.nextSeq = 1;
+		this.everAcked = false;
+		this._resendsSinceProgress = 0;
+		this._serverConnected = false;
+		this._resendTimer = void 0;
+		this._updateHandler = (update, origin) => {
 			if (origin === this) return;
-			if (this.subscription) {
-				const base64Update = uint8ArrayToBase64(update);
-				this.subscription.send({
-					type: "update",
-					update: base64Update,
-					client_id: this.doc.clientID
+			if (this.reliable) {
+				this.pending.push({
+					seq: this.nextSeq++,
+					update
 				});
-			}
+				this.flushToServer();
+			} else this.send(this._syncUpdateFrame(update));
 		};
-		this.#awarenessUpdateHandler = (change, origin) => {
+		this._awarenessUpdateHandler = ({ added, updated, removed }) => {
+			const changed = added.concat(updated).concat(removed);
+			const encoder = createEncoder();
+			writeVarUint(encoder, MessageType.Awareness);
+			writeVarUint8Array(encoder, encodeAwarenessUpdate(this.awareness, changed));
+			this.send(toUint8Array(encoder), { whisper: true });
+		};
+		this._bcSubscriber = (data, origin) => {
 			if (origin === this) return;
-			const added = change.added || [];
-			const updated = change.updated || [];
-			const removed = change.removed || [];
-			const changedClients = added.concat(updated).concat(removed);
-			if (!this.awareness) return;
-			const awarenessUpdate = encodeAwarenessUpdate(this.awareness, changedClients);
-			if (this.subscription && this.connected) {
-				const awarenessMessage = {
-					type: "awareness",
-					update: uint8ArrayToBase64(awarenessUpdate)
-				};
-				if (this.subscription.whisper) this.subscription.whisper(awarenessMessage);
-				else this.subscription.send(awarenessMessage);
-			}
+			const reply = this._process(new Uint8Array(data), false);
+			if (length$1(reply) > 1) publish(this.bcChannelName, toUint8Array(reply), this);
 		};
+		this.doc.on("update", this._updateHandler);
+		this.awareness.on("update", this._awarenessUpdateHandler);
+	}
+	get synced() {
+		return this._synced;
+	}
+	set synced(state) {
+		if (this._synced !== state) this._synced = state;
 	}
 	connect() {
 		if (this.subscription) return;
+		const provider = this;
+		this._synced = false;
 		this.subscription = this.consumer.subscriptions.create({
 			channel: this.channelName,
 			...this.channelParams
 		}, {
-			connected: () => {
-				this.connected = true;
+			received(message) {
+				if (message && message.ack !== void 0) {
+					provider.onAck(message.ack);
+					return;
+				}
+				const payload = message && (message.m || message.update);
+				if (typeof payload !== "string") return;
+				const reply = provider._process(fromBase64(payload), true);
+				if (length$1(reply) > 1) provider.send(toUint8Array(reply));
 			},
-			disconnected: () => {
-				this.connected = false;
-				this.#synced = false;
+			connected() {
+				provider._serverConnected = true;
+				const sync = createEncoder();
+				writeVarUint(sync, MessageType.Sync);
+				writeSyncStep1(sync, provider.doc);
+				provider.send(toUint8Array(sync));
+				if (provider.awareness.getLocalState() !== null) {
+					const aw = createEncoder();
+					writeVarUint(aw, MessageType.Awareness);
+					writeVarUint8Array(aw, encodeAwarenessUpdate(provider.awareness, [provider.doc.clientID]));
+					provider.send(toUint8Array(aw));
+				}
+				provider.flushToServer();
+				provider.startResendTimer();
 			},
-			received: (data) => {
-				this.#handleMessage(data);
+			disconnected() {
+				provider._serverConnected = false;
+				provider._synced = false;
+				provider.stopResendTimer();
+				removeAwarenessStates(provider.awareness, Array.from(provider.awareness.getStates().keys()).filter((c) => c !== provider.doc.clientID), provider);
 			}
 		});
-		this.doc.on("update", this.#updateHandler);
-		if (this.awareness) this.awareness.on("update", this.#awarenessUpdateHandler);
+		this._connectBc();
 	}
 	disconnect() {
 		if (!this.subscription) return;
-		this.doc.off("update", this.#updateHandler);
-		if (this.awareness) this.awareness.off("update", this.#awarenessUpdateHandler);
+		this.stopResendTimer();
+		this._serverConnected = false;
+		this._disconnectBc();
 		this.consumer.subscriptions.remove(this.subscription);
 		this.subscription = null;
-		this.connected = false;
-		this.#synced = false;
+		this._synced = false;
 	}
 	destroy() {
 		this.disconnect();
+		this.doc.off("update", this._updateHandler);
+		this.awareness.off("update", this._awarenessUpdateHandler);
 	}
-	get synced() {
-		return this.#synced;
+	flushToServer() {
+		if (this.pending.length === 0) return;
+		const merged = Y.mergeUpdates(this.pending.map((p) => p.update));
+		const id = this.pending[this.pending.length - 1].seq;
+		this.send(this._syncUpdateFrame(merged), { id });
 	}
-	#handleMessage(data) {
-		switch (data.type) {
-			case "sync":
-				this.#handleSync(data.updates);
-				break;
-			case "update":
-				this.#handleUpdate(data.update);
-				break;
-			case "awareness":
-				this.#handleAwareness(data.update);
-				break;
-			default: console.warn("CustomYjsProvider: Unknown message type", data.type);
+	onAck(id) {
+		this.everAcked = true;
+		this._resendsSinceProgress = 0;
+		this.pending = this.pending.filter((p) => p.seq > id);
+	}
+	onResendTick() {
+		if (!this._serverConnected || this.pending.length === 0) return;
+		if (!this.everAcked && ++this._resendsSinceProgress > this.maxUnconfirmedResends) {
+			console.warn(`[yrb-lite] no acks from ${this.channelName} after ${this.maxUnconfirmedResends} resends; server does not support reliable delivery. Falling back to fire-and-forget.`);
+			this.reliable = false;
+			this.pending = [];
+			this.stopResendTimer();
+			return;
 		}
+		this.flushToServer();
 	}
-	#handleSync(updates) {
-		updates.forEach((base64Update, index) => {
-			const update = base64ToUint8Array(base64Update);
-			Y.applyUpdate(this.doc, update, this);
-		});
-		this.#synced = true;
+	startResendTimer() {
+		if (this._resendTimer || !this.reliable) return;
+		this._resendTimer = setInterval(() => this.onResendTick(), this.resendInterval);
+		if (this._resendTimer && typeof this._resendTimer.unref === "function") this._resendTimer.unref();
 	}
-	#handleUpdate(base64Update) {
-		const update = base64ToUint8Array(base64Update);
-		Y.applyUpdate(this.doc, update, this);
+	stopResendTimer() {
+		if (this._resendTimer) clearInterval(this._resendTimer);
+		this._resendTimer = void 0;
 	}
-	#handleAwareness(base64Update) {
-		if (!this.awareness) return;
-		const update = base64ToUint8Array(base64Update);
-		applyAwarenessUpdate(this.awareness, update, this);
+	_syncUpdateFrame(update) {
+		const encoder = createEncoder();
+		writeVarUint(encoder, MessageType.Sync);
+		writeUpdate(encoder, update);
+		return toUint8Array(encoder);
+	}
+	send(frame, { whisper = false, id = void 0 } = {}) {
+		if (!this.subscription) {
+			if (this.bcconnected) publish(this.bcChannelName, frame, this);
+			return;
+		}
+		const update = toBase64(frame);
+		const payload = id === void 0 ? { update } : {
+			update,
+			id
+		};
+		if (whisper && typeof this.subscription.whisper === "function") this.subscription.whisper(payload);
+		else this.subscription.send(payload);
+		if (this.bcconnected) publish(this.bcChannelName, frame, this);
+	}
+	_process(frame, emitSynced) {
+		const decoder = createDecoder(frame);
+		const encoder = createEncoder();
+		const messageType = readVarUint(decoder);
+		const handler = messageHandlers[messageType];
+		if (handler) handler(encoder, decoder, this, emitSynced, messageType);
+		else console.error("[yrb-lite] unable to handle message type", messageType);
+		return encoder;
+	}
+	_connectBc() {
+		if (this.disableBc) return;
+		if (!this.bcconnected) {
+			subscribe(this.bcChannelName, this._bcSubscriber);
+			this.bcconnected = true;
+		}
+		const step1 = createEncoder();
+		writeVarUint(step1, MessageType.Sync);
+		writeSyncStep1(step1, this.doc);
+		publish(this.bcChannelName, toUint8Array(step1), this);
+		const step2 = createEncoder();
+		writeVarUint(step2, MessageType.Sync);
+		writeSyncStep2(step2, this.doc);
+		publish(this.bcChannelName, toUint8Array(step2), this);
+		const query = createEncoder();
+		writeVarUint(query, MessageType.QueryAwareness);
+		publish(this.bcChannelName, toUint8Array(query), this);
+		const state = createEncoder();
+		writeVarUint(state, MessageType.Awareness);
+		writeVarUint8Array(state, encodeAwarenessUpdate(this.awareness, [this.doc.clientID]));
+		publish(this.bcChannelName, toUint8Array(state), this);
+	}
+	_disconnectBc() {
+		const encoder = createEncoder();
+		writeVarUint(encoder, MessageType.Awareness);
+		writeVarUint8Array(encoder, encodeAwarenessUpdate(this.awareness, [this.doc.clientID], /* @__PURE__ */ new Map()));
+		this.send(toUint8Array(encoder));
+		if (this.bcconnected) {
+			unsubscribe(this.bcChannelName, this._bcSubscriber);
+			this.bcconnected = false;
+		}
 	}
 };
 
@@ -1687,14 +2278,8 @@ var Collaboration = class extends HTMLElement {
 	connectedCallback() {
 		this.editorElement = this.closest("lexxy-editor");
 		this.editor = this.editorElement.editor;
-		if (this.editor && this.editor.isReady && this.editor.isReady()) {
-			console.log("Editor already initialized, starting collaboration");
-			this.#init();
-		} else if (this.editor) {
-			console.log("Editor exists, starting collaboration");
-			this.#init();
-		} else this.editorElement.addEventListener(`lexxy:initialize`, (...args) => {
-			console.log("Editor initialized event, starting collaboration", args);
+		if (this.editor) this.#init();
+		else this.editorElement.addEventListener("lexxy:initialize", () => {
 			this.editor = this.editorElement.editor;
 			this.#init();
 		}, { once: true });
@@ -1712,19 +2297,17 @@ var Collaboration = class extends HTMLElement {
 		const channelName = this.getAttribute("channel-name") || "SyncChannel";
 		const rawParams = this.getAttribute("channel-params") || "{}";
 		const channelParams = typeof rawParams === "string" ? JSON.parse(rawParams) : rawParams;
-		this.hasAttribute("disable-bc") && this.getAttribute("disable-bc");
+		const disableBc = this.hasAttribute("disable-bc") ? this.getAttribute("disable-bc") !== "false" : true;
 		const doc = this.doc || new Doc();
 		const awareness = this.awareness || new Awareness(doc);
-		const provider = this.provider || new CustomYjsProvider(doc, this.consumer, channelName, channelParams, { awareness });
+		const provider = this.provider || new YrbLiteProvider(doc, this.consumer, channelName, channelParams, {
+			awareness,
+			disableBc
+		});
 		const docMap = /* @__PURE__ */ new Map();
 		docMap.set(id, doc);
 		const binding = createBinding(this.editor, provider, id, doc, docMap);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
-		awareness.setLocalStateField("user", {
-			name,
-			color
-		});
-		awareness.setLocalStateField("lastSeen", Date.now());
 		initLocalState(provider, name, color, true, {
 			name,
 			color
@@ -1764,7 +2347,150 @@ function registerCollaborationListeners(editor, provider, binding) {
 }
 
 //#endregion
-//#region src/index.js
-customElements.define("lexxy-collaboration", Collaboration);
+//#region src/custom_yjs_provider.js
+/**
+* Custom Yjs ActionCable Provider
+*
+* Implements a simple "dumb passthrough" protocol where the backend
+* stores and forwards base64-encoded Yjs updates without understanding them.
+*
+* Protocol:
+* - Client -> Server:
+*   - { type: "update", update: base64, client_id: number }
+*   - { type: "awareness", update: base64 }
+*
+* - Server -> Client:
+*   - { type: "sync", updates: [base64, ...] } (on subscribe)
+*   - { type: "update", update: base64 }
+*   - { type: "awareness", update: base64 }
+*/
+function uint8ArrayToBase64(uint8Array) {
+	const binaryString = Array.from(uint8Array).map((byte) => String.fromCharCode(byte)).join("");
+	return btoa(binaryString);
+}
+function base64ToUint8Array(base64) {
+	const binaryString = atob(base64);
+	const bytes = new Uint8Array(binaryString.length);
+	for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+	return bytes;
+}
+/**
+* options: {
+*   awareness?: Awareness
+* }
+*/
+var CustomYjsProvider = class {
+	#updateHandler;
+	#awarenessUpdateHandler;
+	#synced;
+	constructor(doc, consumer, channelName, channelParams = {}, options = {}) {
+		this.doc = doc;
+		this.consumer = consumer;
+		this.channelName = channelName;
+		this.channelParams = channelParams;
+		this.awareness = options.awareness || null;
+		this.subscription = null;
+		this.connected = false;
+		this.#synced = false;
+		this.#updateHandler = (update, origin) => {
+			if (origin === this) return;
+			if (this.subscription) {
+				const base64Update = uint8ArrayToBase64(update);
+				this.subscription.send({
+					type: "update",
+					update: base64Update,
+					client_id: this.doc.clientID
+				});
+			}
+		};
+		this.#awarenessUpdateHandler = (change, origin) => {
+			if (origin === this) return;
+			const added = change.added || [];
+			const updated = change.updated || [];
+			const removed = change.removed || [];
+			const changedClients = added.concat(updated).concat(removed);
+			if (!this.awareness) return;
+			const awarenessUpdate = encodeAwarenessUpdate(this.awareness, changedClients);
+			if (this.subscription && this.connected) {
+				const awarenessMessage = {
+					type: "awareness",
+					update: uint8ArrayToBase64(awarenessUpdate)
+				};
+				if (this.subscription.whisper) this.subscription.whisper(awarenessMessage);
+				else this.subscription.send(awarenessMessage);
+			}
+		};
+	}
+	connect() {
+		if (this.subscription) return;
+		this.subscription = this.consumer.subscriptions.create({
+			channel: this.channelName,
+			...this.channelParams
+		}, {
+			connected: () => {
+				this.connected = true;
+			},
+			disconnected: () => {
+				this.connected = false;
+				this.#synced = false;
+			},
+			received: (data) => {
+				this.#handleMessage(data);
+			}
+		});
+		this.doc.on("update", this.#updateHandler);
+		if (this.awareness) this.awareness.on("update", this.#awarenessUpdateHandler);
+	}
+	disconnect() {
+		if (!this.subscription) return;
+		this.doc.off("update", this.#updateHandler);
+		if (this.awareness) this.awareness.off("update", this.#awarenessUpdateHandler);
+		this.consumer.subscriptions.remove(this.subscription);
+		this.subscription = null;
+		this.connected = false;
+		this.#synced = false;
+	}
+	destroy() {
+		this.disconnect();
+	}
+	get synced() {
+		return this.#synced;
+	}
+	#handleMessage(data) {
+		switch (data.type) {
+			case "sync":
+				this.#handleSync(data.updates);
+				break;
+			case "update":
+				this.#handleUpdate(data.update);
+				break;
+			case "awareness":
+				this.#handleAwareness(data.update);
+				break;
+			default: console.warn("CustomYjsProvider: Unknown message type", data.type);
+		}
+	}
+	#handleSync(updates) {
+		updates.forEach((base64Update, index) => {
+			const update = base64ToUint8Array(base64Update);
+			Y.applyUpdate(this.doc, update, this);
+		});
+		this.#synced = true;
+	}
+	#handleUpdate(base64Update) {
+		const update = base64ToUint8Array(base64Update);
+		Y.applyUpdate(this.doc, update, this);
+	}
+	#handleAwareness(base64Update) {
+		if (!this.awareness) return;
+		const update = base64ToUint8Array(base64Update);
+		applyAwarenessUpdate(this.awareness, update, this);
+	}
+};
 
 //#endregion
+//#region src/index.js
+if (!customElements.get("lexxy-collaboration")) customElements.define("lexxy-collaboration", Collaboration);
+
+//#endregion
+export { Collaboration, CustomYjsProvider, YrbLiteProvider };

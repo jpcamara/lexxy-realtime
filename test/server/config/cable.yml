@@ -1,0 +1,6 @@
+# Async adapter: in-process pub/sub. Fine for a single-process test server where
+# every client connects to the same Puma instance.
+development:
+  adapter: async
+production:
+  adapter: async
