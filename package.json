@@ -15,7 +15,7 @@
   "type": "module",
   "main": "dist/lexxy-realtime.js",
   "scripts": {
-    "postinstall": "patch-package",
+    "postinstall": "patch-package || true",
     "build": "rolldown -c",
     "build:watch": "rolldown --watch -c",
     "build:test": "rolldown -c test/browser/rolldown.config.mjs",
