@@ -24,9 +24,10 @@
     "test:browser": "node test/run.mjs --browser"
   },
   "dependencies": {
-    "@37signals/lexxy": "0.1.20-beta",
+    "@37signals/lexxy": "0.9.18",
     "@anycable/web": "*",
-    "@lexical/yjs": "*",
+    "@lexical/yjs": "^0.44.0",
+    "lexical": "^0.44.0",
     "y-protocols": "*"
   },
   "devDependencies": {

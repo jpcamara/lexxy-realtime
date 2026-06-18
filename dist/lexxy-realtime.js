@@ -1,7 +1,7 @@
 import { createBinding, initLocalState, syncLexicalUpdateToYjs, syncYjsChangesToLexical } from "@lexical/yjs";
+import { $createParagraphNode, $getNodeByKey, $getRoot, $getSelection, $isRangeSelection, HISTORY_MERGE_TAG } from "lexical";
 import * as Y from "yjs";
 import { Doc } from "yjs";
-import { $getNodeByKey, $getSelection, $isRangeSelection } from "lexical";
 
 //#region node_modules/lib0/math.js
 /**
@@ -2306,8 +2306,15 @@ var Collaboration = class extends HTMLElement {
 		});
 		const docMap = /* @__PURE__ */ new Map();
 		docMap.set(id, doc);
+		this.editor.update(() => {
+			$getRoot().clear();
+		}, {
+			tag: HISTORY_MERGE_TAG,
+			discrete: true
+		});
 		const binding = createBinding(this.editor, provider, id, doc, docMap);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
+		bootstrapWhenSynced(this.editor, provider, binding);
 		initLocalState(provider, name, color, true, {
 			name,
 			color
@@ -2325,6 +2332,21 @@ var Collaboration = class extends HTMLElement {
 		this.unsubscribeListeners = unsubscribeListeners;
 	}
 };
+function bootstrapWhenSynced(editor, provider, binding) {
+	let done = false;
+	const seed = () => {
+		if (done || !provider.synced) return;
+		done = true;
+		clearInterval(timer);
+		if (binding.root.getSharedType().length === 0) editor.update(() => {
+			const root = $getRoot();
+			root.clear();
+			root.append($createParagraphNode());
+		}, { tag: HISTORY_MERGE_TAG });
+	};
+	const timer = setInterval(seed, 50);
+	if (typeof timer?.unref === "function") timer.unref();
+}
 function registerCollaborationListeners(editor, provider, binding) {
 	let skipInitialUpdate = false;
 	const unsubscribeUpdateListener = editor.registerUpdateListener(({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
