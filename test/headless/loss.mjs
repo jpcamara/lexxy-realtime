@@ -33,7 +33,7 @@ for (let i = 0; i < N; i++) {
 // Heal the network; the reliable layer drains whatever is still outstanding.
 a.consumer.state.loss = 0;
 a.consumer.state.ackLoss = 0;
-await waitFor("A's queue drains (all edits acked)", () => a.provider.pending.length === 0, 20000);
+await waitFor("A's queue drains (all edits acked)", () => !a.provider.hasPending, 20000);
 
 const markers = Array.from({ length: N }, (_, i) => `[${i}]`);
 await waitFor("B receives the last edit", () => b.text().includes(`[${N - 1}]`), 20000);

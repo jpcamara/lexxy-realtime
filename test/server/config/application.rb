@@ -6,6 +6,7 @@ require "action_controller/railtie"
 require "action_cable/engine"
 
 require "yrb_lite"
+require "yrb_lite/action_cable" # YrbLite::ActionCable::Sync (companion gem)
 require_relative "../lib/file_store"
 
 module TestServer

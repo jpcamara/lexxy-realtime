@@ -55,6 +55,17 @@ ab("alice", "click", "#editor [contenteditable]");
 ab("alice", "keyboard", "type", "ALICE-EDIT");
 check("Bob received Alice's edit", await waitEval("bob", 'window.__test.text().includes("ALICE-EDIT")', "bob sees ALICE-EDIT"));
 
+// Alice has focus + a caret, so Bob should render her remote cursor (a labeled
+// caret in the @lexical/yjs cursors overlay).
+check(
+  "Bob renders Alice's remote caret",
+  await waitEval(
+    "bob",
+    '(() => { const c = document.querySelector(".lexxy-collab-cursors"); return !!c && c.childElementCount > 0 && /Alice/.test(c.textContent); })()',
+    "bob shows Alice's caret"
+  )
+);
+
 // Bob edits; Alice sees it.
 ab("bob", "click", "#editor [contenteditable]");
 ab("bob", "keyboard", "type", "BOB-EDIT");

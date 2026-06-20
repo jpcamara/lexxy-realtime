@@ -6,5 +6,7 @@ gem "puma"
 
 # The library under test. Path-pinned to the local checkout so tests exercise
 # the latest yrb-lite (reliable delivery + causal-gap protection), not a
-# published version.
+# published version. The ActionCable concern (YrbLite::ActionCable::Sync) lives
+# in the companion yrb-lite-actioncable gem (same repo).
 gem "yrb-lite", path: "../../../yrb-lite"
+gem "yrb-lite-actioncable", path: "../../../yrb-lite"

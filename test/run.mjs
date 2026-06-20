@@ -85,6 +85,9 @@ try {
     console.log("\n=== browser editor e2e (agent-browser) ===");
     if (run("node", [join(here, "browser", "e2e.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
+    console.log("\n=== browser cursor edge cases (agent-browser) ===");
+    if (run("node", [join(here, "browser", "cursors.mjs")]).status !== 0) exitCode = 1;
+    spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
   }
 } finally {
   shutdown();

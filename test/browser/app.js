@@ -51,7 +51,24 @@ function start() {
     },
     synced: () => provider.synced,
     peers: () =>
-      [...awareness.getStates().values()].map((s) => s.user && s.user.name).filter(Boolean),
+      // @lexical/yjs stores presence identity at the top level (s.name), not s.user.
+      [...awareness.getStates().values()].map((s) => s.name).filter(Boolean),
+    // Inspect the remote-cursor overlay @lexical/yjs renders: the names of peers
+    // with a visible caret, and the widest selection rect (a caret is ~0px wide;
+    // a real range selection is wider).
+    cursors: () => {
+      const c = document.querySelector(".lexxy-collab-cursors");
+      if (!c) return { names: [], maxRectWidth: 0 };
+      const names = [
+        ...new Set(
+          [...c.querySelectorAll("span")]
+            .filter((s) => s.childElementCount === 0 && s.textContent.trim())
+            .map((s) => s.textContent.trim())
+        ),
+      ];
+      const maxRectWidth = Math.max(0, ...[...c.children].map((el) => el.getBoundingClientRect().width));
+      return { names, maxRectWidth };
+    },
   };
   document.body.dataset.collabReady = "true";
 }
