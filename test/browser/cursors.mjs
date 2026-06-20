@@ -82,7 +82,13 @@ ab("bob", "keyboard", "type", "BBBB");
 await sleep(500);
 check("Alice's caret still present after Bob's concurrent edit", evalBool("bob", overlayHas("Alice")));
 
-// 4) Disconnect removes the peer's caret, leaving the others intact.
+// 4) Blur hides a peer's caret (focusing=false); refocus restores it.
+ab("alice", "eval", "document.querySelector('#editor [contenteditable]').blur()");
+check("Alice's caret hides on Bob when Alice blurs", await waitBool("bob", `!(${overlayHas("Alice")})`, "alice blurred"));
+ab("alice", "click", "#editor [contenteditable]");
+check("Alice's caret returns on Bob when Alice refocuses", await waitBool("bob", overlayHas("Alice"), "alice refocused"));
+
+// 5) Disconnect removes the peer's caret, leaving the others intact.
 ab("alice", "close");
 check("Alice's caret is removed after she disconnects", await waitBool("bob", `!(${overlayHas("Alice")})`, "alice removed"));
 check("Carol's caret still present after Alice left", evalBool("bob", overlayHas("Carol")));
