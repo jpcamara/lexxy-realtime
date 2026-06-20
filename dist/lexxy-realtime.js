@@ -1333,6 +1333,7 @@ var ActionCableProvider = class {
 		this.channelName = channelName;
 		this.channelParams = channelParams;
 		this.awareness = opts.awareness ?? new Awareness(doc);
+		this.awarenessWhisper = opts.awarenessWhisper ?? false;
 		this.engine = new SyncEngine(doc, {
 			awareness: this.awareness,
 			reliable: opts.reliable,
@@ -1393,7 +1394,7 @@ var ActionCableProvider = class {
 			update,
 			id
 		};
-		if ((opts?.awareness ?? frame[0] === MessageType.Awareness) && typeof sub.whisper === "function") sub.whisper(payload);
+		if ((opts?.awareness ?? frame[0] === MessageType.Awareness) && this.awarenessWhisper && typeof sub.whisper === "function") sub.whisper(payload);
 		else sub.send(payload);
 	}
 };
