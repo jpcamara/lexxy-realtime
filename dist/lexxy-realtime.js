@@ -949,7 +949,7 @@ const applyAwarenessUpdate = (awareness, update, origin) => {
 };
 
 //#endregion
-//#region node_modules/yrb-lite-reliable/dist/reliable_sync.js
+//#region node_modules/yrb-lite-client/dist/reliable_sync.js
 const DEFAULTS = {
 	resendInterval: 1e3,
 	maxUnconfirmedResends: 8
@@ -1195,7 +1195,7 @@ const readAuthMessage = (decoder, y, permissionDeniedHandler) => {
 };
 
 //#endregion
-//#region node_modules/yrb-lite-reliable/dist/sync_engine.js
+//#region node_modules/yrb-lite-client/dist/sync_engine.js
 const MessageType = {
 	Sync: 0,
 	Awareness: 1,
@@ -1319,12 +1319,12 @@ var SyncEngine = class {
 };
 
 //#endregion
-//#region node_modules/yrb-lite-reliable/dist/base64.js
+//#region node_modules/yrb-lite-client/dist/base64.js
 const toBase64 = (bytes) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
 const fromBase64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
 
 //#endregion
-//#region node_modules/yrb-lite-reliable/dist/actioncable_provider.js
+//#region node_modules/yrb-lite-client/dist/actioncable_provider.js
 var ActionCableProvider = class {
 	constructor(doc, consumer, channelName, channelParams = {}, opts = {}) {
 		this.subscription = null;
