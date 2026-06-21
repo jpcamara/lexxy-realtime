@@ -1195,19 +1195,19 @@ const readAuthMessage = (decoder, y, permissionDeniedHandler) => {
 };
 
 //#endregion
-//#region node_modules/yrb-lite-client/dist/sync_engine.js
+//#region node_modules/yrb-lite-client/dist/y_protocol_session.js
 const MessageType = {
 	Sync: 0,
 	Awareness: 1,
 	Auth: 2,
 	QueryAwareness: 3
 };
-var SyncEngine = class {
+var YProtocolSession = class {
 	constructor(doc, opts) {
 		this._synced = false;
 		const { send, awareness = null, reliable = true, resendInterval, maxUnconfirmedResends, onFallback, setInterval: setIntervalFn, clearInterval: clearIntervalFn } = opts ?? {};
-		if (!doc) throw new TypeError("SyncEngine requires a Y.Doc");
-		if (typeof send !== "function") throw new TypeError("SyncEngine requires a send(frame, id) function");
+		if (!doc) throw new TypeError("YProtocolSession requires a Y.Doc");
+		if (typeof send !== "function") throw new TypeError("YProtocolSession requires a send(frame, id) function");
 		this.doc = doc;
 		this.awareness = awareness;
 		this.reliable = reliable;
@@ -1333,7 +1333,7 @@ var ActionCableProvider = class {
 		this.channelName = channelName;
 		this.channelParams = channelParams;
 		this.awareness = opts.awareness ?? new Awareness(doc);
-		this.engine = new SyncEngine(doc, {
+		this.session = new YProtocolSession(doc, {
 			awareness: this.awareness,
 			reliable: opts.reliable,
 			resendInterval: opts.resendInterval,
@@ -1344,11 +1344,11 @@ var ActionCableProvider = class {
 	}
 	/** True once the document has caught up with the server (received a SyncStep2). */
 	get synced() {
-		return this.engine.synced;
+		return this.session.synced;
 	}
 	/** True while there are unacknowledged local document updates in flight. */
 	get hasPending() {
-		return this.engine.hasPending;
+		return this.session.hasPending;
 	}
 	connect() {
 		if (this.subscription) return;
@@ -1359,31 +1359,31 @@ var ActionCableProvider = class {
 		}, {
 			received(message) {
 				if (message && message.ack !== void 0) {
-					provider.engine.ack(message.ack);
+					provider.session.ack(message.ack);
 					return;
 				}
 				const payload = message && (message.m ?? message.update);
 				if (typeof payload !== "string") return;
-				const reply = provider.engine.receive(fromBase64(payload));
+				const reply = provider.session.receive(fromBase64(payload));
 				if (reply) provider._send(reply, void 0);
 			},
 			connected() {
-				provider.engine.onConnect();
+				provider.session.onConnect();
 			},
 			disconnected() {
-				provider.engine.onDisconnect();
+				provider.session.onDisconnect();
 			}
 		});
 	}
 	disconnect() {
 		if (!this.subscription) return;
-		this.engine.onDisconnect();
+		this.session.onDisconnect();
 		this.consumer.subscriptions.remove(this.subscription);
 		this.subscription = null;
 	}
 	destroy() {
 		this.disconnect();
-		this.engine.destroy();
+		this.session.destroy();
 	}
 	_send(frame, id, opts) {
 		const sub = this.subscription;
