@@ -123,7 +123,7 @@ const fromCodePoint = String.fromCodePoint;
 const MAX_UTF16_CHARACTER = fromCharCode(65535);
 /**
 * @param {string} str
-* @return {Uint8Array}
+* @return {Uint8Array<ArrayBuffer>}
 */
 const _encodeUtf8Polyfill = (str) => {
 	const encodedString = unescape(encodeURIComponent(str));
@@ -136,7 +136,7 @@ const _encodeUtf8Polyfill = (str) => {
 const utf8TextEncoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
 /**
 * @param {string} str
-* @return {Uint8Array}
+* @return {Uint8Array<ArrayBuffer>}
 */
 const _encodeUtf8Native = (str) => utf8TextEncoder.encode(str);
 /**
@@ -209,7 +209,7 @@ const createEncoder = () => new Encoder();
 * @param {Encoder} encoder
 * @return {number}
 */
-const length$1 = (encoder) => {
+const length = (encoder) => {
 	let len = encoder.cpos;
 	for (let i = 0; i < encoder.bufs.length; i++) len += encoder.bufs[i].length;
 	return len;
@@ -219,10 +219,10 @@ const length$1 = (encoder) => {
 *
 * @function
 * @param {Encoder} encoder
-* @return {Uint8Array} The created ArrayBuffer.
+* @return {Uint8Array<ArrayBuffer>} The created ArrayBuffer.
 */
 const toUint8Array = (encoder) => {
-	const uint8arr = new Uint8Array(length$1(encoder));
+	const uint8arr = new Uint8Array(length(encoder));
 	let curPos = 0;
 	for (let i = 0; i < encoder.bufs.length; i++) {
 		const d = encoder.bufs[i];
@@ -384,16 +384,17 @@ const errorUnexpectedEndOfArray = create$1("Unexpected end of array");
 const errorIntegerOutOfRange = create$1("Integer out of Range");
 /**
 * A Decoder handles the decoding of an Uint8Array.
+* @template {ArrayBufferLike} [Buf=ArrayBufferLike]
 */
 var Decoder = class {
 	/**
-	* @param {Uint8Array} uint8Array Binary data to decode
+	* @param {Uint8Array<Buf>} uint8Array Binary data to decode
 	*/
 	constructor(uint8Array) {
 		/**
 		* Decoding target.
 		*
-		* @type {Uint8Array}
+		* @type {Uint8Array<Buf>}
 		*/
 		this.arr = uint8Array;
 		/**
@@ -406,10 +407,17 @@ var Decoder = class {
 };
 /**
 * @function
-* @param {Uint8Array} uint8Array
-* @return {Decoder}
+* @template {ArrayBufferLike} Buf
+* @param {Uint8Array<Buf>} uint8Array
+* @return {Decoder<Buf>}
 */
 const createDecoder = (uint8Array) => new Decoder(uint8Array);
+/**
+* @function
+* @param {Decoder} decoder
+* @return {boolean}
+*/
+const hasContent = (decoder) => decoder.pos !== decoder.arr.length;
 /**
 * Create an Uint8Array view of the next `len` bytes and advance the position by `len`.
 *
@@ -417,9 +425,10 @@ const createDecoder = (uint8Array) => new Decoder(uint8Array);
 *            Use `buffer.copyUint8Array` to copy the result into a new Uint8Array.
 *
 * @function
-* @param {Decoder} decoder The decoder instance
+* @template {ArrayBufferLike} Buf
+* @param {Decoder<Buf>} decoder The decoder instance
 * @param {number} len The length of bytes to read
-* @return {Uint8Array}
+* @return {Uint8Array<Buf>}
 */
 const readUint8Array = (decoder, len) => {
 	const view = new Uint8Array(decoder.arr.buffer, decoder.pos + decoder.arr.byteOffset, len);
@@ -433,8 +442,9 @@ const readUint8Array = (decoder, len) => {
 *            Use `buffer.copyUint8Array` to copy the result into a new Uint8Array.
 *
 * @function
-* @param {Decoder} decoder
-* @return {Uint8Array}
+* @template {ArrayBufferLike} Buf
+* @param {Decoder<Buf>} decoder
+* @return {Uint8Array<Buf>}
 */
 const readVarUint8Array = (decoder) => readUint8Array(decoder, readVarUint(decoder));
 /**
@@ -532,6 +542,11 @@ const getUnixTime = Date.now;
 * Utility module to work with key-value stores.
 *
 * @module map
+*/
+/**
+* @template K
+* @template V
+* @typedef {Map<K,V>} GlobalMap
 */
 /**
 * Creates a new Map instance.
@@ -637,17 +652,20 @@ var Observable = class {
 /* c8 ignore end */
 
 //#endregion
+//#region node_modules/lib0/trait/equality.js
+const EqualityTraitSymbol = Symbol("Equality");
+
+//#endregion
 //#region node_modules/lib0/object.js
 /**
 * @param {Object<string,any>} obj
 */
 const keys = Object.keys;
 /**
-* @deprecated use object.size instead
 * @param {Object<string,any>} obj
 * @return {number}
 */
-const length = (obj) => keys(obj).length;
+const size = (obj) => keys(obj).length;
 /**
 * Calls `Object.prototype.hasOwnProperty`.
 *
@@ -656,13 +674,6 @@ const length = (obj) => keys(obj).length;
 * @return {boolean}
 */
 const hasProperty = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-
-//#endregion
-//#region node_modules/lib0/traits.js
-const EqualityTraitSymbol = Symbol("Equality");
-/**
-* @typedef {{ [EqualityTraitSymbol]:(other:EqualityTrait)=>boolean }} EqualityTrait
-*/
 
 //#endregion
 //#region node_modules/lib0/function.js
@@ -679,7 +690,7 @@ const EqualityTraitSymbol = Symbol("Equality");
 */
 const equalityDeep = (a, b) => {
 	if (a === b) return true;
-	if (a == null || b == null || a.constructor !== b.constructor) return false;
+	if (a == null || b == null || a.constructor !== b.constructor && (a.constructor || Object) !== (b.constructor || Object)) return false;
 	if (a[EqualityTraitSymbol] != null) return a[EqualityTraitSymbol](b);
 	switch (a.constructor) {
 		case ArrayBuffer:
@@ -697,8 +708,9 @@ const equalityDeep = (a, b) => {
 			if (a.size !== b.size) return false;
 			for (const key of a.keys()) if (!b.has(key) || !equalityDeep(a.get(key), b.get(key))) return false;
 			break;
+		case void 0:
 		case Object:
-			if (length(a) !== length(b)) return false;
+			if (size(a) !== size(b)) return false;
 			for (const key in a) if (!hasProperty(a, key) || !equalityDeep(a[key], b[key])) return false;
 			break;
 		case Array:
@@ -950,29 +962,21 @@ const applyAwarenessUpdate = (awareness, update, origin) => {
 
 //#endregion
 //#region node_modules/yrb-lite-client/dist/reliable_sync.js
-const DEFAULTS = {
-	resendInterval: 1e3,
-	maxUnconfirmedResends: 8
-};
+const DEFAULTS = { resendInterval: 1e3 };
 var ReliableSync = class {
 	constructor(opts) {
-		/** False after the no-ack fallback trips; updates then go fire-and-forget. */
-		this.reliable = true;
 		/** Unacked local updates, in order. */
 		this.pending = [];
 		this.nextSeq = 1;
-		this.everAcked = false;
-		this._resendsSinceProgress = 0;
 		this._connected = false;
 		this._timer = void 0;
-		const { send, merge, resendInterval, maxUnconfirmedResends, onFallback } = opts ?? {};
+		this._tailCache = void 0;
+		const { send, merge, resendInterval } = opts ?? {};
 		if (typeof send !== "function") throw new TypeError("ReliableSync requires a send(update, id) function");
 		if (typeof merge !== "function") throw new TypeError("ReliableSync requires a merge(updates) function");
 		this._send = send;
 		this._merge = merge;
 		this.resendInterval = resendInterval ?? DEFAULTS.resendInterval;
-		this.maxUnconfirmedResends = maxUnconfirmedResends ?? DEFAULTS.maxUnconfirmedResends;
-		this._onFallback = onFallback;
 		this._setInterval = opts.setInterval ?? ((fn, ms) => setInterval(fn, ms));
 		this._clearInterval = opts.clearInterval ?? ((h) => clearInterval(h));
 	}
@@ -981,18 +985,15 @@ var ReliableSync = class {
 		return this.pending.length > 0;
 	}
 	/**
-	* Record a local document update. While reliable, it's queued and the unacked
-	* tail is flushed; once we've fallen back, it's sent fire-and-forget.
+	* Record a local document update. It is queued and the unacked tail is
+	* flushed; the update remains retained until the server acknowledges it.
 	*/
 	enqueue(update) {
-		if (!this.reliable) {
-			this._send(update, void 0);
-			return;
-		}
 		this.pending.push({
 			seq: this.nextSeq++,
 			update
 		});
+		this._tailCache = void 0;
 		this.flush();
 	}
 	/**
@@ -1002,16 +1003,19 @@ var ReliableSync = class {
 	*/
 	flush() {
 		if (!this._connected || this.pending.length === 0) return;
-		const updates = this.pending.map((p) => p.update);
-		const merged = updates.length === 1 ? updates[0] : this._merge(updates);
-		const id = this.pending[this.pending.length - 1].seq;
-		this._send(merged, id);
+		this._send(this._mergedTail(), this.pending[this.pending.length - 1].seq);
 	}
-	/** Confirm delivery up to `id`: prune every queued update with seq <= id. */
+	/**
+	* Confirm delivery up to `id`: prune every queued update with seq <= id.
+	* Acks arrive over the wire, so validate before pruning -- a malformed value
+	* (NaN/string/negative) or an impossible future id must not silently drop the
+	* queue. Invalid acks are ignored.
+	*/
 	onAck(id) {
-		this.everAcked = true;
-		this._resendsSinceProgress = 0;
+		if (!Number.isSafeInteger(id) || id < 0) return;
+		if (this.pending.length > 0 && id > this.pending[this.pending.length - 1].seq) return;
 		this.pending = this.pending.filter((p) => p.seq > id);
+		this._tailCache = void 0;
 	}
 	/** Transport (re)connected: replay the unacked tail and resume retransmits. */
 	onConnect() {
@@ -1026,28 +1030,28 @@ var ReliableSync = class {
 	}
 	/**
 	* One retransmit tick. Exposed for deterministic testing; normally driven by
-	* the internal timer. If we keep resending on a live connection and never get
-	* an ack, the server doesn't support reliable delivery, so fall back to
-	* fire-and-forget (and stop tracking, since idempotent CRDT sync covers it).
+	* the internal timer.
 	*/
 	onTick() {
 		if (!this._connected || this.pending.length === 0) return;
-		if (!this.everAcked && ++this._resendsSinceProgress > this.maxUnconfirmedResends) {
-			this.reliable = false;
-			this.pending = [];
-			this._stopTimer();
-			this._onFallback?.();
-			return;
-		}
 		this.flush();
 	}
 	/** Stop timers and drop references. Call when the provider is destroyed. */
 	destroy() {
 		this._stopTimer();
 		this.pending = [];
+		this._tailCache = void 0;
+	}
+	/** The unacked tail merged into one delta (memoized between tail changes). */
+	_mergedTail() {
+		if (this._tailCache === void 0) {
+			const updates = this.pending.map((p) => p.update);
+			this._tailCache = updates.length === 1 ? updates[0] : this._merge(updates);
+		}
+		return this._tailCache;
 	}
 	_startTimer() {
-		if (this._timer !== void 0 || !this.reliable) return;
+		if (this._timer !== void 0) return;
 		this._timer = this._setInterval(() => this.onTick(), this.resendInterval);
 		const t = this._timer;
 		if (t && typeof t.unref === "function") t.unref();
@@ -1205,30 +1209,28 @@ const MessageType = {
 var YProtocolSession = class {
 	constructor(doc, opts) {
 		this._synced = false;
-		const { send, awareness = null, reliable = true, resendInterval, maxUnconfirmedResends, onFallback, setInterval: setIntervalFn, clearInterval: clearIntervalFn } = opts ?? {};
+		const { send, awareness = null, resendInterval, onError, setInterval: setIntervalFn, clearInterval: clearIntervalFn } = opts ?? {};
 		if (!doc) throw new TypeError("YProtocolSession requires a Y.Doc");
 		if (typeof send !== "function") throw new TypeError("YProtocolSession requires a send(frame, id) function");
 		this.doc = doc;
 		this.awareness = awareness;
-		this.reliable = reliable;
 		this._send = send;
+		this._onError = onError ?? ((error, context) => console.warn(`[yrb-lite] ${context}:`, error));
 		this._delivery = new ReliableSync({
 			merge: mergeUpdates,
 			send: (update, id) => this._send(this._frameUpdate(update), id),
 			resendInterval,
-			maxUnconfirmedResends,
-			onFallback,
 			setInterval: setIntervalFn,
 			clearInterval: clearIntervalFn
 		});
 		this._onDocUpdate = (update, origin) => {
 			if (origin === this) return;
-			if (this.reliable && this._delivery.reliable) this._delivery.enqueue(update);
-			else this._send(this._frameUpdate(update), void 0);
+			this._delivery.enqueue(update);
 		};
 		this.doc.on("update", this._onDocUpdate);
 		if (this.awareness) {
-			this._onAwarenessUpdate = ({ added, updated, removed }) => {
+			this._onAwarenessUpdate = ({ added, updated, removed }, origin) => {
+				if (origin === this) return;
 				const changed = added.concat(updated, removed);
 				this._send(this._frameAwareness(changed), void 0, { awareness: true });
 			};
@@ -1247,7 +1249,7 @@ var YProtocolSession = class {
 	onConnect() {
 		this._send(this._frameSyncStep1(), void 0);
 		if (this.awareness && this.awareness.getLocalState() !== null) this._send(this._frameAwareness([this.doc.clientID]), void 0, { awareness: true });
-		if (this.reliable) this._delivery.onConnect();
+		this._delivery.onConnect();
 	}
 	/** Transport dropped: pause retransmits (queue kept) and clear remote presence. */
 	onDisconnect() {
@@ -1257,6 +1259,15 @@ var YProtocolSession = class {
 			const remote = [...this.awareness.getStates().keys()].filter((c) => c !== this.doc.clientID);
 			if (remote.length) removeAwarenessStates(this.awareness, remote, this);
 		}
+	}
+	/**
+	* Broadcast that our local presence is gone (sets local state to null, which
+	* emits a removal awareness frame through `send`). Call this while the
+	* transport is still live so peers drop our cursor immediately instead of
+	* waiting for the awareness timeout. A no-op when there's no local state.
+	*/
+	removeLocalAwareness() {
+		if (this.awareness && this.awareness.getLocalState() !== null) this.awareness.setLocalState(null);
 	}
 	/** A reliable-delivery `{ ack: id }` envelope arrived. */
 	ack(id) {
@@ -1268,29 +1279,36 @@ var YProtocolSession = class {
 	* SyncStep1, or an awareness reply to a query), or null if there's nothing to send.
 	*/
 	receive(frame) {
-		const decoder = createDecoder(frame);
-		const encoder = createEncoder();
-		switch (readVarUint(decoder)) {
-			case MessageType.Sync: {
-				writeVarUint(encoder, MessageType.Sync);
-				const syncType = readSyncMessage(decoder, encoder, this.doc, this);
-				if (!this._synced && syncType === messageYjsSyncStep2) this._synced = true;
-				break;
+		try {
+			if (this._validateFrame(frame) === null) return null;
+			const decoder = createDecoder(frame);
+			const encoder = createEncoder();
+			switch (readVarUint(decoder)) {
+				case MessageType.Sync: {
+					writeVarUint(encoder, MessageType.Sync);
+					const syncType = readSyncMessage(decoder, encoder, this.doc, this);
+					if (!this._synced && syncType === messageYjsSyncStep2) this._synced = true;
+					break;
+				}
+				case MessageType.Awareness:
+					if (this.awareness) applyAwarenessUpdate(this.awareness, readVarUint8Array(decoder), this);
+					break;
+				case MessageType.QueryAwareness:
+					if (this.awareness) {
+						writeVarUint(encoder, MessageType.Awareness);
+						writeVarUint8Array(encoder, encodeAwarenessUpdate(this.awareness, [...this.awareness.getStates().keys()]));
+					}
+					break;
+				case MessageType.Auth:
+					readAuthMessage(decoder, this.doc, (_doc, reason) => console.warn(`[yrb-lite] auth denied: ${reason}`));
+					break;
+				default: return null;
 			}
-			case MessageType.Awareness:
-				if (this.awareness) applyAwarenessUpdate(this.awareness, readVarUint8Array(decoder), this);
-				return null;
-			case MessageType.QueryAwareness:
-				if (!this.awareness) return null;
-				writeVarUint(encoder, MessageType.Awareness);
-				writeVarUint8Array(encoder, encodeAwarenessUpdate(this.awareness, [...this.awareness.getStates().keys()]));
-				break;
-			case MessageType.Auth:
-				readAuthMessage(decoder, this.doc, (_doc, reason) => console.warn(`[yrb-lite] auth denied: ${reason}`));
-				return null;
-			default: return null;
+			return length(encoder) > 1 ? toUint8Array(encoder) : null;
+		} catch (error) {
+			this._onError(error, "receive");
+			return null;
 		}
-		return length$1(encoder) > 1 ? toUint8Array(encoder) : null;
 	}
 	/** Detach doc/awareness listeners and stop retransmits. */
 	destroy() {
@@ -1316,6 +1334,39 @@ var YProtocolSession = class {
 		writeVarUint8Array(e, encodeAwarenessUpdate(this.awareness, clients));
 		return toUint8Array(e);
 	}
+	_validateFrame(frame) {
+		const decoder = createDecoder(frame);
+		const type = readVarUint(decoder);
+		switch (type) {
+			case MessageType.Sync: {
+				const scratchDoc = new Doc();
+				try {
+					const scratchEncoder = createEncoder();
+					writeVarUint(scratchEncoder, MessageType.Sync);
+					readSyncMessage(decoder, scratchEncoder, scratchDoc, this);
+				} finally {
+					scratchDoc.destroy();
+				}
+				break;
+			}
+			case MessageType.Awareness:
+				readVarUint8Array(decoder);
+				break;
+			case MessageType.QueryAwareness: break;
+			case MessageType.Auth: {
+				const scratchDoc = new Doc();
+				try {
+					readAuthMessage(decoder, scratchDoc, () => {});
+				} finally {
+					scratchDoc.destroy();
+				}
+				break;
+			}
+			default: return null;
+		}
+		if (hasContent(decoder)) throw new Error("frame has trailing bytes after a complete message");
+		return type;
+	}
 };
 
 //#endregion
@@ -1328,17 +1379,21 @@ const fromBase64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
 var ActionCableProvider = class {
 	constructor(doc, consumer, channelName, channelParams = {}, opts = {}) {
 		this.subscription = null;
+		this._connected = false;
+		this._status = "disconnected";
+		this._statusListeners = /* @__PURE__ */ new Set();
+		this._onUnload = null;
 		this.doc = doc;
 		this.consumer = consumer;
 		this.channelName = channelName;
 		this.channelParams = channelParams;
-		this.awareness = opts.awareness ?? new Awareness(doc);
+		this._ownsAwareness = opts.awareness === void 0;
+		this.awareness = opts.awareness === void 0 ? new Awareness(doc) : opts.awareness;
+		this._onError = opts.onError ?? ((error, context) => console.warn(`[yrb-lite] ${context}:`, error));
 		this.session = new YProtocolSession(doc, {
 			awareness: this.awareness,
-			reliable: opts.reliable,
 			resendInterval: opts.resendInterval,
-			maxUnconfirmedResends: opts.maxUnconfirmedResends,
-			onFallback: opts.onFallback,
+			onError: this._onError,
 			send: (frame, id, sendOpts) => this._send(frame, id, sendOpts)
 		});
 	}
@@ -1349,6 +1404,20 @@ var ActionCableProvider = class {
 	/** True while there are unacknowledged local document updates in flight. */
 	get hasPending() {
 		return this.session.hasPending;
+	}
+	/** Current connection status. See {@link ProviderStatus}. */
+	get status() {
+		return this._status;
+	}
+	/** Subscribe to status changes. Returns an unsubscribe function. */
+	on(event, listener) {
+		if (event !== "status") return () => {};
+		this._statusListeners.add(listener);
+		return () => this._statusListeners.delete(listener);
+	}
+	/** Remove a previously-registered status listener. */
+	off(event, listener) {
+		if (event === "status") this._statusListeners.delete(listener);
 	}
 	connect() {
 		if (this.subscription) return;
@@ -1362,39 +1431,89 @@ var ActionCableProvider = class {
 					provider.session.ack(message.ack);
 					return;
 				}
-				const payload = message && (message.m ?? message.update);
+				const awarenessPayload = message && message.awareness;
+				const payload = message && (awarenessPayload ?? message.update);
 				if (typeof payload !== "string") return;
-				const reply = provider.session.receive(fromBase64(payload));
+				let frame;
+				try {
+					frame = fromBase64(payload);
+				} catch (error) {
+					provider._onError(error, "received");
+					return;
+				}
+				if (awarenessPayload !== void 0 && frame[0] !== MessageType.Awareness) {
+					provider._onError(/* @__PURE__ */ new Error("awareness envelope carried a non-awareness frame"), "received");
+					return;
+				}
+				const reply = provider.session.receive(frame);
 				if (reply) provider._send(reply, void 0);
+				provider._refreshStatus();
 			},
 			connected() {
+				provider._connected = true;
 				provider.session.onConnect();
+				provider._refreshStatus();
 			},
 			disconnected() {
+				provider._connected = false;
 				provider.session.onDisconnect();
+				provider._refreshStatus();
 			}
 		});
+		this._installUnloadHandler();
+		this._refreshStatus();
 	}
 	disconnect() {
 		if (!this.subscription) return;
+		const sub = this.subscription;
+		this.session.removeLocalAwareness();
 		this.session.onDisconnect();
-		this.consumer.subscriptions.remove(this.subscription);
+		this._connected = false;
 		this.subscription = null;
+		this._removeUnloadHandler();
+		queueMicrotask(() => this.consumer.subscriptions.remove(sub));
+		this._refreshStatus();
 	}
 	destroy() {
 		this.disconnect();
 		this.session.destroy();
+		if (this._ownsAwareness && this.awareness) this.awareness.destroy();
+		this._statusListeners.clear();
+	}
+	_computeStatus() {
+		if (!this.subscription) return "disconnected";
+		if (!this._connected) return "connecting";
+		return this.session.synced ? "synced" : "connected";
+	}
+	_refreshStatus() {
+		const next = this._computeStatus();
+		if (next === this._status) return;
+		this._status = next;
+		for (const listener of this._statusListeners) listener({ status: next });
+	}
+	_installUnloadHandler() {
+		if (typeof window === "undefined" || this._onUnload) return;
+		this._onUnload = () => this.session.removeLocalAwareness();
+		window.addEventListener("pagehide", this._onUnload);
+	}
+	_removeUnloadHandler() {
+		if (typeof window === "undefined" || !this._onUnload) return;
+		window.removeEventListener("pagehide", this._onUnload);
+		this._onUnload = null;
 	}
 	_send(frame, id, opts) {
 		const sub = this.subscription;
 		if (!sub) return;
 		const update = toBase64(frame);
+		if ((opts?.awareness ?? frame[0] === MessageType.Awareness) && typeof sub.whisper === "function") {
+			sub.whisper({ awareness: update });
+			return;
+		}
 		const payload = id === void 0 ? { update } : {
 			update,
 			id
 		};
-		if ((opts?.awareness ?? frame[0] === MessageType.Awareness) && typeof sub.whisper === "function") sub.whisper(payload);
-		else sub.send(payload);
+		sub.send(payload);
 	}
 };
 

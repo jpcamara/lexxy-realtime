@@ -60,6 +60,6 @@
     "rolldown": "^1.0.0-beta.49",
     "y-protocols": "*",
     "yjs": "^13.6.0",
-    "yrb-lite-client": "^0.1.1"
+    "yrb-lite-client": "^0.1.2"
   }
 }
