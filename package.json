@@ -1,6 +1,6 @@
 {
   "name": "lexxy-realtime",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "description": "Realtime collaborative editing for Lexxy (Lexical) over Yjs + ActionCable/AnyCable, with a reliable yrb-lite provider",
   "homepage": "https://github.com/jpcamara/lexxy-realtime#readme",
   "bugs": {
@@ -46,7 +46,9 @@
     "yjs": "^13.6"
   },
   "peerDependenciesMeta": {
-    "@anycable/web": { "optional": true }
+    "@anycable/web": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@37signals/lexxy": "0.9.18",
