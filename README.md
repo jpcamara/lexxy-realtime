@@ -79,9 +79,6 @@ On the server, include `YrbLite::Sync` in an ActionCable channel named
 provider is self-gating: against a server without ack support it falls back to
 plain delivery, and `reliable: false` opts out entirely.
 
-`CustomYjsProvider` (a simple JSON passthrough provider) is also exported for
-back-compat.
-
 ## License
 
 MIT
