@@ -964,21 +964,28 @@ const applyAwarenessUpdate = (awareness, update, origin) => {
 //#region node_modules/yrb-lite-client/dist/reliable_sync.js
 const DEFAULTS = { resendInterval: 1e3 };
 var ReliableSync = class {
+	/** Unacked local updates, in order. */
+	pending = [];
+	#send;
+	#merge;
+	#resendInterval;
+	#setInterval;
+	#clearInterval;
+	#nextSeq = 1;
+	#connected = false;
+	#timer = void 0;
+	#tailCache = void 0;
 	constructor(opts) {
-		/** Unacked local updates, in order. */
-		this.pending = [];
-		this.nextSeq = 1;
-		this._connected = false;
-		this._timer = void 0;
-		this._tailCache = void 0;
 		const { send, merge, resendInterval } = opts ?? {};
 		if (typeof send !== "function") throw new TypeError("ReliableSync requires a send(update, id) function");
 		if (typeof merge !== "function") throw new TypeError("ReliableSync requires a merge(updates) function");
-		this._send = send;
-		this._merge = merge;
-		this.resendInterval = resendInterval ?? DEFAULTS.resendInterval;
-		this._setInterval = opts.setInterval ?? ((fn, ms) => setInterval(fn, ms));
-		this._clearInterval = opts.clearInterval ?? ((h) => clearInterval(h));
+		this.#send = send;
+		this.#merge = merge;
+		const interval = resendInterval ?? DEFAULTS.resendInterval;
+		if (!Number.isFinite(interval) || interval <= 0) throw new TypeError("ReliableSync resendInterval must be a positive number");
+		this.#resendInterval = interval;
+		this.#setInterval = opts.setInterval ?? ((fn, ms) => setInterval(fn, ms));
+		this.#clearInterval = opts.clearInterval ?? ((h) => clearInterval(h));
 	}
 	/** True while there are unacknowledged local updates. */
 	get hasPending() {
@@ -990,10 +997,11 @@ var ReliableSync = class {
 	*/
 	enqueue(update) {
 		this.pending.push({
-			seq: this.nextSeq++,
+			seq: this.#nextSeq++,
 			update
 		});
-		this._tailCache = void 0;
+		this.#tailCache = void 0;
+		if (this.#connected) this.#startTimer();
 		this.flush();
 	}
 	/**
@@ -1002,8 +1010,8 @@ var ReliableSync = class {
 	* No-op while disconnected (the tail is replayed on the next onConnect).
 	*/
 	flush() {
-		if (!this._connected || this.pending.length === 0) return;
-		this._send(this._mergedTail(), this.pending[this.pending.length - 1].seq);
+		if (!this.#connected || this.pending.length === 0) return;
+		this.#send(this.#mergedTail(), this.pending[this.pending.length - 1].seq);
 	}
 	/**
 	* Confirm delivery up to `id`: prune every queued update with seq <= id.
@@ -1015,50 +1023,52 @@ var ReliableSync = class {
 		if (!Number.isSafeInteger(id) || id < 0) return;
 		if (this.pending.length > 0 && id > this.pending[this.pending.length - 1].seq) return;
 		this.pending = this.pending.filter((p) => p.seq > id);
-		this._tailCache = void 0;
+		this.#tailCache = void 0;
+		if (this.pending.length === 0) this.#stopTimer();
 	}
 	/** Transport (re)connected: replay the unacked tail and resume retransmits. */
 	onConnect() {
-		this._connected = true;
+		this.#connected = true;
 		this.flush();
-		this._startTimer();
+		if (this.pending.length > 0) this.#startTimer();
 	}
 	/** Transport dropped: keep the queue (for reconnect replay), pause the timer. */
 	onDisconnect() {
-		this._connected = false;
-		this._stopTimer();
+		this.#connected = false;
+		this.#stopTimer();
 	}
 	/**
 	* One retransmit tick. Exposed for deterministic testing; normally driven by
 	* the internal timer.
 	*/
 	onTick() {
-		if (!this._connected || this.pending.length === 0) return;
+		if (!this.#connected || this.pending.length === 0) return;
 		this.flush();
 	}
 	/** Stop timers and drop references. Call when the provider is destroyed. */
 	destroy() {
-		this._stopTimer();
+		this.#connected = false;
+		this.#stopTimer();
 		this.pending = [];
-		this._tailCache = void 0;
+		this.#tailCache = void 0;
 	}
 	/** The unacked tail merged into one delta (memoized between tail changes). */
-	_mergedTail() {
-		if (this._tailCache === void 0) {
+	#mergedTail() {
+		if (this.#tailCache === void 0) {
 			const updates = this.pending.map((p) => p.update);
-			this._tailCache = updates.length === 1 ? updates[0] : this._merge(updates);
+			this.#tailCache = updates.length === 1 ? updates[0] : this.#merge(updates);
 		}
-		return this._tailCache;
+		return this.#tailCache;
 	}
-	_startTimer() {
-		if (this._timer !== void 0) return;
-		this._timer = this._setInterval(() => this.onTick(), this.resendInterval);
-		const t = this._timer;
+	#startTimer() {
+		if (this.#timer !== void 0) return;
+		this.#timer = this.#setInterval(() => this.onTick(), this.#resendInterval);
+		const t = this.#timer;
 		if (t && typeof t.unref === "function") t.unref();
 	}
-	_stopTimer() {
-		if (this._timer !== void 0) this._clearInterval(this._timer);
-		this._timer = void 0;
+	#stopTimer() {
+		if (this.#timer !== void 0) this.#clearInterval(this.#timer);
+		this.#timer = void 0;
 	}
 };
 
@@ -1207,54 +1217,61 @@ const MessageType = {
 	QueryAwareness: 3
 };
 var YProtocolSession = class {
+	doc;
+	awareness;
+	#send;
+	#onError;
+	#synced = false;
+	#delivery;
+	#onDocUpdate;
+	#onAwarenessUpdate;
 	constructor(doc, opts) {
-		this._synced = false;
 		const { send, awareness = null, resendInterval, onError, setInterval: setIntervalFn, clearInterval: clearIntervalFn } = opts ?? {};
 		if (!doc) throw new TypeError("YProtocolSession requires a Y.Doc");
 		if (typeof send !== "function") throw new TypeError("YProtocolSession requires a send(frame, id) function");
 		this.doc = doc;
 		this.awareness = awareness;
-		this._send = send;
-		this._onError = onError ?? ((error, context) => console.warn(`[yrb-lite] ${context}:`, error));
-		this._delivery = new ReliableSync({
+		this.#send = send;
+		this.#onError = onError ?? ((error, context) => console.warn(`[yrb-lite] ${context}:`, error));
+		this.#delivery = new ReliableSync({
 			merge: mergeUpdates,
-			send: (update, id) => this._send(this._frameUpdate(update), id),
+			send: (update, id) => this.#send(this.#frameUpdate(update), id),
 			resendInterval,
 			setInterval: setIntervalFn,
 			clearInterval: clearIntervalFn
 		});
-		this._onDocUpdate = (update, origin) => {
+		this.#onDocUpdate = (update, origin) => {
 			if (origin === this) return;
-			this._delivery.enqueue(update);
+			this.#delivery.enqueue(update);
 		};
-		this.doc.on("update", this._onDocUpdate);
+		this.doc.on("update", this.#onDocUpdate);
 		if (this.awareness) {
-			this._onAwarenessUpdate = ({ added, updated, removed }, origin) => {
+			this.#onAwarenessUpdate = ({ added, updated, removed }, origin) => {
 				if (origin === this) return;
 				const changed = added.concat(updated, removed);
-				this._send(this._frameAwareness(changed), void 0, { awareness: true });
+				this.#send(this.#frameAwareness(changed), void 0, { awareness: true });
 			};
-			this.awareness.on("update", this._onAwarenessUpdate);
+			this.awareness.on("update", this.#onAwarenessUpdate);
 		}
 	}
 	/** True once we've received the server's SyncStep2 (the document is caught up). */
 	get synced() {
-		return this._synced;
+		return this.#synced;
 	}
 	/** True while there are unacknowledged local document updates in flight. */
 	get hasPending() {
-		return this._delivery.hasPending;
+		return this.#delivery.hasPending;
 	}
 	/** Transport connected: send the opening handshake and replay the unacked tail. */
 	onConnect() {
-		this._send(this._frameSyncStep1(), void 0);
-		if (this.awareness && this.awareness.getLocalState() !== null) this._send(this._frameAwareness([this.doc.clientID]), void 0, { awareness: true });
-		this._delivery.onConnect();
+		this.#send(this.#frameSyncStep1(), void 0);
+		if (this.awareness && this.awareness.getLocalState() !== null) this.#send(this.#frameAwareness([this.doc.clientID]), void 0, { awareness: true });
+		this.#delivery.onConnect();
 	}
 	/** Transport dropped: pause retransmits (queue kept) and clear remote presence. */
 	onDisconnect() {
-		this._synced = false;
-		this._delivery.onDisconnect();
+		this.#synced = false;
+		this.#delivery.onDisconnect();
 		if (this.awareness) {
 			const remote = [...this.awareness.getStates().keys()].filter((c) => c !== this.doc.clientID);
 			if (remote.length) removeAwarenessStates(this.awareness, remote, this);
@@ -1271,7 +1288,7 @@ var YProtocolSession = class {
 	}
 	/** A reliable-delivery `{ ack: id }` envelope arrived. */
 	ack(id) {
-		this._delivery.onAck(id);
+		this.#delivery.onAck(id);
 	}
 	/**
 	* Decode and apply one incoming binary protocol frame (document sync, awareness,
@@ -1280,14 +1297,14 @@ var YProtocolSession = class {
 	*/
 	receive(frame) {
 		try {
-			if (this._validateFrame(frame) === null) return null;
+			if (this.#validateFrame(frame) === null) return null;
 			const decoder = createDecoder(frame);
 			const encoder = createEncoder();
 			switch (readVarUint(decoder)) {
 				case MessageType.Sync: {
 					writeVarUint(encoder, MessageType.Sync);
 					const syncType = readSyncMessage(decoder, encoder, this.doc, this);
-					if (!this._synced && syncType === messageYjsSyncStep2) this._synced = true;
+					if (!this.#synced && syncType === messageYjsSyncStep2) this.#synced = true;
 					break;
 				}
 				case MessageType.Awareness:
@@ -1306,35 +1323,35 @@ var YProtocolSession = class {
 			}
 			return length(encoder) > 1 ? toUint8Array(encoder) : null;
 		} catch (error) {
-			this._onError(error, "receive");
+			this.#onError(error, "receive");
 			return null;
 		}
 	}
 	/** Detach doc/awareness listeners and stop retransmits. */
 	destroy() {
-		this.doc.off("update", this._onDocUpdate);
-		if (this.awareness && this._onAwarenessUpdate) this.awareness.off("update", this._onAwarenessUpdate);
-		this._delivery.destroy();
+		this.doc.off("update", this.#onDocUpdate);
+		if (this.awareness && this.#onAwarenessUpdate) this.awareness.off("update", this.#onAwarenessUpdate);
+		this.#delivery.destroy();
 	}
-	_frameSyncStep1() {
+	#frameSyncStep1() {
 		const e = createEncoder();
 		writeVarUint(e, MessageType.Sync);
 		writeSyncStep1(e, this.doc);
 		return toUint8Array(e);
 	}
-	_frameUpdate(update) {
+	#frameUpdate(update) {
 		const e = createEncoder();
 		writeVarUint(e, MessageType.Sync);
 		writeUpdate(e, update);
 		return toUint8Array(e);
 	}
-	_frameAwareness(clients) {
+	#frameAwareness(clients) {
 		const e = createEncoder();
 		writeVarUint(e, MessageType.Awareness);
 		writeVarUint8Array(e, encodeAwarenessUpdate(this.awareness, clients));
 		return toUint8Array(e);
 	}
-	_validateFrame(frame) {
+	#validateFrame(frame) {
 		const decoder = createDecoder(frame);
 		const type = readVarUint(decoder);
 		switch (type) {
@@ -1377,24 +1394,32 @@ const fromBase64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
 //#endregion
 //#region node_modules/yrb-lite-client/dist/actioncable_provider.js
 var ActionCableProvider = class {
+	doc;
+	consumer;
+	channelName;
+	channelParams;
+	awareness;
+	session;
+	#subscription = null;
+	#onError;
+	#ownsAwareness;
+	#connected = false;
+	#status = "disconnected";
+	#statusListeners = /* @__PURE__ */ new Set();
+	#onUnload = null;
 	constructor(doc, consumer, channelName, channelParams = {}, opts = {}) {
-		this.subscription = null;
-		this._connected = false;
-		this._status = "disconnected";
-		this._statusListeners = /* @__PURE__ */ new Set();
-		this._onUnload = null;
 		this.doc = doc;
 		this.consumer = consumer;
 		this.channelName = channelName;
 		this.channelParams = channelParams;
-		this._ownsAwareness = opts.awareness === void 0;
+		this.#ownsAwareness = opts.awareness === void 0;
 		this.awareness = opts.awareness === void 0 ? new Awareness(doc) : opts.awareness;
-		this._onError = opts.onError ?? ((error, context) => console.warn(`[yrb-lite] ${context}:`, error));
+		this.#onError = opts.onError ?? ((error, context) => console.warn(`[yrb-lite] ${context}:`, error));
 		this.session = new YProtocolSession(doc, {
 			awareness: this.awareness,
 			resendInterval: opts.resendInterval,
-			onError: this._onError,
-			send: (frame, id, sendOpts) => this._send(frame, id, sendOpts)
+			onError: this.#onError,
+			send: (frame, id, sendOpts) => this.#send(frame, id, sendOpts)
 		});
 	}
 	/** True once the document has caught up with the server (received a SyncStep2). */
@@ -1407,22 +1432,22 @@ var ActionCableProvider = class {
 	}
 	/** Current connection status. See {@link ProviderStatus}. */
 	get status() {
-		return this._status;
+		return this.#status;
 	}
 	/** Subscribe to status changes. Returns an unsubscribe function. */
 	on(event, listener) {
 		if (event !== "status") return () => {};
-		this._statusListeners.add(listener);
-		return () => this._statusListeners.delete(listener);
+		this.#statusListeners.add(listener);
+		return () => this.#statusListeners.delete(listener);
 	}
 	/** Remove a previously-registered status listener. */
 	off(event, listener) {
-		if (event === "status") this._statusListeners.delete(listener);
+		if (event === "status") this.#statusListeners.delete(listener);
 	}
 	connect() {
-		if (this.subscription) return;
+		if (this.#subscription) return;
 		const provider = this;
-		this.subscription = this.consumer.subscriptions.create({
+		this.#subscription = this.consumer.subscriptions.create({
 			channel: this.channelName,
 			...this.channelParams
 		}, {
@@ -1438,71 +1463,71 @@ var ActionCableProvider = class {
 				try {
 					frame = fromBase64(payload);
 				} catch (error) {
-					provider._onError(error, "received");
+					provider.#onError(error, "received");
 					return;
 				}
 				if (awarenessPayload !== void 0 && frame[0] !== MessageType.Awareness) {
-					provider._onError(/* @__PURE__ */ new Error("awareness envelope carried a non-awareness frame"), "received");
+					provider.#onError(/* @__PURE__ */ new Error("awareness envelope carried a non-awareness frame"), "received");
 					return;
 				}
 				const reply = provider.session.receive(frame);
-				if (reply) provider._send(reply, void 0);
-				provider._refreshStatus();
+				if (reply) provider.#send(reply, void 0);
+				provider.#refreshStatus();
 			},
 			connected() {
-				provider._connected = true;
+				provider.#connected = true;
 				provider.session.onConnect();
-				provider._refreshStatus();
+				provider.#refreshStatus();
 			},
 			disconnected() {
-				provider._connected = false;
+				provider.#connected = false;
 				provider.session.onDisconnect();
-				provider._refreshStatus();
+				provider.#refreshStatus();
 			}
 		});
-		this._installUnloadHandler();
-		this._refreshStatus();
+		this.#installUnloadHandler();
+		this.#refreshStatus();
 	}
 	disconnect() {
-		if (!this.subscription) return;
-		const sub = this.subscription;
+		if (!this.#subscription) return;
+		const sub = this.#subscription;
 		this.session.removeLocalAwareness();
 		this.session.onDisconnect();
-		this._connected = false;
-		this.subscription = null;
-		this._removeUnloadHandler();
+		this.#connected = false;
+		this.#subscription = null;
+		this.#removeUnloadHandler();
 		queueMicrotask(() => this.consumer.subscriptions.remove(sub));
-		this._refreshStatus();
+		this.#refreshStatus();
 	}
 	destroy() {
 		this.disconnect();
 		this.session.destroy();
-		if (this._ownsAwareness && this.awareness) this.awareness.destroy();
-		this._statusListeners.clear();
+		if (this.#ownsAwareness && this.awareness) this.awareness.destroy();
+		this.#statusListeners.clear();
 	}
-	_computeStatus() {
-		if (!this.subscription) return "disconnected";
-		if (!this._connected) return "connecting";
+	#computeStatus() {
+		if (!this.#subscription) return "disconnected";
+		if (!this.#connected) return "connecting";
 		return this.session.synced ? "synced" : "connected";
 	}
-	_refreshStatus() {
-		const next = this._computeStatus();
-		if (next === this._status) return;
-		this._status = next;
-		for (const listener of this._statusListeners) listener({ status: next });
+	#refreshStatus() {
+		const next = this.#computeStatus();
+		if (next === this.#status) return;
+		this.#status = next;
+		for (const listener of this.#statusListeners) listener({ status: next });
 	}
-	_installUnloadHandler() {
-		if (typeof window === "undefined" || this._onUnload) return;
-		this._onUnload = () => this.session.removeLocalAwareness();
-		window.addEventListener("pagehide", this._onUnload);
+	#installUnloadHandler() {
+		if (typeof window === "undefined" || this.#onUnload) return;
+		this.#onUnload = () => this.session.removeLocalAwareness();
+		window.addEventListener("pagehide", this.#onUnload);
 	}
-	_removeUnloadHandler() {
-		if (typeof window === "undefined" || !this._onUnload) return;
-		window.removeEventListener("pagehide", this._onUnload);
-		this._onUnload = null;
+	#removeUnloadHandler() {
+		if (typeof window === "undefined" || !this.#onUnload) return;
+		window.removeEventListener("pagehide", this.#onUnload);
+		this.#onUnload = null;
 	}
-	_send(frame, id, opts) {
-		const sub = this.subscription;
+	#send(frame, id, opts) {
+		const sub = this.#subscription;
 		if (!sub) return;
 		const update = toBase64(frame);
 		if ((opts?.awareness ?? frame[0] === MessageType.Awareness) && typeof sub.whisper === "function") {
