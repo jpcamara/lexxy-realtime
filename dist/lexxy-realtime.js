@@ -1249,7 +1249,7 @@ var YProtocolSession = class {
 			this.#onAwarenessUpdate = ({ added, updated, removed }, origin) => {
 				if (origin === this) return;
 				const changed = added.concat(updated, removed);
-				this.#send(this.#frameAwareness(changed), void 0, { awareness: true });
+				this.#send(this.#frameAwareness(changed), void 0);
 			};
 			this.awareness.on("update", this.#onAwarenessUpdate);
 		}
@@ -1265,7 +1265,7 @@ var YProtocolSession = class {
 	/** Transport connected: send the opening handshake and replay the unacked tail. */
 	onConnect() {
 		this.#send(this.#frameSyncStep1(), void 0);
-		if (this.awareness && this.awareness.getLocalState() !== null) this.#send(this.#frameAwareness([this.doc.clientID]), void 0, { awareness: true });
+		if (this.awareness && this.awareness.getLocalState() !== null) this.#send(this.#frameAwareness([this.doc.clientID]), void 0);
 		this.#delivery.onConnect();
 	}
 	/** Transport dropped: pause retransmits (queue kept) and clear remote presence. */
@@ -1402,7 +1402,6 @@ var ActionCableProvider = class {
 	session;
 	#subscription = null;
 	#onError;
-	#ownsAwareness;
 	#connected = false;
 	#status = "disconnected";
 	#statusListeners = /* @__PURE__ */ new Set();
@@ -1412,14 +1411,13 @@ var ActionCableProvider = class {
 		this.consumer = consumer;
 		this.channelName = channelName;
 		this.channelParams = channelParams;
-		this.#ownsAwareness = opts.awareness === void 0;
-		this.awareness = opts.awareness === void 0 ? new Awareness(doc) : opts.awareness;
+		this.awareness = new Awareness(doc);
 		this.#onError = opts.onError ?? ((error, context) => console.warn(`[yrb-lite] ${context}:`, error));
 		this.session = new YProtocolSession(doc, {
 			awareness: this.awareness,
 			resendInterval: opts.resendInterval,
 			onError: this.#onError,
-			send: (frame, id, sendOpts) => this.#send(frame, id, sendOpts)
+			send: (frame, id) => this.#send(frame, id)
 		});
 	}
 	/** True once the document has caught up with the server (received a SyncStep2). */
@@ -1435,14 +1433,9 @@ var ActionCableProvider = class {
 		return this.#status;
 	}
 	/** Subscribe to status changes. Returns an unsubscribe function. */
-	on(event, listener) {
-		if (event !== "status") return () => {};
+	onStatusChange(listener) {
 		this.#statusListeners.add(listener);
 		return () => this.#statusListeners.delete(listener);
-	}
-	/** Remove a previously-registered status listener. */
-	off(event, listener) {
-		if (event === "status") this.#statusListeners.delete(listener);
 	}
 	connect() {
 		if (this.#subscription) return;
@@ -1502,7 +1495,7 @@ var ActionCableProvider = class {
 	destroy() {
 		this.disconnect();
 		this.session.destroy();
-		if (this.#ownsAwareness && this.awareness) this.awareness.destroy();
+		this.awareness.destroy();
 		this.#statusListeners.clear();
 	}
 	#computeStatus() {
@@ -1526,11 +1519,11 @@ var ActionCableProvider = class {
 		window.removeEventListener("pagehide", this.#onUnload);
 		this.#onUnload = null;
 	}
-	#send(frame, id, opts) {
+	#send(frame, id) {
 		const sub = this.#subscription;
 		if (!sub) return;
 		const update = toBase64(frame);
-		if ((opts?.awareness ?? frame[0] === MessageType.Awareness) && typeof sub.whisper === "function") {
+		if (frame[0] === MessageType.Awareness && typeof sub.whisper === "function") {
 			sub.whisper({ awareness: update });
 			return;
 		}
