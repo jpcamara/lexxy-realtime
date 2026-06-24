@@ -10,7 +10,7 @@ class DocumentChannel < ApplicationCable::Channel
   on_change { |key, update| FileStore.record(key, update) }
 
   def subscribed
-    sync_for params[:id]
+    sync_subscribed params[:id]
   end
 
   def receive(data)
