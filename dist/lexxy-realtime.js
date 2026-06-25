@@ -1,7 +1,7 @@
 import { createBinding, initLocalState, setLocalStateFocus, syncCursorPositions, syncLexicalUpdateToYjs, syncYjsChangesToLexical } from "@lexical/yjs";
 import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG } from "lexical";
 import * as Y from "yjs";
-import { Doc, mergeUpdates } from "yjs";
+import { Doc, applyUpdate, mergeUpdates } from "yjs";
 
 //#region node_modules/lib0/math.js
 /**
@@ -1015,9 +1015,9 @@ var ReliableSync = class {
 	}
 	/**
 	* Confirm delivery up to `id`: prune every queued update with seq <= id.
-	* Acks arrive over the wire, so validate before pruning -- a malformed value
+	* Acks arrive over the wire, so validate before pruning. A malformed value
 	* (NaN/string/negative) or an impossible future id must not silently drop the
-	* queue. Invalid acks are ignored.
+	* queue; invalid acks are ignored.
 	*/
 	onAck(id) {
 		if (!Number.isSafeInteger(id) || id < 0) return;
@@ -1189,32 +1189,10 @@ const readSyncMessage = (decoder, encoder, doc, transactionOrigin) => {
 };
 
 //#endregion
-//#region node_modules/y-protocols/auth.js
-const messagePermissionDenied = 0;
-/**
-* @callback PermissionDeniedHandler
-* @param {any} y
-* @param {string} reason
-*/
-/**
-*
-* @param {decoding.Decoder} decoder
-* @param {Y.Doc} y
-* @param {PermissionDeniedHandler} permissionDeniedHandler
-*/
-const readAuthMessage = (decoder, y, permissionDeniedHandler) => {
-	switch (readVarUint(decoder)) {
-		case messagePermissionDenied: permissionDeniedHandler(y, readVarString(decoder));
-	}
-};
-
-//#endregion
 //#region node_modules/yrb-lite-client/dist/y_protocol_session.js
 const MessageType = {
 	Sync: 0,
-	Awareness: 1,
-	Auth: 2,
-	QueryAwareness: 3
+	Awareness: 1
 };
 var YProtocolSession = class {
 	doc;
@@ -1291,9 +1269,25 @@ var YProtocolSession = class {
 		this.#delivery.onAck(id);
 	}
 	/**
-	* Decode and apply one incoming binary protocol frame (document sync, awareness,
-	* query, or auth). Returns a reply frame to transmit (e.g. SyncStep2 answering a
-	* SyncStep1, or an awareness reply to a query), or null if there's nothing to send.
+	* Apply an update without treating it as a local edit, so it isn't queued for
+	* re-delivery to the server. Use it for bootstrap/restore: initial state loaded
+	* over HTTP, a server snapshot, an import. These are bytes the server already
+	* has.
+	*
+	* The session re-sends any doc update whose origin isn't itself (that's how a
+	* keystroke becomes an outbound frame), so a bare `Y.applyUpdate(doc, update)`
+	* would look like a local edit and get echoed back on the next connect. Going
+	* through here applies under the session's own origin, which the outbound
+	* filter skips. Safe to call before `onConnect()`: the state folds into the
+	* SyncStep1 handshake instead of being re-sent.
+	*/
+	applyRemoteUpdate(update) {
+		applyUpdate(this.doc, update, this);
+	}
+	/**
+	* Decode and apply one incoming binary protocol frame (document sync or
+	* awareness). Returns a reply frame to transmit (e.g. SyncStep2 answering a
+	* SyncStep1), or null if there's nothing to send.
 	*/
 	receive(frame) {
 		try {
@@ -1309,15 +1303,6 @@ var YProtocolSession = class {
 				}
 				case MessageType.Awareness:
 					if (this.awareness) applyAwarenessUpdate(this.awareness, readVarUint8Array(decoder), this);
-					break;
-				case MessageType.QueryAwareness:
-					if (this.awareness) {
-						writeVarUint(encoder, MessageType.Awareness);
-						writeVarUint8Array(encoder, encodeAwarenessUpdate(this.awareness, [...this.awareness.getStates().keys()]));
-					}
-					break;
-				case MessageType.Auth:
-					readAuthMessage(decoder, this.doc, (_doc, reason) => console.warn(`[yrb-lite] auth denied: ${reason}`));
 					break;
 				default: return null;
 			}
@@ -1369,16 +1354,6 @@ var YProtocolSession = class {
 			case MessageType.Awareness:
 				readVarUint8Array(decoder);
 				break;
-			case MessageType.QueryAwareness: break;
-			case MessageType.Auth: {
-				const scratchDoc = new Doc();
-				try {
-					readAuthMessage(decoder, scratchDoc, () => {});
-				} finally {
-					scratchDoc.destroy();
-				}
-				break;
-			}
 			default: return null;
 		}
 		if (hasContent(decoder)) throw new Error("frame has trailing bytes after a complete message");
@@ -1427,6 +1402,21 @@ var ActionCableProvider = class {
 	/** True while there are unacknowledged local document updates in flight. */
 	get hasPending() {
 		return this.session.hasPending;
+	}
+	/**
+	* Apply a bootstrap/restore update (initial HTTP state, a server snapshot, an
+	* import) without re-sending it to the server as a local edit. Call it once per
+	* chunk of already-durable state when seeding the doc, before `connect()`:
+	*
+	*   provider.applyRemoteUpdate(fromBase64(initialState));
+	*   priorUpdates.forEach((u) => provider.applyRemoteUpdate(fromBase64(u)));
+	*   provider.connect();
+	*
+	* See {@link YProtocolSession.applyRemoteUpdate} for why a bare `Y.applyUpdate`
+	* would be re-broadcast as a pending change instead.
+	*/
+	applyRemoteUpdate(update) {
+		this.session.applyRemoteUpdate(update);
 	}
 	/** Current connection status. See {@link ProviderStatus}. */
 	get status() {
