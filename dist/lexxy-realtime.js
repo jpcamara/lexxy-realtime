@@ -1,5 +1,5 @@
 import { createBinding, initLocalState, setLocalStateFocus, syncCursorPositions, syncLexicalUpdateToYjs, syncYjsChangesToLexical } from "@lexical/yjs";
-import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG } from "lexical";
+import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG, createEditor } from "lexical";
 import * as Y from "yjs";
 import { Doc, applyUpdate, mergeUpdates } from "yjs";
 
@@ -1557,7 +1557,8 @@ var Collaboration = class extends HTMLElement {
 			tag: HISTORY_MERGE_TAG,
 			discrete: true
 		});
-		const binding = createBinding(this.editor, provider, id, doc, docMap);
+		const binding = bindWithLexxyNodeGuard(this.editor, () => createBinding(this.editor, provider, id, doc, docMap));
+		patchCollabElementSplice(binding);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
 		bootstrapWhenSynced(this.editor, provider, binding);
 		const cursorsContainer = this.#createCursorsContainer();
@@ -1608,6 +1609,84 @@ var Collaboration = class extends HTMLElement {
 		return container;
 	}
 };
+const BUILTIN_NODE_TYPES = new Set([
+	"root",
+	"text",
+	"linebreak",
+	"tab",
+	"paragraph"
+]);
+function bindWithLexxyNodeGuard(editor, bind) {
+	const nodes = editor?._nodes;
+	if (!nodes || typeof nodes.forEach !== "function") return bind();
+	let throwers;
+	try {
+		throwers = detectNoArgThrowingNodes(nodes);
+	} catch {
+		return bind();
+	}
+	if (throwers.size === 0) return bind();
+	const restore = [];
+	for (const info of throwers) {
+		const Original = info.klass;
+		const Guarded = class extends Original {
+			constructor(...args) {
+				super(args.length === 0 || args[0] === void 0 ? {} : args[0], args[1]);
+			}
+		};
+		info.klass = Guarded;
+		restore.push(() => {
+			info.klass = Original;
+		});
+	}
+	try {
+		return bind();
+	} finally {
+		for (const undo of restore) undo();
+	}
+}
+function detectNoArgThrowingNodes(nodes) {
+	const throwers = /* @__PURE__ */ new Set();
+	const candidates = [];
+	nodes.forEach((info) => {
+		const klass = info?.klass;
+		if (typeof klass !== "function" || typeof klass.getType !== "function") return;
+		let type;
+		try {
+			type = klass.getType();
+		} catch {
+			return;
+		}
+		if (!type || BUILTIN_NODE_TYPES.has(type)) return;
+		candidates.push({
+			info,
+			klass
+		});
+	});
+	if (candidates.length === 0) return throwers;
+	createEditor({
+		namespace: "yrb-lite-node-probe",
+		nodes: candidates.map((c) => c.klass),
+		onError: () => {}
+	}).update(() => {
+		for (const { info, klass } of candidates) try {
+			new klass();
+		} catch {
+			throwers.add(info);
+		}
+	}, { discrete: true });
+	return throwers;
+}
+function patchCollabElementSplice(binding) {
+	const proto = binding?.root?.constructor?.prototype;
+	if (!proto || typeof proto.splice !== "function" || proto.__yrbLiteSplicePatched) return;
+	const original = proto.splice;
+	proto.splice = function(b, index, delCount, collabNode) {
+		if (this._children[index] === void 0 && collabNode === void 0) return;
+		return original.call(this, b, index, delCount, collabNode);
+	};
+	proto.__yrbLiteSplicePatched = true;
+}
 function bootstrapWhenSynced(editor, provider, binding) {
 	let done = false;
 	const seed = () => {

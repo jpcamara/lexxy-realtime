@@ -6,7 +6,7 @@ import {
   setLocalStateFocus,
   initLocalState,
 } from '@lexical/yjs';
-import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG } from 'lexical';
+import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG, createEditor } from 'lexical';
 import { Doc } from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
 import { YrbLiteProvider } from './yrb_lite_provider';
@@ -60,7 +60,10 @@ export class Collaboration extends HTMLElement {
     // bootstrapWhenSynced); existing docs are loaded by the Yjs->Lexical observer.
     this.editor.update(() => $getRoot().clear(), { tag: HISTORY_MERGE_TAG, discrete: true });
 
-    const binding = createBinding(this.editor, provider, id, doc, docMap);
+    const binding = bindWithLexxyNodeGuard(this.editor, () =>
+      createBinding(this.editor, provider, id, doc, docMap)
+    );
+    patchCollabElementSplice(binding);
     const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
     bootstrapWhenSynced(this.editor, provider, binding);
 
@@ -114,6 +117,123 @@ export class Collaboration extends HTMLElement {
     host.appendChild(container);
     return container;
   }
+}
+
+// Lexical's built-in node types -- never need guarding, and can't be
+// re-registered on a probe editor (Lexical seeds them itself).
+const BUILTIN_NODE_TYPES = new Set(['root', 'text', 'linebreak', 'tab', 'paragraph']);
+
+// @lexical/yjs's createBinding snapshots default node properties by constructing
+// every registered node with NO arguments (`new klass()` in
+// initializeNodeProperties). Lexxy's attachment nodes destructure their first
+// parameter (`constructor({ tagName, ... }, key)`), so they throw on no-arg
+// construction and abort the bind. Lexxy 0.9 ships without default parameters.
+//
+// Rather than require a consumer-side patch, we make those constructions tolerate
+// no args. We can't wrap the class (Lexical asserts `registeredNode.klass ===
+// node.constructor` on every construct, so a Proxy/foreign wrapper trips
+// errorOnTypeKlassMismatch) and we can't safely probe construction on the live
+// editor. So: detect the offending classes on an isolated probe editor, then for
+// the bind window only, swap each into editor._nodes for an identity-preserving
+// subclass that supplies `{}` when constructed with no args (exactly what `= {}`
+// defaults would do). The subclass IS the registered klass during the bind, so
+// the identity assertion holds; we revert immediately after, so real attachment
+// creation (with real args, against the original class) is untouched. This
+// replaces the consumer-side @37signals/lexxy patch.
+function bindWithLexxyNodeGuard(editor, bind) {
+  const nodes = editor?._nodes;
+  if (!nodes || typeof nodes.forEach !== 'function') return bind();
+
+  let throwers;
+  try {
+    throwers = detectNoArgThrowingNodes(nodes);
+  } catch {
+    // If detection fails for any reason, fall back to an unguarded bind rather
+    // than break collaboration -- the original error (if any) still surfaces.
+    return bind();
+  }
+  if (throwers.size === 0) return bind();
+
+  const restore = [];
+  for (const info of throwers) {
+    const Original = info.klass;
+    const Guarded = class extends Original {
+      constructor(...args) {
+        super(args.length === 0 || args[0] === undefined ? {} : args[0], args[1]);
+      }
+    };
+    info.klass = Guarded;
+    restore.push(() => {
+      info.klass = Original;
+    });
+  }
+  try {
+    return bind();
+  } finally {
+    for (const undo of restore) undo();
+  }
+}
+
+// Probe each non-builtin registered node on a throwaway editor (so the live
+// editor's state is never touched) to find classes that throw when constructed
+// with no arguments. Probing inside the probe editor's update keeps Lexical's
+// active-editor + klass-identity invariants satisfied for the well-behaved nodes,
+// so only genuinely no-arg-intolerant constructors are flagged.
+function detectNoArgThrowingNodes(nodes) {
+  const throwers = new Set();
+  const candidates = [];
+  nodes.forEach((info) => {
+    const klass = info?.klass;
+    if (typeof klass !== 'function' || typeof klass.getType !== 'function') return;
+    let type;
+    try {
+      type = klass.getType();
+    } catch {
+      return;
+    }
+    if (!type || BUILTIN_NODE_TYPES.has(type)) return;
+    candidates.push({ info, klass });
+  });
+  if (candidates.length === 0) return throwers;
+
+  const probeEditor = createEditor({
+    namespace: 'yrb-lite-node-probe',
+    nodes: candidates.map((c) => c.klass),
+    onError: () => {},
+  });
+  probeEditor.update(
+    () => {
+      for (const { info, klass } of candidates) {
+        try {
+          // eslint-disable-next-line no-new
+          new klass();
+        } catch {
+          throwers.add(info);
+        }
+      }
+    },
+    { discrete: true }
+  );
+  return throwers;
+}
+
+// @lexical/yjs's CollabElementNode.splice throws (dev) / appends `undefined`
+// (prod) when asked to insert at an index that has no existing child and no
+// collab node to insert -- which is exactly what the empty-collab-tree bootstrap
+// does. Make that one case a no-op so an empty document can bind. createBinding
+// builds binding.root without triggering this case, so patching the (unexported)
+// CollabElementNode prototype through the live binding root -- right after the
+// bind, before bootstrap/sync runs -- is in time. Guarded by a per-prototype
+// flag. This replaces the consumer-side @lexical/yjs patch.
+function patchCollabElementSplice(binding) {
+  const proto = binding?.root?.constructor?.prototype;
+  if (!proto || typeof proto.splice !== 'function' || proto.__yrbLiteSplicePatched) return;
+  const original = proto.splice;
+  proto.splice = function (b, index, delCount, collabNode) {
+    if (this._children[index] === undefined && collabNode === undefined) return;
+    return original.call(this, b, index, delCount, collabNode);
+  };
+  proto.__yrbLiteSplicePatched = true;
 }
 
 // Once the provider reports its first sync, seed a brand-new (empty) document

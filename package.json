@@ -1,6 +1,6 @@
 {
   "name": "lexxy-realtime",
-  "version": "0.1.0-alpha.7",
+  "version": "0.1.0",
   "description": "Realtime collaborative editing for Lexxy (Lexical) over Yjs + ActionCable/AnyCable, with a reliable yrb-lite provider",
   "homepage": "https://github.com/jpcamara/lexxy-realtime#readme",
   "bugs": {
@@ -21,15 +21,15 @@
   "files": [
     "dist",
     "src",
-    "patches",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "publishConfig": {
-    "tag": "alpha",
+    "tag": "latest",
     "access": "public"
   },
   "scripts": {
-    "postinstall": "patch-package || true",
     "build": "rolldown -c",
     "build:watch": "rolldown --watch -c",
     "build:test": "rolldown -c test/browser/rolldown.config.mjs",
@@ -58,7 +58,6 @@
     "@rollup/plugin-terser": "^0.4.4",
     "agent-browser": "^0.28.0",
     "lexical": "^0.44.0",
-    "patch-package": "^8.0.1",
     "rolldown": "^1.0.0-beta.49",
     "y-protocols": "*",
     "yjs": "^13.6.0",

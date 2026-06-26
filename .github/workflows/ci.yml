@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Build & bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run build:test
+
+  headless:
+    name: Headless durability (Ruby ${{ matrix.ruby }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.4"]
+    steps:
+      # lexxy-realtime and yrb-lite are checked out as siblings so the test
+      # server's path-pinned gems (../../../yrb-lite from test/server) resolve.
+      - uses: actions/checkout@v5
+        with:
+          path: lexxy-realtime
+      - uses: actions/checkout@v5
+        with:
+          repository: jpcamara/yrb-lite
+          path: yrb-lite
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install JS deps
+        working-directory: lexxy-realtime
+        run: bun install --frozen-lockfile
+
+      # Build the yrb-lite native extension in place, then install the test
+      # server's bundle (which depends on it via path).
+      - name: Compile yrb-lite native extension
+        working-directory: yrb-lite
+        run: |
+          bundle install
+          bundle exec rake compile
+
+      - name: Install test-server gems
+        working-directory: lexxy-realtime/test/server
+        run: bundle install
+
+      - name: Headless durability suite
+        working-directory: lexxy-realtime
+        run: bun run test:headless

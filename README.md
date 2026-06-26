@@ -1,6 +1,7 @@
 # lexxy-realtime
 
-> **Alpha.** APIs and setup may change. Published under the `alpha` dist-tag.
+> Tracks pre-1.0 peers (`@37signals/lexxy` `^0.9`, `@lexical/yjs` `^0.44`), so
+> minor peer bumps may require a release here. See [`CHANGELOG.md`](CHANGELOG.md).
 
 Realtime collaborative editing for [Lexxy](https://github.com/basecamp/lexxy)
 (the Lexical-based editor) over [Yjs](https://github.com/yjs/yjs) and
@@ -13,7 +14,7 @@ connection).
 ## Install
 
 ```bash
-npm install lexxy-realtime@alpha
+npm install lexxy-realtime
 ```
 
 Peer libraries you provide (collaboration needs a single, shared copy of each):
@@ -21,25 +22,22 @@ Peer libraries you provide (collaboration needs a single, shared copy of each):
 `y-protocols`, and an ActionCable/AnyCable consumer (`@rails/actioncable` or
 `@anycable/web`).
 
-### Required patches
+No `patch-package` or vendor patches required — install the peers and go.
+lexxy-realtime applies two small, well-scoped shims to `@lexical/yjs` and
+`@37signals/lexxy` *at runtime, from inside its own bind path*, so the upstream
+packages are never modified on disk:
 
-This alpha depends on two small upstream patches that the **consuming app** must
-apply (they live in `node_modules/lexxy-realtime/patches/`):
+- `@37signals/lexxy` — its three ActionText attachment-node constructors
+  destructure their first parameter and so throw when `@lexical/yjs`'s
+  `createBinding` snapshots node defaults by constructing every node with no
+  args. For the duration of the bind only, those classes are swapped for
+  identity-preserving subclasses that default the missing argument to `{}`.
+- `@lexical/yjs` — `CollabElementNode.splice` is made a no-op when there's
+  nothing to remove (instead of throwing / appending `undefined`), so the
+  binding bootstrap can populate an empty collab tree.
 
-- `@37signals/lexxy` — default three ActionText node constructors so
-  `@lexical/yjs`'s `createBinding` (which constructs nodes with no args) doesn't
-  throw.
-- `@lexical/yjs` — make `CollabElementNode.splice` a no-op when there's nothing
-  to remove, instead of throwing, so the binding bootstrap can populate an empty
-  collab tree.
-
-Set them up with [patch-package](https://www.npmjs.com/package/patch-package):
-
-```bash
-npm install --save-dev patch-package
-cp node_modules/lexxy-realtime/patches/*.patch patches/
-# package.json:  "scripts": { "postinstall": "patch-package" }
-```
+Both are temporary measures pending upstream fixes; see
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the details and the tracking PRs.
 
 > A duplicate `yjs` (or `@lexical/yjs`) in your bundle breaks Yjs constructor
 > checks. If your bundler pulls two copies, dedupe them — e.g. esbuild
