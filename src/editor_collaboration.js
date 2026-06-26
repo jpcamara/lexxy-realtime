@@ -8,7 +8,6 @@ import {
 } from '@lexical/yjs';
 import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG, createEditor } from 'lexical';
 import { Doc } from 'yjs';
-import { Awareness } from 'y-protocols/awareness';
 import { YrbLiteProvider } from './yrb_lite_provider';
 
 export class Collaboration extends HTMLElement {
@@ -46,9 +45,18 @@ export class Collaboration extends HTMLElement {
     const channelParams = typeof rawParams === 'string' ? JSON.parse(rawParams) : rawParams;
 
     const doc = this.doc || new Doc();
-    const awareness = this.awareness || new Awareness(doc);
     const provider =
-      this.provider || new YrbLiteProvider(doc, this.consumer, channelName, channelParams, { awareness });
+      this.provider || new YrbLiteProvider(doc, this.consumer, channelName, channelParams);
+
+    // The provider owns its Awareness: it constructs its own and ignores any
+    // passed in. Every presence operation here -- initLocalState,
+    // setLocalStateFocus, syncLexicalUpdateToYjs, syncCursorPositions -- goes
+    // through `provider`, so the re-render trigger MUST listen on this exact
+    // instance. Listening on a separately-created Awareness (the old bug) meant
+    // remote cursor/selection changes, which only mutate the provider's
+    // instance, never triggered a re-render: a peer's caret moved only when they
+    // also edited text (an awareness-only move was invisible until then).
+    const awareness = provider.awareness;
 
     const docMap = new Map();
     docMap.set(id, doc);
@@ -93,6 +101,7 @@ export class Collaboration extends HTMLElement {
     syncCursorPositions(binding, provider); // initial paint of anyone already present
 
     this.provider = provider;
+    this.awareness = awareness; // expose the real (provider-owned) instance to the host
     this.binding = binding;
     this.#teardown = () => {
       this.#teardown = null;

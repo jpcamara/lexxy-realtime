@@ -8,7 +8,6 @@
 import "@37signals/lexxy";
 import { YrbLiteProvider } from "../../src/index.js"; // also registers <lexxy-collaboration>
 import * as Y from "yjs";
-import { Awareness } from "y-protocols/awareness";
 import { createConsumer } from "@rails/actioncable";
 
 const params = new URLSearchParams(location.search);
@@ -21,8 +20,8 @@ const editor = document.getElementById("editor");
 
 function start() {
   const doc = new Y.Doc();
-  const awareness = new Awareness(doc);
-  const provider = new YrbLiteProvider(doc, consumer, "DocumentChannel", { id: room }, { awareness, disableBc: true });
+  const provider = new YrbLiteProvider(doc, consumer, "DocumentChannel", { id: room });
+  const awareness = provider.awareness; // the provider owns awareness; read it back
 
   const collab = document.createElement("lexxy-collaboration");
   collab.setAttribute("id", room);
@@ -32,7 +31,6 @@ function start() {
   collab.setAttribute("channel-params", JSON.stringify({ id: room }));
   collab.consumer = consumer;
   collab.doc = doc;
-  collab.awareness = awareness;
   collab.provider = provider;
 
   editor.appendChild(collab);

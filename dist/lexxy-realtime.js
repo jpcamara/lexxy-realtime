@@ -3,6 +3,118 @@ import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG, createEditor } from 
 import * as Y from "yjs";
 import { Doc, applyUpdate, mergeUpdates } from "yjs";
 
+//#region node_modules/yrb-lite-client/dist/reliable_sync.js
+const DEFAULTS = { resendInterval: 1e3 };
+var ReliableSync = class {
+	/** Unacked local updates, in order. */
+	pending = [];
+	#send;
+	#merge;
+	#resendInterval;
+	#setInterval;
+	#clearInterval;
+	#nextSeq = 1;
+	#connected = false;
+	#timer = void 0;
+	#tailCache = void 0;
+	constructor(opts) {
+		const { send, merge, resendInterval } = opts ?? {};
+		if (typeof send !== "function") throw new TypeError("ReliableSync requires a send(update, id) function");
+		if (typeof merge !== "function") throw new TypeError("ReliableSync requires a merge(updates) function");
+		this.#send = send;
+		this.#merge = merge;
+		const interval = resendInterval ?? DEFAULTS.resendInterval;
+		if (!Number.isFinite(interval) || interval <= 0) throw new TypeError("ReliableSync resendInterval must be a positive number");
+		this.#resendInterval = interval;
+		this.#setInterval = opts.setInterval ?? ((fn, ms) => setInterval(fn, ms));
+		this.#clearInterval = opts.clearInterval ?? ((h) => clearInterval(h));
+	}
+	/** True while there are unacknowledged local updates. */
+	get hasPending() {
+		return this.pending.length > 0;
+	}
+	/**
+	* Record a local document update. It is queued and the unacked tail is
+	* flushed; the update remains retained until the server acknowledges it.
+	*/
+	enqueue(update) {
+		this.pending.push({
+			seq: this.#nextSeq++,
+			update
+		});
+		this.#tailCache = void 0;
+		if (this.#connected) this.#startTimer();
+		this.flush();
+	}
+	/**
+	* Send the whole unacked tail as one merged delta. The id is the highest seq
+	* in the batch, so a single { ack } cumulatively confirms everything up to it.
+	* No-op while disconnected (the tail is replayed on the next onConnect).
+	*/
+	flush() {
+		if (!this.#connected || this.pending.length === 0) return;
+		this.#send(this.#mergedTail(), this.pending[this.pending.length - 1].seq);
+	}
+	/**
+	* Confirm delivery up to `id`: prune every queued update with seq <= id.
+	* Acks arrive over the wire, so validate before pruning. A malformed value
+	* (NaN/string/negative) or an impossible future id must not silently drop the
+	* queue; invalid acks are ignored.
+	*/
+	onAck(id) {
+		if (!Number.isSafeInteger(id) || id < 0) return;
+		if (this.pending.length > 0 && id > this.pending[this.pending.length - 1].seq) return;
+		this.pending = this.pending.filter((p) => p.seq > id);
+		this.#tailCache = void 0;
+		if (this.pending.length === 0) this.#stopTimer();
+	}
+	/** Transport (re)connected: replay the unacked tail and resume retransmits. */
+	onConnect() {
+		this.#connected = true;
+		this.flush();
+		if (this.pending.length > 0) this.#startTimer();
+	}
+	/** Transport dropped: keep the queue (for reconnect replay), pause the timer. */
+	onDisconnect() {
+		this.#connected = false;
+		this.#stopTimer();
+	}
+	/**
+	* One retransmit tick. Exposed for deterministic testing; normally driven by
+	* the internal timer.
+	*/
+	onTick() {
+		if (!this.#connected || this.pending.length === 0) return;
+		this.flush();
+	}
+	/** Stop timers and drop references. Call when the provider is destroyed. */
+	destroy() {
+		this.#connected = false;
+		this.#stopTimer();
+		this.pending = [];
+		this.#tailCache = void 0;
+	}
+	/** The unacked tail merged into one delta (memoized between tail changes). */
+	#mergedTail() {
+		if (this.#tailCache === void 0) {
+			const updates = this.pending.map((p) => p.update);
+			this.#tailCache = updates.length === 1 ? updates[0] : this.#merge(updates);
+		}
+		return this.#tailCache;
+	}
+	#startTimer() {
+		if (this.#timer !== void 0) return;
+		this.#timer = this.#setInterval(() => this.onTick(), this.#resendInterval);
+		const t = this.#timer;
+		if (t && typeof t.unref === "function") t.unref();
+	}
+	#stopTimer() {
+		if (this.#timer !== void 0) this.#clearInterval(this.#timer);
+		this.#timer = void 0;
+	}
+};
+
+//#endregion
 //#region node_modules/lib0/math.js
 /**
 * Common Math expressions.
@@ -528,6 +640,122 @@ const _readVarStringNative = (decoder) => utf8TextDecoder.decode(readVarUint8Arr
 const readVarString = utf8TextDecoder ? _readVarStringNative : _readVarStringPolyfill;
 
 //#endregion
+//#region node_modules/y-protocols/sync.js
+/**
+* @module sync-protocol
+*/
+/**
+* @typedef {Map<number, number>} StateMap
+*/
+/**
+* Core Yjs defines two message types:
+* • YjsSyncStep1: Includes the State Set of the sending client. When received, the client should reply with YjsSyncStep2.
+* • YjsSyncStep2: Includes all missing structs and the complete delete set. When received, the client is assured that it
+*   received all information from the remote client.
+*
+* In a peer-to-peer network, you may want to introduce a SyncDone message type. Both parties should initiate the connection
+* with SyncStep1. When a client received SyncStep2, it should reply with SyncDone. When the local client received both
+* SyncStep2 and SyncDone, it is assured that it is synced to the remote client.
+*
+* In a client-server model, you want to handle this differently: The client should initiate the connection with SyncStep1.
+* When the server receives SyncStep1, it should reply with SyncStep2 immediately followed by SyncStep1. The client replies
+* with SyncStep2 when it receives SyncStep1. Optionally the server may send a SyncDone after it received SyncStep2, so the
+* client knows that the sync is finished.  There are two reasons for this more elaborated sync model: 1. This protocol can
+* easily be implemented on top of http and websockets. 2. The server should only reply to requests, and not initiate them.
+* Therefore it is necessary that the client initiates the sync.
+*
+* Construction of a message:
+* [messageType : varUint, message definition..]
+*
+* Note: A message does not include information about the room name. This must to be handled by the upper layer protocol!
+*
+* stringify[messageType] stringifies a message definition (messageType is already read from the bufffer)
+*/
+const messageYjsSyncStep1 = 0;
+const messageYjsSyncStep2 = 1;
+const messageYjsUpdate = 2;
+/**
+* Create a sync step 1 message based on the state of the current shared document.
+*
+* @param {encoding.Encoder} encoder
+* @param {Y.Doc} doc
+*/
+const writeSyncStep1 = (encoder, doc) => {
+	writeVarUint(encoder, messageYjsSyncStep1);
+	const sv = Y.encodeStateVector(doc);
+	writeVarUint8Array(encoder, sv);
+};
+/**
+* @param {encoding.Encoder} encoder
+* @param {Y.Doc} doc
+* @param {Uint8Array} [encodedStateVector]
+*/
+const writeSyncStep2 = (encoder, doc, encodedStateVector) => {
+	writeVarUint(encoder, messageYjsSyncStep2);
+	writeVarUint8Array(encoder, Y.encodeStateAsUpdate(doc, encodedStateVector));
+};
+/**
+* Read SyncStep1 message and reply with SyncStep2.
+*
+* @param {decoding.Decoder} decoder The reply to the received message
+* @param {encoding.Encoder} encoder The received message
+* @param {Y.Doc} doc
+*/
+const readSyncStep1 = (decoder, encoder, doc) => writeSyncStep2(encoder, doc, readVarUint8Array(decoder));
+/**
+* Read and apply Structs and then DeleteStore to a y instance.
+*
+* @param {decoding.Decoder} decoder
+* @param {Y.Doc} doc
+* @param {any} transactionOrigin
+*/
+const readSyncStep2 = (decoder, doc, transactionOrigin) => {
+	try {
+		Y.applyUpdate(doc, readVarUint8Array(decoder), transactionOrigin);
+	} catch (error) {
+		console.error("Caught error while handling a Yjs update", error);
+	}
+};
+/**
+* @param {encoding.Encoder} encoder
+* @param {Uint8Array} update
+*/
+const writeUpdate = (encoder, update) => {
+	writeVarUint(encoder, messageYjsUpdate);
+	writeVarUint8Array(encoder, update);
+};
+/**
+* Read and apply Structs and then DeleteStore to a y instance.
+*
+* @param {decoding.Decoder} decoder
+* @param {Y.Doc} doc
+* @param {any} transactionOrigin
+*/
+const readUpdate = readSyncStep2;
+/**
+* @param {decoding.Decoder} decoder A message received from another client
+* @param {encoding.Encoder} encoder The reply message. Does not need to be sent if empty.
+* @param {Y.Doc} doc
+* @param {any} transactionOrigin
+*/
+const readSyncMessage = (decoder, encoder, doc, transactionOrigin) => {
+	const messageType = readVarUint(decoder);
+	switch (messageType) {
+		case messageYjsSyncStep1:
+			readSyncStep1(decoder, encoder, doc);
+			break;
+		case messageYjsSyncStep2:
+			readSyncStep2(decoder, doc, transactionOrigin);
+			break;
+		case messageYjsUpdate:
+			readUpdate(decoder, doc, transactionOrigin);
+			break;
+		default: throw new Error("Unknown message type");
+	}
+	return messageType;
+};
+
+//#endregion
 //#region node_modules/lib0/time.js
 /**
 * Return current unix time.
@@ -961,234 +1189,6 @@ const applyAwarenessUpdate = (awareness, update, origin) => {
 };
 
 //#endregion
-//#region node_modules/yrb-lite-client/dist/reliable_sync.js
-const DEFAULTS = { resendInterval: 1e3 };
-var ReliableSync = class {
-	/** Unacked local updates, in order. */
-	pending = [];
-	#send;
-	#merge;
-	#resendInterval;
-	#setInterval;
-	#clearInterval;
-	#nextSeq = 1;
-	#connected = false;
-	#timer = void 0;
-	#tailCache = void 0;
-	constructor(opts) {
-		const { send, merge, resendInterval } = opts ?? {};
-		if (typeof send !== "function") throw new TypeError("ReliableSync requires a send(update, id) function");
-		if (typeof merge !== "function") throw new TypeError("ReliableSync requires a merge(updates) function");
-		this.#send = send;
-		this.#merge = merge;
-		const interval = resendInterval ?? DEFAULTS.resendInterval;
-		if (!Number.isFinite(interval) || interval <= 0) throw new TypeError("ReliableSync resendInterval must be a positive number");
-		this.#resendInterval = interval;
-		this.#setInterval = opts.setInterval ?? ((fn, ms) => setInterval(fn, ms));
-		this.#clearInterval = opts.clearInterval ?? ((h) => clearInterval(h));
-	}
-	/** True while there are unacknowledged local updates. */
-	get hasPending() {
-		return this.pending.length > 0;
-	}
-	/**
-	* Record a local document update. It is queued and the unacked tail is
-	* flushed; the update remains retained until the server acknowledges it.
-	*/
-	enqueue(update) {
-		this.pending.push({
-			seq: this.#nextSeq++,
-			update
-		});
-		this.#tailCache = void 0;
-		if (this.#connected) this.#startTimer();
-		this.flush();
-	}
-	/**
-	* Send the whole unacked tail as one merged delta. The id is the highest seq
-	* in the batch, so a single { ack } cumulatively confirms everything up to it.
-	* No-op while disconnected (the tail is replayed on the next onConnect).
-	*/
-	flush() {
-		if (!this.#connected || this.pending.length === 0) return;
-		this.#send(this.#mergedTail(), this.pending[this.pending.length - 1].seq);
-	}
-	/**
-	* Confirm delivery up to `id`: prune every queued update with seq <= id.
-	* Acks arrive over the wire, so validate before pruning. A malformed value
-	* (NaN/string/negative) or an impossible future id must not silently drop the
-	* queue; invalid acks are ignored.
-	*/
-	onAck(id) {
-		if (!Number.isSafeInteger(id) || id < 0) return;
-		if (this.pending.length > 0 && id > this.pending[this.pending.length - 1].seq) return;
-		this.pending = this.pending.filter((p) => p.seq > id);
-		this.#tailCache = void 0;
-		if (this.pending.length === 0) this.#stopTimer();
-	}
-	/** Transport (re)connected: replay the unacked tail and resume retransmits. */
-	onConnect() {
-		this.#connected = true;
-		this.flush();
-		if (this.pending.length > 0) this.#startTimer();
-	}
-	/** Transport dropped: keep the queue (for reconnect replay), pause the timer. */
-	onDisconnect() {
-		this.#connected = false;
-		this.#stopTimer();
-	}
-	/**
-	* One retransmit tick. Exposed for deterministic testing; normally driven by
-	* the internal timer.
-	*/
-	onTick() {
-		if (!this.#connected || this.pending.length === 0) return;
-		this.flush();
-	}
-	/** Stop timers and drop references. Call when the provider is destroyed. */
-	destroy() {
-		this.#connected = false;
-		this.#stopTimer();
-		this.pending = [];
-		this.#tailCache = void 0;
-	}
-	/** The unacked tail merged into one delta (memoized between tail changes). */
-	#mergedTail() {
-		if (this.#tailCache === void 0) {
-			const updates = this.pending.map((p) => p.update);
-			this.#tailCache = updates.length === 1 ? updates[0] : this.#merge(updates);
-		}
-		return this.#tailCache;
-	}
-	#startTimer() {
-		if (this.#timer !== void 0) return;
-		this.#timer = this.#setInterval(() => this.onTick(), this.#resendInterval);
-		const t = this.#timer;
-		if (t && typeof t.unref === "function") t.unref();
-	}
-	#stopTimer() {
-		if (this.#timer !== void 0) this.#clearInterval(this.#timer);
-		this.#timer = void 0;
-	}
-};
-
-//#endregion
-//#region node_modules/y-protocols/sync.js
-/**
-* @module sync-protocol
-*/
-/**
-* @typedef {Map<number, number>} StateMap
-*/
-/**
-* Core Yjs defines two message types:
-* • YjsSyncStep1: Includes the State Set of the sending client. When received, the client should reply with YjsSyncStep2.
-* • YjsSyncStep2: Includes all missing structs and the complete delete set. When received, the client is assured that it
-*   received all information from the remote client.
-*
-* In a peer-to-peer network, you may want to introduce a SyncDone message type. Both parties should initiate the connection
-* with SyncStep1. When a client received SyncStep2, it should reply with SyncDone. When the local client received both
-* SyncStep2 and SyncDone, it is assured that it is synced to the remote client.
-*
-* In a client-server model, you want to handle this differently: The client should initiate the connection with SyncStep1.
-* When the server receives SyncStep1, it should reply with SyncStep2 immediately followed by SyncStep1. The client replies
-* with SyncStep2 when it receives SyncStep1. Optionally the server may send a SyncDone after it received SyncStep2, so the
-* client knows that the sync is finished.  There are two reasons for this more elaborated sync model: 1. This protocol can
-* easily be implemented on top of http and websockets. 2. The server should only reply to requests, and not initiate them.
-* Therefore it is necessary that the client initiates the sync.
-*
-* Construction of a message:
-* [messageType : varUint, message definition..]
-*
-* Note: A message does not include information about the room name. This must to be handled by the upper layer protocol!
-*
-* stringify[messageType] stringifies a message definition (messageType is already read from the bufffer)
-*/
-const messageYjsSyncStep1 = 0;
-const messageYjsSyncStep2 = 1;
-const messageYjsUpdate = 2;
-/**
-* Create a sync step 1 message based on the state of the current shared document.
-*
-* @param {encoding.Encoder} encoder
-* @param {Y.Doc} doc
-*/
-const writeSyncStep1 = (encoder, doc) => {
-	writeVarUint(encoder, messageYjsSyncStep1);
-	const sv = Y.encodeStateVector(doc);
-	writeVarUint8Array(encoder, sv);
-};
-/**
-* @param {encoding.Encoder} encoder
-* @param {Y.Doc} doc
-* @param {Uint8Array} [encodedStateVector]
-*/
-const writeSyncStep2 = (encoder, doc, encodedStateVector) => {
-	writeVarUint(encoder, messageYjsSyncStep2);
-	writeVarUint8Array(encoder, Y.encodeStateAsUpdate(doc, encodedStateVector));
-};
-/**
-* Read SyncStep1 message and reply with SyncStep2.
-*
-* @param {decoding.Decoder} decoder The reply to the received message
-* @param {encoding.Encoder} encoder The received message
-* @param {Y.Doc} doc
-*/
-const readSyncStep1 = (decoder, encoder, doc) => writeSyncStep2(encoder, doc, readVarUint8Array(decoder));
-/**
-* Read and apply Structs and then DeleteStore to a y instance.
-*
-* @param {decoding.Decoder} decoder
-* @param {Y.Doc} doc
-* @param {any} transactionOrigin
-*/
-const readSyncStep2 = (decoder, doc, transactionOrigin) => {
-	try {
-		Y.applyUpdate(doc, readVarUint8Array(decoder), transactionOrigin);
-	} catch (error) {
-		console.error("Caught error while handling a Yjs update", error);
-	}
-};
-/**
-* @param {encoding.Encoder} encoder
-* @param {Uint8Array} update
-*/
-const writeUpdate = (encoder, update) => {
-	writeVarUint(encoder, messageYjsUpdate);
-	writeVarUint8Array(encoder, update);
-};
-/**
-* Read and apply Structs and then DeleteStore to a y instance.
-*
-* @param {decoding.Decoder} decoder
-* @param {Y.Doc} doc
-* @param {any} transactionOrigin
-*/
-const readUpdate = readSyncStep2;
-/**
-* @param {decoding.Decoder} decoder A message received from another client
-* @param {encoding.Encoder} encoder The reply message. Does not need to be sent if empty.
-* @param {Y.Doc} doc
-* @param {any} transactionOrigin
-*/
-const readSyncMessage = (decoder, encoder, doc, transactionOrigin) => {
-	const messageType = readVarUint(decoder);
-	switch (messageType) {
-		case messageYjsSyncStep1:
-			readSyncStep1(decoder, encoder, doc);
-			break;
-		case messageYjsSyncStep2:
-			readSyncStep2(decoder, doc, transactionOrigin);
-			break;
-		case messageYjsUpdate:
-			readUpdate(decoder, doc, transactionOrigin);
-			break;
-		default: throw new Error("Unknown message type");
-	}
-	return messageType;
-};
-
-//#endregion
 //#region node_modules/yrb-lite-client/dist/y_protocol_session.js
 const MessageType = {
 	Sync: 0,
@@ -1549,8 +1549,8 @@ var Collaboration = class extends HTMLElement {
 		const rawParams = this.getAttribute("channel-params") || "{}";
 		const channelParams = typeof rawParams === "string" ? JSON.parse(rawParams) : rawParams;
 		const doc = this.doc || new Doc();
-		const awareness = this.awareness || new Awareness(doc);
-		const provider = this.provider || new ActionCableProvider(doc, this.consumer, channelName, channelParams, { awareness });
+		const provider = this.provider || new ActionCableProvider(doc, this.consumer, channelName, channelParams);
+		const awareness = provider.awareness;
 		const docMap = /* @__PURE__ */ new Map();
 		docMap.set(id, doc);
 		this.editor.update(() => $getRoot().clear(), {
@@ -1587,6 +1587,7 @@ var Collaboration = class extends HTMLElement {
 		const unsubscribeCursorRender = this.editor.registerUpdateListener(renderCursors);
 		syncCursorPositions(binding, provider);
 		this.provider = provider;
+		this.awareness = awareness;
 		this.binding = binding;
 		this.#teardown = () => {
 			this.#teardown = null;

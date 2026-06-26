@@ -45,32 +45,36 @@ Both are temporary measures pending upstream fixes; see
 
 ## Usage
 
-The host creates the Yjs doc, awareness, an ActionCable/AnyCable consumer, and a
-provider, then mounts `<lexxy-collaboration>` inside a `<lexxy-editor>` and calls
+The host creates the Yjs doc, an ActionCable/AnyCable consumer, and a provider,
+then mounts `<lexxy-collaboration>` inside a `<lexxy-editor>` and calls
 `connect()`:
 
 ```js
 import "lexxy-realtime"; // registers <lexxy-collaboration>
 import { YrbLiteProvider } from "lexxy-realtime";
 import * as Y from "yjs";
-import { Awareness } from "y-protocols/awareness";
 import { createConsumer } from "@anycable/web";
 
 const doc = new Y.Doc();
-const awareness = new Awareness(doc);
 const consumer = createConsumer();
-const provider = new YrbLiteProvider(doc, consumer, "DocumentChannel", { id: docId }, { awareness });
+const provider = new YrbLiteProvider(doc, consumer, "DocumentChannel", { id: docId });
 
 const collab = document.createElement("lexxy-collaboration");
 collab.setAttribute("name", userName);
 collab.consumer = consumer;
 collab.doc = doc;
-collab.awareness = awareness;
 collab.provider = provider;
 
 document.querySelector("lexxy-editor").appendChild(collab);
 provider.connect(); // YrbLiteProvider does not auto-connect
+
+// The provider owns presence; read it back if you need it (cursor counts, etc.).
+// const awareness = provider.awareness;
 ```
+
+> Presence/awareness is owned by the provider — it always creates its own
+> `Awareness`. Don't construct one to pass in (it would be ignored); read
+> `provider.awareness` if you need the instance.
 
 On the server, include `YrbLite::Sync` in an ActionCable channel named
 `DocumentChannel` (see [`yrb-lite`](https://github.com/jpcamara/yrb-lite)). The

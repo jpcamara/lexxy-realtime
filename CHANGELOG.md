@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-26
+
+### Fixed
+
+- Remote cursors and selections now update live. The re-render trigger listened
+  on a separately-created `Awareness` instance, but `YrbLiteProvider` always
+  creates and uses its own, so awareness-only changes from a peer (moving the
+  caret or selecting, with no text edit) never triggered a re-render — a remote
+  caret appeared to move only when that peer also typed. The collaboration
+  element now listens on the provider's own `Awareness`, and exposes it back via
+  the element's `awareness` property. (This was the source of the
+  previously-intermittent cursor behavior.)
+
 ## [0.1.0] - 2026-06-25
 
 First release that installs with **no consumer-side patches**. Previously the
@@ -39,5 +52,6 @@ so the upstream packages are never modified on disk.
 
 - Standardized on a single lockfile (`bun.lock`); dropped `package-lock.json`.
 
-[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jpcamara/lexxy-realtime/releases/tag/v0.1.0
