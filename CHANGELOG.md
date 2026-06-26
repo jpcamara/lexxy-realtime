@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-26
+
+### Changed
+
+- Remote carets/selections now persist while a collaborator's editor is blurred,
+  instead of disappearing. `@lexical/yjs` renders a peer only while their
+  `focusing` flag is true, and the `@lexical/react`-style focus/blur toggling we
+  used set it false on every editor blur — so a collaborator vanished the moment
+  they clicked another window or tab (and, with two windows on one machine, the
+  focused window could never see the other). `focusing` now stays true for the
+  session; a peer who actually leaves is removed via the provider's
+  navigation/close presence removal (`pagehide`), or the awareness timeout if
+  they drop abruptly.
+
 ## [0.1.1] - 2026-06-26
 
 ### Fixed
@@ -52,6 +66,7 @@ so the upstream packages are never modified on disk.
 
 - Standardized on a single lockfile (`bun.lock`); dropped `package-lock.json`.
 
-[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jpcamara/lexxy-realtime/releases/tag/v0.1.0

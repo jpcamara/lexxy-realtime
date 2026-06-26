@@ -82,15 +82,22 @@ ab("bob", "keyboard", "type", "BBBB");
 await sleep(500);
 check("Alice's caret still present after Bob's concurrent edit", evalBool("bob", overlayHas("Alice")));
 
-// 4) Blur hides a peer's caret (focusing=false); refocus restores it.
+// 4) A peer's caret PERSISTS when their editor blurs. We deliberately don't tie
+// remote-cursor visibility to editor focus: a collaborator who clicks another
+// window/tab stays visible at their last position. (The @lexical/react default
+// hides on blur, which makes peers vanish constantly -- and, with two windows on
+// one machine, the focused window could never see the other.)
 ab("alice", "eval", "document.querySelector('#editor [contenteditable]').blur()");
-check("Alice's caret hides on Bob when Alice blurs", await waitBool("bob", `!(${overlayHas("Alice")})`, "alice blurred"));
-ab("alice", "click", "#editor [contenteditable]");
-check("Alice's caret returns on Bob when Alice refocuses", await waitBool("bob", overlayHas("Alice"), "alice refocused"));
+await sleep(750);
+check("Alice's caret persists on Bob when Alice blurs", evalBool("bob", overlayHas("Alice")));
 
-// 5) Disconnect removes the peer's caret, leaving the others intact.
-ab("alice", "close");
-check("Alice's caret is removed after she disconnects", await waitBool("bob", `!(${overlayHas("Alice")})`, "alice removed"));
+// 5) Leaving for real removes the peer's caret, leaving the others intact.
+// Navigating away fires `pagehide`, so the provider broadcasts a presence
+// removal. NOTE: agent-browser's `close` does NOT fire pagehide, so we navigate
+// to drive the real teardown path (an abrupt kill instead falls back to the
+// awareness timeout).
+ab("alice", "open", "about:blank");
+check("Alice's caret is removed after she leaves", await waitBool("bob", `!(${overlayHas("Alice")})`, "alice left"));
 check("Carol's caret still present after Alice left", evalBool("bob", overlayHas("Carol")));
 
 ab("bob", "close");

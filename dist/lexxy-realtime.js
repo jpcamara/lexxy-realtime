@@ -1571,17 +1571,6 @@ var Collaboration = class extends HTMLElement {
 			name,
 			color
 		});
-		const rootElement = this.editor.getRootElement();
-		const onFocus = () => setLocalStateFocus(provider, name, color, true, {
-			name,
-			color
-		});
-		const onBlur = () => setLocalStateFocus(provider, name, color, false, {
-			name,
-			color
-		});
-		rootElement?.addEventListener("focus", onFocus);
-		rootElement?.addEventListener("blur", onBlur);
 		const renderCursors = () => syncCursorPositions(binding, provider);
 		awareness.on("update", renderCursors);
 		const unsubscribeCursorRender = this.editor.registerUpdateListener(renderCursors);
@@ -1591,8 +1580,6 @@ var Collaboration = class extends HTMLElement {
 		this.binding = binding;
 		this.#teardown = () => {
 			this.#teardown = null;
-			rootElement?.removeEventListener("focus", onFocus);
-			rootElement?.removeEventListener("blur", onBlur);
 			awareness.off("update", renderCursors);
 			unsubscribeCursorRender();
 			unsubscribeListeners();

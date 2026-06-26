@@ -83,16 +83,18 @@ export class Collaboration extends HTMLElement {
     // Seed local presence (identity + focus). The local cursor's anchor/focus is
     // written to awareness by syncLexicalUpdateToYjs on every editor update, as
     // Yjs relative positions that stay correct across concurrent edits.
+    //
+    // `focusing` stays true for the whole session. @lexical/yjs's
+    // syncCursorPositions renders a peer's caret ONLY while their `focusing` flag
+    // is true, so toggling it off on editor blur (the @lexical/react default)
+    // makes a collaborator vanish the moment their editor loses focus -- e.g.
+    // they click another window/tab, or (when testing two windows on one machine)
+    // simply whenever the other window is focused. We keep peers visible at their
+    // last position for as long as they're connected; a departed peer is removed
+    // by the provider's disconnect/pagehide presence removal and the awareness
+    // timeout.
     initLocalState(provider, name, color, true, { name, color });
     setLocalStateFocus(provider, name, color, true, { name, color });
-
-    // Toggle our `focusing` flag on focus/blur so peers hide our caret when we
-    // click away (syncCursorPositions only renders focusing peers).
-    const rootElement = this.editor.getRootElement();
-    const onFocus = () => setLocalStateFocus(provider, name, color, true, { name, color });
-    const onBlur = () => setLocalStateFocus(provider, name, color, false, { name, color });
-    rootElement?.addEventListener('focus', onFocus);
-    rootElement?.addEventListener('blur', onBlur);
 
     // Re-render remote cursors when presence changes or the document reflows.
     const renderCursors = () => syncCursorPositions(binding, provider);
@@ -105,8 +107,6 @@ export class Collaboration extends HTMLElement {
     this.binding = binding;
     this.#teardown = () => {
       this.#teardown = null;
-      rootElement?.removeEventListener('focus', onFocus);
-      rootElement?.removeEventListener('blur', onBlur);
       awareness.off('update', renderCursors);
       unsubscribeCursorRender();
       unsubscribeListeners();
