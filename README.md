@@ -1,85 +1,192 @@
 # lexxy-realtime
 
-> Tracks pre-1.0 peers (`@37signals/lexxy` `^0.9`, `@lexical/yjs` `^0.44`), so
-> minor peer bumps may require a release here. See [`CHANGELOG.md`](CHANGELOG.md).
+Real-time collaborative editing for [Lexxy](https://github.com/basecamp/lexxy)
+over [Yjs](https://github.com/yjs/yjs). Drop a `<lexxy-collaboration>` element
+inside your `<lexxy-editor>` and people editing the same document see each other's
+**text, cursors, and selections** live.
 
-Realtime collaborative editing for [Lexxy](https://github.com/basecamp/lexxy)
-(the Lexical-based editor) over [Yjs](https://github.com/yjs/yjs) and
-ActionCable / AnyCable. Ships a `<lexxy-collaboration>` custom element plus a
-**reliable provider** (`YrbLiteProvider`) that speaks the y-websocket protocol
-to a [`yrb-lite`](https://github.com/jpcamara/yrb-lite) server and adds
-ack-based delivery (an acknowledged edit can't be silently lost on a flaky
-connection).
+It works with **any Yjs provider**. [`yrb-lite`](https://github.com/jpcamara/yrb-lite)
+is the recommended one — a reliable, Rails-native provider over Action Cable /
+AnyCable with ack-tracked delivery (an acknowledged edit isn't silently lost on a
+flaky connection, and a reconnecting client catches up from the server). But you
+can just as well point it at a Node `y-websocket` server, Hocuspocus, y-webrtc,
+and so on.
+
+> Pre-1.0, and tracks pre-1.0 peers (`@37signals/lexxy` `^0.9`, `lexical` /
+> `@lexical/yjs` `^0.44`). See [`CHANGELOG.md`](CHANGELOG.md).
+
+## Requirements
+
+- A **Lexxy editor** on the page (`@37signals/lexxy`) — see
+  [Lexxy's docs](https://basecamp.github.io/lexxy).
+- A **Yjs provider** and its backend. With `yrb-lite` that's a Rails channel (see
+  [Server](#server-yrb-lite)); with another provider it's whatever that provider
+  connects to.
+- A **JS bundler** (jsbundling-rails / esbuild, or any app that bundles its
+  JavaScript). Collaboration relies on one shared copy of `lexical` and `yjs`
+  across Lexxy and lexxy-realtime; a bundler dedupes them for you (see
+  [a single copy of lexical & yjs](#a-single-copy-of-lexical--yjs)).
 
 ## Install
 
 ```bash
-npm install lexxy-realtime
+npm install lexxy-realtime @lexical/yjs yjs y-protocols
 ```
 
-Peer libraries you provide (collaboration needs a single, shared copy of each):
-`@37signals/lexxy` `^0.9`, `lexical` / `@lexical/yjs` `^0.44`, `yjs`,
-`y-protocols`, and an ActionCable/AnyCable consumer (`@rails/actioncable` or
-`@anycable/web`).
+You also need a Lexxy editor and `lexical` (`^0.44`), which your app already has,
+**plus a provider**: for `yrb-lite`, a cable consumer (`@rails/actioncable` or
+`@anycable/web`); otherwise the provider of your choice (e.g. `y-websocket`).
 
-No `patch-package` or vendor patches required — install the peers and go.
-lexxy-realtime applies two small, well-scoped shims to `@lexical/yjs` and
-`@37signals/lexxy` *at runtime, from inside its own bind path*, so the upstream
-packages are never modified on disk:
+## Client
 
-- `@37signals/lexxy` — its three ActionText attachment-node constructors
-  destructure their first parameter and so throw when `@lexical/yjs`'s
-  `createBinding` snapshots node defaults by constructing every node with no
-  args. For the duration of the bind only, those classes are swapped for
-  identity-preserving subclasses that default the missing argument to `{}`.
-- `@lexical/yjs` — `CollabElementNode.splice` is made a no-op when there's
-  nothing to remove (instead of throwing / appending `undefined`), so the
-  binding bootstrap can populate an empty collab tree.
+`lexxy-realtime` registers a `<lexxy-collaboration>` custom element. Create a Yjs
+doc and a provider, mount the element inside your `<lexxy-editor>`, and go. The
+element is the same regardless of provider — only how you build the provider
+differs.
 
-Both are temporary measures pending upstream fixes; see
-[`CONTRIBUTING.md`](CONTRIBUTING.md) for the details and the tracking PRs.
-
-> A duplicate `yjs` (or `@lexical/yjs`) in your bundle breaks Yjs constructor
-> checks. If your bundler pulls two copies, dedupe them — e.g. esbuild
-> `--alias:yjs=./node_modules/yjs`.
-
-## Usage
-
-The host creates the Yjs doc, an ActionCable/AnyCable consumer, and a provider,
-then mounts `<lexxy-collaboration>` inside a `<lexxy-editor>` and calls
-`connect()`:
+### With yrb-lite (recommended for Rails)
 
 ```js
-import "lexxy-realtime"; // registers <lexxy-collaboration>
-import { YrbLiteProvider } from "lexxy-realtime";
+import "@37signals/lexxy";                          // registers <lexxy-editor>
+import { YrbLiteProvider } from "lexxy-realtime";   // registers <lexxy-collaboration>
 import * as Y from "yjs";
-import { createConsumer } from "@anycable/web";
+import { createConsumer } from "@rails/actioncable"; // or "@anycable/web"
 
-const doc = new Y.Doc();
-const consumer = createConsumer();
-const provider = new YrbLiteProvider(doc, consumer, "DocumentChannel", { id: docId });
+const editor = document.querySelector("lexxy-editor");
 
-const collab = document.createElement("lexxy-collaboration");
-collab.setAttribute("name", userName);
-collab.consumer = consumer;
-collab.doc = doc;
-collab.provider = provider;
+function startCollaborating() {
+  const doc = new Y.Doc();
+  const consumer = createConsumer();
+  const provider = new YrbLiteProvider(doc, consumer, "DocumentChannel", { id: documentId });
 
-document.querySelector("lexxy-editor").appendChild(collab);
-provider.connect(); // YrbLiteProvider does not auto-connect
+  const collab = document.createElement("lexxy-collaboration");
+  collab.setAttribute("name", currentUserName);   // shown on your cursor to others
+  collab.setAttribute("color", "#3b82f6");         // optional cursor color
+  collab.doc = doc;
+  collab.provider = provider;
+  editor.appendChild(collab);
 
-// The provider owns presence; read it back if you need it (cursor counts, etc.).
-// const awareness = provider.awareness;
+  provider.connect(); // YrbLiteProvider does not auto-connect
+}
+
+// Lexxy sets up its editor asynchronously; start once it's ready.
+if (editor.editor) {
+  startCollaborating();
+} else {
+  editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
+}
 ```
 
-> Presence/awareness is owned by the provider — it always creates its own
-> `Awareness`. Don't construct one to pass in (it would be ignored); read
-> `provider.awareness` if you need the instance.
+### With any other Yjs provider
 
-On the server, include `YrbLite::Sync` in an ActionCable channel named
-`DocumentChannel` (see [`yrb-lite`](https://github.com/jpcamara/yrb-lite)). The
-provider is self-gating: against a server without ack support it falls back to
-plain delivery, and `reliable: false` opts out entirely.
+Same element — bring your own provider. For example, a Node `y-websocket` server:
+
+```js
+import "@37signals/lexxy";
+import "lexxy-realtime"; // registers <lexxy-collaboration>
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
+
+const editor = document.querySelector("lexxy-editor");
+
+function startCollaborating() {
+  const doc = new Y.Doc();
+  const provider = new WebsocketProvider("wss://your-server", documentId, doc);
+
+  const collab = document.createElement("lexxy-collaboration");
+  collab.setAttribute("name", currentUserName);
+  collab.doc = doc;
+  collab.provider = provider;
+  editor.appendChild(collab);
+  // y-websocket connects on construction — no connect() call needed.
+}
+
+if (editor.editor) startCollaborating();
+else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
+```
+
+**What the element needs from a provider.** Any provider with the standard Yjs
+surface works:
+
+- `provider.awareness` — a [`y-protocols`](https://github.com/yjs/y-protocols)
+  `Awareness` instance (used for remote cursors/selections).
+- `provider.synced` — `true` once caught up with the server (used to seed a
+  brand-new, empty document the first time).
+- `provider.disconnect()` — called when the element is removed.
+
+You start the connection however that provider expects (`provider.connect()` for
+`YrbLiteProvider`; `y-websocket` connects on construction). `y-websocket`,
+Hocuspocus, and y-webrtc all satisfy this.
+
+## Server (yrb-lite)
+
+The recommended path. Collaboration needs a server that records and relays Yjs
+updates; with `yrb-lite` that's one Action Cable channel including the
+[`yrb-lite-actioncable`](https://rubygems.org/gems/yrb-lite-actioncable) concern:
+
+```ruby
+# Gemfile: gem "yrb-lite-actioncable"
+
+class DocumentChannel < ApplicationCable::Channel
+  include YrbLite::ActionCable::Sync
+
+  # Rebuild a document's state from your store (return nil for a new doc):
+  on_load   { |id| Document.find_by(id:)&.yjs_state }
+  # Persist each CRDT delta before it's acked/relayed:
+  on_change { |id, update| Document.record!(id, update) }
+
+  def subscribed = sync_subscribed(params[:id])
+  def receive(data) = sync_receive(data, params[:id])
+end
+```
+
+See [`yrb-lite`](https://github.com/jpcamara/yrb-lite) for durable-store options
+and the full protocol (reliable delivery, causal-gap handling). Using a different
+provider instead? Point it at that provider's own backend (e.g. a `y-websocket`
+Node server) — nothing on the client above changes except how you build the
+provider.
+
+## Provider API (yrb-lite)
+
+`YrbLiteProvider` is a thin alias for `yrb-lite-client`'s `ActionCableProvider`:
+
+```js
+provider.connect();        // open the subscription and start syncing
+provider.disconnect();     // pause; queued edits are kept
+provider.destroy();        // tear down (also clears presence)
+
+provider.synced;           // caught up with the server?
+provider.status;           // "connecting" | "connected" | "synced" | "disconnected"
+provider.onStatusChange(({ status }) => render(status)); // returns an unsubscribe fn
+provider.awareness;        // the Yjs Awareness instance (presence/cursors)
+```
+
+It owns presence — it creates its own `Awareness`. Read `provider.awareness` if
+you need it (e.g. to show who's here); don't pass one in.
+
+## A single copy of `lexical` & `yjs`
+
+Lexxy and lexxy-realtime both leave `lexical` (and lexxy-realtime leaves `yjs` /
+`@lexical/yjs`) as external peers, so your bundler can resolve them to one shared
+instance. They **must** be a single copy: Lexical keys node behavior to class
+identity and Yjs to constructor identity, so two copies break syncing. With
+matching versions (`lexical ^0.44`, `yjs ^13.6`) bundlers dedupe automatically;
+if yours pulls duplicates, dedupe them (e.g. esbuild
+`--alias:yjs=./node_modules/yjs`).
+
+## Try it
+
+The [`yrb-lite` Action Cable demo](https://github.com/jpcamara/yrb-lite/tree/main/examples/actioncable-demo)
+runs a Lexxy editor on lexxy-realtime end to end (there's a one-command Docker
+setup). Open `/docs/demo/lexxy` in two windows and type.
+
+## Notes
+
+lexxy-realtime applies two small compatibility shims to `@lexical/yjs` and
+`@37signals/lexxy` **at runtime, from inside its own bind path** — no
+`patch-package`, no vendored patches, install the peers and go. They're temporary
+pending upstream fixes; the details and tracking PRs are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 
