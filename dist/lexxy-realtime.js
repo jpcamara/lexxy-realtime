@@ -1667,13 +1667,13 @@ function detectNoArgThrowingNodes(nodes) {
 }
 function patchCollabElementSplice(binding) {
 	const proto = binding?.root?.constructor?.prototype;
-	if (!proto || typeof proto.splice !== "function" || proto.__yrbLiteSplicePatched) return;
+	if (!proto || typeof proto.splice !== "function" || proto.__yrbySplicePatched) return;
 	const original = proto.splice;
 	proto.splice = function(b, index, delCount, collabNode) {
 		if (this._children[index] === void 0 && collabNode === void 0) return;
 		return original.call(this, b, index, delCount, collabNode);
 	};
-	proto.__yrbLiteSplicePatched = true;
+	proto.__yrbySplicePatched = true;
 }
 function bootstrapWhenSynced(editor, provider, binding) {
 	let done = false;

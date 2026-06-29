@@ -1,6 +1,6 @@
 {
   "name": "lexxy-realtime",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Real-time collaborative editing for Lexxy (Lexical) over Yjs — works with any Yjs provider; reliable yrby over ActionCable/AnyCable for Rails",
   "homepage": "https://github.com/jpcamara/lexxy-realtime#readme",
   "bugs": {

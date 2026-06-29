@@ -236,13 +236,13 @@ function detectNoArgThrowingNodes(nodes) {
 // flag. This replaces the consumer-side @lexical/yjs patch.
 function patchCollabElementSplice(binding) {
   const proto = binding?.root?.constructor?.prototype;
-  if (!proto || typeof proto.splice !== 'function' || proto.__yrbLiteSplicePatched) return;
+  if (!proto || typeof proto.splice !== 'function' || proto.__yrbySplicePatched) return;
   const original = proto.splice;
   proto.splice = function (b, index, delCount, collabNode) {
     if (this._children[index] === undefined && collabNode === undefined) return;
     return original.call(this, b, index, delCount, collabNode);
   };
-  proto.__yrbLiteSplicePatched = true;
+  proto.__yrbySplicePatched = true;
 }
 
 // Once the provider reports its first sync, seed a brand-new (empty) document
