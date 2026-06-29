@@ -15,6 +15,10 @@ export class Collaboration extends HTMLElement {
 
   connectedCallback() {
     this.editorElement = this.closest('lexxy-editor');
+    if (!this.editorElement) {
+      console.error('<lexxy-collaboration> must be placed inside a <lexxy-editor>.');
+      return;
+    }
     this.editor = this.editorElement.editor;
 
     // Init now if the editor is already present, otherwise wait for it.
@@ -36,13 +40,22 @@ export class Collaboration extends HTMLElement {
     this.#teardown?.();
   }
 
-  async #init() {
+  #init() {
     const id = this.getAttribute('id') || 'main';
     const name = this.getAttribute('name') || 'Example User';
     const color = this.getAttribute('color') || '#958DF1';
     const channelName = this.getAttribute('channel-name') || 'SyncChannel';
     const rawParams = this.getAttribute('channel-params') || '{}';
-    const channelParams = typeof rawParams === 'string' ? JSON.parse(rawParams) : rawParams;
+    let channelParams;
+    try {
+      channelParams = typeof rawParams === 'string' ? JSON.parse(rawParams) : rawParams;
+    } catch {
+      console.error(
+        '<lexxy-collaboration>: invalid channel-params attribute (expected JSON); using {}.',
+        rawParams
+      );
+      channelParams = {};
+    }
 
     // Track what we create vs. what the host supplied. A host-supplied provider
     // is the host's to manage -- it called connect(), it calls disconnect() --
@@ -247,6 +260,11 @@ function detectNoArgThrowingNodes(nodes) {
 // CollabElementNode prototype through the live binding root -- right after the
 // bind, before bootstrap/sync runs -- is in time. Guarded by a per-prototype
 // flag. This replaces the consumer-side @lexical/yjs patch.
+//
+// Blast radius: this mutates the SHARED CollabElementNode prototype once, for
+// the whole page, and is never reverted -- every @lexical/yjs consumer on the
+// page sees the patched splice. It only narrows the one undefined-at-empty-index
+// no-op case, so it is safe, but it is a page-global side effect by design.
 function patchCollabElementSplice(binding) {
   const proto = binding?.root?.constructor?.prototype;
   if (!proto || typeof proto.splice !== 'function' || proto.__yrbySplicePatched) return;

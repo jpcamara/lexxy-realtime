@@ -20,6 +20,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   itself; a provider passed in by the host stays connected across moves and is
   reused on reconnect. Also fixes the element double-disconnecting a provider
   the host owns.
+- Mounting `<lexxy-collaboration>` outside a `<lexxy-editor>` now logs a clear
+  error instead of throwing an opaque `Cannot read properties of null` TypeError.
+- A malformed `channel-params` attribute no longer throws an uncaught
+  `SyntaxError`; it logs a clear error and falls back to `{}`.
+
+### Changed
+
+- Internal: dropped `async` from the no-`await` `#init`, removed dead rolldown
+  externals (`@y-rb/actioncable`, `@anycable/web`), and documented the page-wide
+  blast radius of the shared `CollabElementNode.splice` patch.
 
 ## [0.1.3] - 2026-06-29
 

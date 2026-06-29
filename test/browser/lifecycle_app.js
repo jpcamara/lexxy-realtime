@@ -88,6 +88,43 @@ const scenarios = {
     return { syncedBefore, syncedAfter, brokeOnMove: syncedBefore && !syncedAfter };
   },
 
+  // robustness: mounting outside a <lexxy-editor> must not throw an opaque
+  // TypeError ("Cannot read properties of null (reading 'editor')").
+  async missingEditor() {
+    const before = (window.__err || []).length;
+    const { collab } = makeCollab(`lc-noedit-${Date.now()}`);
+    document.body.appendChild(collab); // not inside a <lexxy-editor>
+    await sleep(150);
+    const added = (window.__err || []).slice(before);
+    collab.remove();
+    return {
+      threwOpaque: added.some((e) => /Cannot read propert|reading .?editor/.test(e)),
+      added: added.length,
+    };
+  },
+
+  // robustness: a malformed channel-params attribute must not throw an uncaught
+  // error, and a host-supplied provider must still work.
+  async badChannelParams() {
+    const room = `lc-badparams-${Date.now()}`;
+    const editor = await makeEditor();
+    const before = (window.__err || []).length;
+    const { collab, provider } = makeCollab(room);
+    collab.setAttribute("channel-params", "{not valid json");
+    editor.appendChild(collab);
+    provider.connect();
+    for (let i = 0; i < 60 && !provider.synced; i++) await sleep(100);
+    const added = (window.__err || []).slice(before);
+    const synced = provider.synced;
+    collab.remove();
+    editor.remove();
+    provider.disconnect();
+    return {
+      threwParse: added.some((e) => /JSON|Unexpected token|SyntaxError/.test(e)),
+      synced,
+    };
+  },
+
   // #2: if the editor initializes after the element was disconnected, #init must
   // not run on the detached element.
   async initRace() {

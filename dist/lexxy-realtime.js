@@ -1531,6 +1531,10 @@ var Collaboration = class extends HTMLElement {
 	#teardown = null;
 	connectedCallback() {
 		this.editorElement = this.closest("lexxy-editor");
+		if (!this.editorElement) {
+			console.error("<lexxy-collaboration> must be placed inside a <lexxy-editor>.");
+			return;
+		}
 		this.editor = this.editorElement.editor;
 		if (this.editor) this.#init();
 		else this.editorElement.addEventListener("lexxy:initialize", () => {
@@ -1541,13 +1545,19 @@ var Collaboration = class extends HTMLElement {
 	disconnectedCallback() {
 		this.#teardown?.();
 	}
-	async #init() {
+	#init() {
 		const id = this.getAttribute("id") || "main";
 		const name = this.getAttribute("name") || "Example User";
 		const color = this.getAttribute("color") || "#958DF1";
 		const channelName = this.getAttribute("channel-name") || "SyncChannel";
 		const rawParams = this.getAttribute("channel-params") || "{}";
-		const channelParams = typeof rawParams === "string" ? JSON.parse(rawParams) : rawParams;
+		let channelParams;
+		try {
+			channelParams = typeof rawParams === "string" ? JSON.parse(rawParams) : rawParams;
+		} catch {
+			console.error("<lexxy-collaboration>: invalid channel-params attribute (expected JSON); using {}.", rawParams);
+			channelParams = {};
+		}
 		const ownsProvider = !this.provider;
 		const doc = this.doc || new Doc();
 		const provider = this.provider || new ActionCableProvider(doc, this.consumer, channelName, channelParams);

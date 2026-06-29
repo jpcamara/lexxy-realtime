@@ -78,6 +78,16 @@ await runScenario("domMove");
 check("provider synced before move (scenario valid)", field("domMove", "r.syncedBefore === true"));
 check("provider still synced after DOM move", field("domMove", "r.syncedAfter === true"));
 
+// robustness — mounting outside a <lexxy-editor> must not throw opaquely.
+await runScenario("missingEditor");
+check("no opaque TypeError when mounted outside a <lexxy-editor>", field("missingEditor", "r.threwOpaque === false"));
+
+// robustness — a malformed channel-params attribute must not throw, and a
+// host-supplied provider must still work.
+await runScenario("badChannelParams");
+check("malformed channel-params does not throw", field("badChannelParams", "r.threwParse === false"));
+check("host provider still syncs with bad channel-params", field("badChannelParams", "r.synced === true"));
+
 // #2 — a late editor init must not run #init on a detached element.
 await runScenario("initRace");
 if (!field("initRace", "r.tookListenerPath === true")) {

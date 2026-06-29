@@ -8,8 +8,6 @@ export default defineConfig({
     '@lexical/yjs',
     'lexical',
     'y-protocols',
-    '@y-rb/actioncable',
-    '@anycable/web',
     '@37signals/lexxy'
   ],
   output: [{
