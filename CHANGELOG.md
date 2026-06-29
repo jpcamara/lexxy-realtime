@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-06-29
+
+### Fixed
+
+- The post-sync bootstrap poll (a 50 ms interval) is now cleared on teardown.
+  It previously cleared only on a successful first sync, so unmounting the
+  element before sync — or a provider that never synced — leaked the interval
+  (in a browser `unref()` is a no-op, so it runs forever). Verified by a new
+  lifecycle e2e (`test/browser/lifecycle.mjs`).
+- A DOM move (which fires disconnect+reconnect) no longer kills a host-supplied
+  provider. `<lexxy-collaboration>` now only disconnects a provider it created
+  itself; a provider passed in by the host stays connected across moves and is
+  reused on reconnect. Also fixes the element double-disconnecting a provider
+  the host owns.
+
+## [0.1.3] - 2026-06-29
+
+### Changed
+
+- Internal: renamed the `__yrbLiteSplicePatched` prototype guard to
+  `__yrbySplicePatched` (no behavior change).
+
 ## [0.1.2] - 2026-06-26
 
 ### Changed

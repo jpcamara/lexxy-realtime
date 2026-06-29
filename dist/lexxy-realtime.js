@@ -1548,6 +1548,7 @@ var Collaboration = class extends HTMLElement {
 		const channelName = this.getAttribute("channel-name") || "SyncChannel";
 		const rawParams = this.getAttribute("channel-params") || "{}";
 		const channelParams = typeof rawParams === "string" ? JSON.parse(rawParams) : rawParams;
+		const ownsProvider = !this.provider;
 		const doc = this.doc || new Doc();
 		const provider = this.provider || new ActionCableProvider(doc, this.consumer, channelName, channelParams);
 		const awareness = provider.awareness;
@@ -1560,7 +1561,7 @@ var Collaboration = class extends HTMLElement {
 		const binding = bindWithLexxyNodeGuard(this.editor, () => createBinding(this.editor, provider, id, doc, docMap));
 		patchCollabElementSplice(binding);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
-		bootstrapWhenSynced(this.editor, provider, binding);
+		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding);
 		const cursorsContainer = this.#createCursorsContainer();
 		binding.cursorsContainer = cursorsContainer;
 		initLocalState(provider, name, color, true, {
@@ -1583,8 +1584,12 @@ var Collaboration = class extends HTMLElement {
 			awareness.off("update", renderCursors);
 			unsubscribeCursorRender();
 			unsubscribeListeners();
+			cancelBootstrap();
 			cursorsContainer.remove();
-			provider.disconnect();
+			if (ownsProvider) {
+				provider.disconnect();
+				this.provider = null;
+			}
 		};
 	}
 	#createCursorsContainer() {
@@ -1689,6 +1694,10 @@ function bootstrapWhenSynced(editor, provider, binding) {
 	};
 	const timer = setInterval(seed, 50);
 	if (typeof timer?.unref === "function") timer.unref();
+	return () => {
+		done = true;
+		clearInterval(timer);
+	};
 }
 function registerCollaborationListeners(editor, provider, binding) {
 	const unsubscribeUpdateListener = editor.registerUpdateListener(({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {

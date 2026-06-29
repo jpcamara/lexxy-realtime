@@ -44,6 +44,12 @@ export class Collaboration extends HTMLElement {
     const rawParams = this.getAttribute('channel-params') || '{}';
     const channelParams = typeof rawParams === 'string' ? JSON.parse(rawParams) : rawParams;
 
+    // Track what we create vs. what the host supplied. A host-supplied provider
+    // is the host's to manage -- it called connect(), it calls disconnect() --
+    // so we must not disconnect it on teardown. Doing so also broke DOM moves:
+    // moving the element fires disconnect+reconnect, and disconnecting the
+    // host's provider (then reusing it without reconnecting) left it dead.
+    const ownsProvider = !this.provider;
     const doc = this.doc || new Doc();
     const provider =
       this.provider || new YrbyProvider(doc, this.consumer, channelName, channelParams);
@@ -73,7 +79,7 @@ export class Collaboration extends HTMLElement {
     );
     patchCollabElementSplice(binding);
     const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
-    bootstrapWhenSynced(this.editor, provider, binding);
+    const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding);
 
     // Remote cursors/selections are rendered by @lexical/yjs (syncCursorPositions)
     // into a positioned overlay it manages via `binding.cursorsContainer`.
@@ -110,8 +116,15 @@ export class Collaboration extends HTMLElement {
       awareness.off('update', renderCursors);
       unsubscribeCursorRender();
       unsubscribeListeners();
+      cancelBootstrap();
       cursorsContainer.remove();
-      provider.disconnect();
+      // Only disconnect a provider we created. A host-supplied provider is the
+      // host's to disconnect; tearing it down here breaks DOM moves (which
+      // reconnect and reuse it) and disconnects a provider the host may reuse.
+      if (ownsProvider) {
+        provider.disconnect();
+        this.provider = null;
+      }
     };
   }
 
@@ -250,6 +263,9 @@ function patchCollabElementSplice(binding) {
 // CollaborationPlugin bootstrap. Doing it post-sync (not at bind time) means an
 // existing document is loaded by the Yjs->Lexical observer first, so we never
 // push a stray paragraph onto a doc that already has content.
+// Returns a canceller: the poll interval otherwise runs forever if the element
+// is torn down (or the provider never syncs) before the first sync, since `seed`
+// only clears it on success.
 function bootstrapWhenSynced(editor, provider, binding) {
   let done = false;
   const seed = () => {
@@ -275,6 +291,10 @@ function bootstrapWhenSynced(editor, provider, binding) {
   };
   const timer = setInterval(seed, 50);
   if (typeof timer?.unref === 'function') timer.unref();
+  return () => {
+    done = true;
+    clearInterval(timer);
+  };
 }
 
 function registerCollaborationListeners(editor, provider, binding) {

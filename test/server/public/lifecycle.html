@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>lexxy-realtime · lifecycle</title>
+    <style>
+      body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem; }
+      lexxy-editor { display: block; border: 1px solid #ccc; border-radius: 6px; min-height: 4rem; padding: .5rem; margin: .5rem 0; }
+      [contenteditable] { outline: none; min-height: 2rem; }
+    </style>
+  </head>
+  <body>
+    <script>
+      window.__err = [];
+      addEventListener("error", (e) => window.__err.push(String((e.error && e.error.stack) || e.message)));
+      addEventListener("unhandledrejection", (e) => window.__err.push("unhandledrejection: " + String((e.reason && e.reason.stack) || e.reason)));
+    </script>
+    <h1>lexxy-realtime · lifecycle harness</h1>
+    <script type="module" src="/lifecycle.js"></script>
+  </body>
+</html>

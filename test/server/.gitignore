@@ -3,3 +3,4 @@ log/
 tmp/
 .bundle/
 public/app.js
+public/lifecycle.js
