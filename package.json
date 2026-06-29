@@ -61,6 +61,6 @@
     "rolldown": "^1.0.0-beta.49",
     "y-protocols": "*",
     "yjs": "^13.6.0",
-    "@yrby/client": "file:vendor/yrby-client-0.2.0.tgz"
+    "yrby-client": "file:vendor/yrby-client-0.4.0.tgz"
   }
 }

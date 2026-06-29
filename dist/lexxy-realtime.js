@@ -3,7 +3,7 @@ import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG, createEditor } from 
 import * as Y from "yjs";
 import { Doc, applyUpdate, mergeUpdates } from "yjs";
 
-//#region node_modules/@yrby/client/dist/reliable_sync.js
+//#region node_modules/yrby-client/dist/reliable_sync.js
 const DEFAULTS = { resendInterval: 1e3 };
 var ReliableSync = class {
 	/** Unacked local updates, in order. */
@@ -1189,7 +1189,7 @@ const applyAwarenessUpdate = (awareness, update, origin) => {
 };
 
 //#endregion
-//#region node_modules/@yrby/client/dist/y_protocol_session.js
+//#region node_modules/yrby-client/dist/y_protocol_session.js
 const MessageType = {
 	Sync: 0,
 	Awareness: 1
@@ -1362,12 +1362,12 @@ var YProtocolSession = class {
 };
 
 //#endregion
-//#region node_modules/@yrby/client/dist/base64.js
+//#region node_modules/yrby-client/dist/base64.js
 const toBase64 = (bytes) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
 const fromBase64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
 
 //#endregion
-//#region node_modules/@yrby/client/dist/actioncable_provider.js
+//#region node_modules/yrby-client/dist/actioncable_provider.js
 var ActionCableProvider = class {
 	doc;
 	consumer;

@@ -148,7 +148,7 @@ provider.
 
 ## Provider API (yrby)
 
-`YrbyProvider` is a thin alias for `@yrby/client`'s `ActionCableProvider`:
+`YrbyProvider` is a thin alias for `yrby-client`'s `ActionCableProvider`:
 
 ```js
 provider.connect();        // open the subscription and start syncing

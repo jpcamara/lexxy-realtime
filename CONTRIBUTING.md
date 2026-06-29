@@ -2,7 +2,7 @@
 
 Issues and PRs welcome. This package is the browser half of a small stack —
 [`yrby`](https://github.com/jpcamara/yrby) (the Rust-backed Yjs server
-+ `@yrby/client`) is the other half — so most of the test suite drives a real
++ `yrby-client`) is the other half — so most of the test suite drives a real
 `yrby` Rails server.
 
 ## Prerequisites
