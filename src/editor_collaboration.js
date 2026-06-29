@@ -8,7 +8,7 @@ import {
 } from '@lexical/yjs';
 import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG, createEditor } from 'lexical';
 import { Doc } from 'yjs';
-import { YRubyProvider } from './y_ruby_provider';
+import { YrbyProvider } from './yrby_provider';
 
 export class Collaboration extends HTMLElement {
   #teardown = null;
@@ -46,7 +46,7 @@ export class Collaboration extends HTMLElement {
 
     const doc = this.doc || new Doc();
     const provider =
-      this.provider || new YRubyProvider(doc, this.consumer, channelName, channelParams);
+      this.provider || new YrbyProvider(doc, this.consumer, channelName, channelParams);
 
     // The provider owns its Awareness: it constructs its own and ignores any
     // passed in. Every presence operation here -- initLocalState,
@@ -206,7 +206,7 @@ function detectNoArgThrowingNodes(nodes) {
   if (candidates.length === 0) return throwers;
 
   const probeEditor = createEditor({
-    namespace: 'y-ruby-node-probe',
+    namespace: 'yrby-node-probe',
     nodes: candidates.map((c) => c.klass),
     onError: () => {},
   });

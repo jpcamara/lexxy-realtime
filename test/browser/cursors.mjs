@@ -1,5 +1,5 @@
 // Intensive browser tests for the @lexical/yjs-rendered remote cursors, driven
-// with agent-browser against real Chrome + the y-ruby server. Covers the edge
+// with agent-browser against real Chrome + the yrby server. Covers the edge
 // cases the old hand-rolled manager was fragile around: multiple named carets,
 // real range-selection highlights, removal when a peer disconnects, and caret
 // survival across concurrent edits.

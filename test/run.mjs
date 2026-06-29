@@ -1,4 +1,4 @@
-// Test orchestrator. Boots the y-ruby test server, runs the headless
+// Test orchestrator. Boots the yrby test server, runs the headless
 // durability suite and/or the agent-browser editor e2e against it, then tears
 // the server down.
 //
@@ -43,7 +43,7 @@ const dataDir = join(serverDir, "data");
 rmSync(dataDir, { recursive: true, force: true });
 mkdirSync(dataDir, { recursive: true });
 
-console.log(`> booting y-ruby test server on :${PORT}`);
+console.log(`> booting yrby test server on :${PORT}`);
 const server = spawn("bundle", ["exec", "puma", "-p", PORT, "config.ru"], {
   cwd: serverDir,
   env: { ...process.env, RAILS_ENV: "development", LOG_LEVEL: "error" },

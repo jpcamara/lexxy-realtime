@@ -1,5 +1,5 @@
-// Headless test harness: drives the real YRubyProvider (from src/) against the
-// y-ruby test server with no DOM. Provides a minimal raw-WebSocket ActionCable
+// Headless test harness: drives the real YrbyProvider (from src/) against the
+// yrby test server with no DOM. Provides a minimal raw-WebSocket ActionCable
 // consumer with an injectable lossy network, plus small assertion helpers.
 import * as Y from "yjs";
 

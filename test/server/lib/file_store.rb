@@ -4,8 +4,8 @@ require "fileutils"
 # Dead-simple durable log for the test server: every recorded CRDT delta is
 # appended (base64, one per line) to a per-document file, so state survives idle
 # eviction and full server restarts. `replay` merges the log back into a single
-# update by applying it to a fresh y-ruby Doc -- the same record-then-replay
-# model y-ruby's authoritative mode is built around.
+# update by applying it to a fresh yrby Doc -- the same record-then-replay
+# model yrby's authoritative mode is built around.
 module FileStore
   DIR = File.expand_path("../data", __dir__)
 

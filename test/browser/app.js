@@ -1,12 +1,12 @@
-// Browser test entry. Renders a real Lexxy editor wired to the y-ruby test
-// server through the YRubyProvider, mirroring how a Rails host wires it:
+// Browser test entry. Renders a real Lexxy editor wired to the yrby test
+// server through the YrbyProvider, mirroring how a Rails host wires it:
 // create the provider, set it on <lexxy-collaboration>, append, then connect().
 //
 // Reads `room`, `name`, `color` from the query string so two agent-browser
 // sessions can join the same document as different users. Exposes window.__test
 // for assertions.
 import "@37signals/lexxy";
-import { YRubyProvider } from "../../src/index.js"; // also registers <lexxy-collaboration>
+import { YrbyProvider } from "../../src/index.js"; // also registers <lexxy-collaboration>
 import * as Y from "yjs";
 import { createConsumer } from "@rails/actioncable";
 
@@ -20,7 +20,7 @@ const editor = document.getElementById("editor");
 
 function start() {
   const doc = new Y.Doc();
-  const provider = new YRubyProvider(doc, consumer, "DocumentChannel", { id: room });
+  const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: room });
   const awareness = provider.awareness; // the provider owns awareness; read it back
 
   const collab = document.createElement("lexxy-collaboration");

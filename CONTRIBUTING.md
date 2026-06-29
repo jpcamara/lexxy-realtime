@@ -1,17 +1,17 @@
 # Contributing to lexxy-realtime
 
 Issues and PRs welcome. This package is the browser half of a small stack —
-[`y-ruby`](https://github.com/jpcamara/y-ruby) (the Rust-backed Yjs server
-+ `@y-ruby/client`) is the other half — so most of the test suite drives a real
-`y-ruby` Rails server.
+[`yrby`](https://github.com/jpcamara/yrby) (the Rust-backed Yjs server
++ `@yrby/client`) is the other half — so most of the test suite drives a real
+`yrby` Rails server.
 
 ## Prerequisites
 
 - [Bun](https://bun.sh) (build + test runner)
-- A local checkout of [`y-ruby`](https://github.com/jpcamara/y-ruby) **as a
-  sibling directory** (`../y-ruby`). The test server's `Gemfile` path-pins the
-  `y-ruby` and `y-ruby-actioncable` gems to that checkout.
-- For the server-backed tests: Ruby 3.4+ and a Rust toolchain (the `y-ruby`
+- A local checkout of [`yrby`](https://github.com/jpcamara/yrby) **as a
+  sibling directory** (`../yrby`). The test server's `Gemfile` path-pins the
+  `yrby` and `yrby-actioncable` gems to that checkout.
+- For the server-backed tests: Ruby 3.4+ and a Rust toolchain (the `yrby`
   gem has a native extension that compiles on `bundle install`).
 - For the browser tests: a Chrome/Chromium that [agent-browser](https://www.npmjs.com/package/agent-browser)
   can drive.
@@ -32,7 +32,7 @@ bun run test:headless   # protocol-level convergence / durability / loss
 bun run test:browser    # real Lexxy editors driven via agent-browser
 ```
 
-`test/run.mjs` boots the `y-ruby` test server (`test/server`, a minimal Rails
+`test/run.mjs` boots the `yrby` test server (`test/server`, a minimal Rails
 app), runs the suites, and tears it down.
 
 - **Headless** (`test/headless/*.mjs`) drives Yjs directly over the cable

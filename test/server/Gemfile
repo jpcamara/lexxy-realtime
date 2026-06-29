@@ -5,8 +5,8 @@ gem "rails", "~> 8.0"
 gem "puma"
 
 # The library under test. Path-pinned to the local checkout so tests exercise
-# the latest y-ruby (reliable delivery + causal-gap protection), not a
+# the latest yrby (reliable delivery + causal-gap protection), not a
 # published version. The ActionCable concern (Y::ActionCable::Sync) lives
-# in the companion y-ruby-actioncable gem (same repo).
-gem "y-ruby", path: "../../../y-ruby"
-gem "y-ruby-actioncable", path: "../../../y-ruby"
+# in the companion yrby-actioncable gem (same repo).
+gem "yrby", path: "../../../yrby"
+gem "yrby-actioncable", path: "../../../yrby"

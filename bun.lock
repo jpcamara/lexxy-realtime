@@ -10,7 +10,7 @@
         "@lexical/yjs": "^0.44.0",
         "@rails/actioncable": "^8.1.300",
         "@rollup/plugin-terser": "^0.4.4",
-        "@y-ruby/client": "file:vendor/y-ruby-client-0.4.0.tgz",
+        "@yrby/client": "file:vendor/yrby-client-0.4.0.tgz",
         "agent-browser": "^0.28.0",
         "lexical": "^0.44.0",
         "rolldown": "^1.0.0-beta.49",
@@ -133,7 +133,7 @@
 
     "@types/trusted-types": ["@types/trusted-types@2.0.7", "", {}, "sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw=="],
 
-    "@y-ruby/client": ["@y-ruby/client@vendor/y-ruby-client-0.4.0.tgz", { "dependencies": { "lib0": "^0.2.117" }, "peerDependencies": { "y-protocols": "^1.0.5", "yjs": "^13.6.0" }, "optionalPeers": ["y-protocols", "yjs"] }],
+    "@yrby/client": ["@yrby/client@vendor/yrby-client-0.4.0.tgz", { "dependencies": { "lib0": "^0.2.117" }, "peerDependencies": { "y-protocols": "^1.0.5", "yjs": "^13.6.0" }, "optionalPeers": ["y-protocols", "yjs"] }],
 
     "acorn": ["acorn@8.15.0", "", { "bin": "bin/acorn" }, "sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg=="],
 

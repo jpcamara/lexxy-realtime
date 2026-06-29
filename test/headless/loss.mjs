@@ -3,7 +3,7 @@
 // durable store -- recovered by the provider's retransmit, not luck.
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
-import { YRubyProvider } from "../../src/y_ruby_provider.js";
+import { YrbyProvider } from "../../src/yrby_provider.js";
 import { rawConsumer, URL, waitFor, sleep, serverDoc, resetDoc, check, done } from "./support.mjs";
 
 const ROOM = `loss-${process.pid}`;
@@ -13,7 +13,7 @@ await resetDoc(ROOM);
 function client(net = {}) {
   const doc = new Y.Doc();
   const consumer = rawConsumer(URL, net);
-  const provider = new YRubyProvider(doc, consumer, "DocumentChannel", { id: ROOM }, { awareness: new Awareness(doc), resendInterval: 150 });
+  const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: ROOM }, { awareness: new Awareness(doc), resendInterval: 150 });
   provider.connect();
   return { doc, consumer, provider, text: () => doc.getText("body").toString() };
 }
