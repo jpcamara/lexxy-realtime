@@ -1,9 +1,9 @@
 // Durability: an edit is recorded on the server before it's relayed, survives
 // every client disconnecting, and a fresh client is rebuilt from the durable
-// log (yrb-lite on_load) -- not from a peer.
+// log (y-ruby on_load) -- not from a peer.
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
-import { YrbLiteProvider } from "../../src/yrb_lite_provider.js";
+import { YRubyProvider } from "../../src/y_ruby_provider.js";
 import { rawConsumer, URL, waitFor, sleep, serverDoc, resetDoc, check, done } from "./support.mjs";
 
 const ROOM = `dur-${process.pid}`;
@@ -24,7 +24,7 @@ const waitServer = async (label, pred, ms = 8000) => {
 
 // A connects and edits.
 const docA = new Y.Doc();
-const provA = new YrbLiteProvider(docA, rawConsumer(URL), "DocumentChannel", { id: ROOM }, { awareness: new Awareness(docA) });
+const provA = new YRubyProvider(docA, rawConsumer(URL), "DocumentChannel", { id: ROOM }, { awareness: new Awareness(docA) });
 provA.connect();
 await waitFor("A synced", () => provA.synced);
 docA.getText("body").insert(0, "durable content");
@@ -39,7 +39,7 @@ check("state persists after all clients disconnect (read straight from the log)"
 
 // A brand-new client must be rebuilt from the durable log by the server.
 const docB = new Y.Doc();
-const provB = new YrbLiteProvider(docB, rawConsumer(URL), "DocumentChannel", { id: ROOM }, { awareness: new Awareness(docB) });
+const provB = new YRubyProvider(docB, rawConsumer(URL), "DocumentChannel", { id: ROOM }, { awareness: new Awareness(docB) });
 provB.connect();
 await waitFor("B rebuilt from the store", () => docB.getText("body").toString().includes("durable content"));
 check("fresh client reloaded the durable doc from the server (on_load)", docB.getText("body").toString().includes("durable content"));

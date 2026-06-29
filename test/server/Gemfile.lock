@@ -1,13 +1,13 @@
 PATH
-  remote: ../../../yrb-lite
+  remote: ../../../y-ruby
   specs:
-    yrb-lite (0.2.0)
+    y-ruby (0.2.0)
       rb_sys (~> 0.9)
-    yrb-lite-actioncable (0.2.0)
+    y-ruby-actioncable (0.2.0)
       actioncable (>= 7.0)
       activesupport (>= 7.0)
       base64 (~> 0.2)
-      yrb-lite (>= 0.2.0)
+      y-ruby (>= 0.2.0)
 
 GEM
   remote: https://rubygems.org/
@@ -234,8 +234,8 @@ PLATFORMS
 DEPENDENCIES
   puma
   rails (~> 8.0)
-  yrb-lite!
-  yrb-lite-actioncable!
+  y-ruby!
+  y-ruby-actioncable!
 
 CHECKSUMS
   action_text-trix (2.1.19) sha256=7012f59421009cf284aa651294896414d653a61a2417c9b8714c8476d2f74009
@@ -313,8 +313,8 @@ CHECKSUMS
   useragent (0.16.11) sha256=700e6413ad4bb954bb63547fa098dddf7b0ebe75b40cc6f93b8d54255b173844
   websocket-driver (0.8.1) sha256=5ab238238ce230e5d4b262d2be39624c867914eab99171dc4952b58b577c2d96
   websocket-extensions (0.1.5) sha256=1c6ba63092cda343eb53fc657110c71c754c56484aad42578495227d717a8241
-  yrb-lite (0.2.0)
-  yrb-lite-actioncable (0.2.0)
+  y-ruby (0.2.0)
+  y-ruby-actioncable (0.2.0)
   zeitwerk (2.8.2) sha256=7212a61311083c604184b1ea2574b9aa05cd14f855a0841c06985cabe9181d12
 
 BUNDLED WITH

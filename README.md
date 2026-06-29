@@ -5,7 +5,7 @@ over [Yjs](https://github.com/yjs/yjs). Drop a `<lexxy-collaboration>` element
 inside your `<lexxy-editor>` and people editing the same document see each other's
 **text, cursors, and selections** live.
 
-It works with **any Yjs provider**. [`yrb-lite`](https://github.com/jpcamara/yrb-lite)
+It works with **any Yjs provider**. [`y-ruby`](https://github.com/jpcamara/y-ruby)
 is the recommended one — a reliable, Rails-native provider over Action Cable /
 AnyCable with ack-tracked delivery (an acknowledged edit isn't silently lost on a
 flaky connection, and a reconnecting client catches up from the server). But you
@@ -19,8 +19,8 @@ and so on.
 
 - A **Lexxy editor** on the page (`@37signals/lexxy`) — see
   [Lexxy's docs](https://basecamp.github.io/lexxy).
-- A **Yjs provider** and its backend. With `yrb-lite` that's a Rails channel (see
-  [Server](#server-yrb-lite)); with another provider it's whatever that provider
+- A **Yjs provider** and its backend. With `y-ruby` that's a Rails channel (see
+  [Server](#server-y-ruby)); with another provider it's whatever that provider
   connects to.
 - A **JS bundler** (jsbundling-rails / esbuild, or any app that bundles its
   JavaScript). Collaboration relies on one shared copy of `lexical` and `yjs`
@@ -34,7 +34,7 @@ npm install lexxy-realtime @lexical/yjs yjs y-protocols
 ```
 
 You also need a Lexxy editor and `lexical` (`^0.44`), which your app already has,
-**plus a provider**: for `yrb-lite`, a cable consumer (`@rails/actioncable` or
+**plus a provider**: for `y-ruby`, a cable consumer (`@rails/actioncable` or
 `@anycable/web`); otherwise the provider of your choice (e.g. `y-websocket`).
 
 ## Client
@@ -44,11 +44,11 @@ doc and a provider, mount the element inside your `<lexxy-editor>`, and go. The
 element is the same regardless of provider — only how you build the provider
 differs.
 
-### With yrb-lite (recommended for Rails)
+### With y-ruby (recommended for Rails)
 
 ```js
 import "@37signals/lexxy";                          // registers <lexxy-editor>
-import { YrbLiteProvider } from "lexxy-realtime";   // registers <lexxy-collaboration>
+import { YRubyProvider } from "lexxy-realtime";   // registers <lexxy-collaboration>
 import * as Y from "yjs";
 import { createConsumer } from "@rails/actioncable"; // or "@anycable/web"
 
@@ -57,7 +57,7 @@ const editor = document.querySelector("lexxy-editor");
 function startCollaborating() {
   const doc = new Y.Doc();
   const consumer = createConsumer();
-  const provider = new YrbLiteProvider(doc, consumer, "DocumentChannel", { id: documentId });
+  const provider = new YRubyProvider(doc, consumer, "DocumentChannel", { id: documentId });
 
   const collab = document.createElement("lexxy-collaboration");
   collab.setAttribute("name", currentUserName);   // shown on your cursor to others
@@ -66,7 +66,7 @@ function startCollaborating() {
   collab.provider = provider;
   editor.appendChild(collab);
 
-  provider.connect(); // YrbLiteProvider does not auto-connect
+  provider.connect(); // YRubyProvider does not auto-connect
 }
 
 // Lexxy sets up its editor asynchronously; start once it's ready.
@@ -115,20 +115,20 @@ surface works:
 - `provider.disconnect()` — called when the element is removed.
 
 You start the connection however that provider expects (`provider.connect()` for
-`YrbLiteProvider`; `y-websocket` connects on construction). `y-websocket`,
+`YRubyProvider`; `y-websocket` connects on construction). `y-websocket`,
 Hocuspocus, and y-webrtc all satisfy this.
 
-## Server (yrb-lite)
+## Server (y-ruby)
 
 The recommended path. Collaboration needs a server that records and relays Yjs
-updates; with `yrb-lite` that's one Action Cable channel including the
-[`yrb-lite-actioncable`](https://rubygems.org/gems/yrb-lite-actioncable) concern:
+updates; with `y-ruby` that's one Action Cable channel including the
+[`y-ruby-actioncable`](https://rubygems.org/gems/y-ruby-actioncable) concern:
 
 ```ruby
-# Gemfile: gem "yrb-lite-actioncable"
+# Gemfile: gem "y-ruby-actioncable"
 
 class DocumentChannel < ApplicationCable::Channel
-  include YrbLite::ActionCable::Sync
+  include Y::ActionCable::Sync
 
   # Rebuild a document's state from your store (return nil for a new doc):
   on_load   { |id| Document.find_by(id:)&.yjs_state }
@@ -140,15 +140,15 @@ class DocumentChannel < ApplicationCable::Channel
 end
 ```
 
-See [`yrb-lite`](https://github.com/jpcamara/yrb-lite) for durable-store options
+See [`y-ruby`](https://github.com/jpcamara/y-ruby) for durable-store options
 and the full protocol (reliable delivery, causal-gap handling). Using a different
 provider instead? Point it at that provider's own backend (e.g. a `y-websocket`
 Node server) — nothing on the client above changes except how you build the
 provider.
 
-## Provider API (yrb-lite)
+## Provider API (y-ruby)
 
-`YrbLiteProvider` is a thin alias for `yrb-lite-client`'s `ActionCableProvider`:
+`YRubyProvider` is a thin alias for `@y-ruby/client`'s `ActionCableProvider`:
 
 ```js
 provider.connect();        // open the subscription and start syncing
@@ -176,7 +176,7 @@ if yours pulls duplicates, dedupe them (e.g. esbuild
 
 ## Try it
 
-The [`yrb-lite` Action Cable demo](https://github.com/jpcamara/yrb-lite/tree/main/examples/actioncable-demo)
+The [`y-ruby` Action Cable demo](https://github.com/jpcamara/y-ruby/tree/main/examples/actioncable-demo)
 runs a Lexxy editor on lexxy-realtime end to end (there's a one-command Docker
 setup). Open `/docs/demo/lexxy` in two windows and type.
 

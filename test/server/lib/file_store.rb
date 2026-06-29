@@ -4,8 +4,8 @@ require "fileutils"
 # Dead-simple durable log for the test server: every recorded CRDT delta is
 # appended (base64, one per line) to a per-document file, so state survives idle
 # eviction and full server restarts. `replay` merges the log back into a single
-# update by applying it to a fresh yrb-lite Doc -- the same record-then-replay
-# model yrb-lite's authoritative mode is built around.
+# update by applying it to a fresh y-ruby Doc -- the same record-then-replay
+# model y-ruby's authoritative mode is built around.
 module FileStore
   DIR = File.expand_path("../data", __dir__)
 
@@ -26,7 +26,7 @@ module FileStore
     file = path(key)
     return nil unless File.exist?(file)
 
-    doc = YrbLite::Doc.new
+    doc = Y::Doc.new
     applied = false
     File.foreach(file) do |line|
       line = line.strip

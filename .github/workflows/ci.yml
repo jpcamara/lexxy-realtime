@@ -24,15 +24,15 @@ jobs:
       matrix:
         ruby: ["3.4"]
     steps:
-      # lexxy-realtime and yrb-lite are checked out as siblings so the test
-      # server's path-pinned gems (../../../yrb-lite from test/server) resolve.
+      # lexxy-realtime and y-ruby are checked out as siblings so the test
+      # server's path-pinned gems (../../../y-ruby from test/server) resolve.
       - uses: actions/checkout@v5
         with:
           path: lexxy-realtime
       - uses: actions/checkout@v5
         with:
-          repository: jpcamara/yrb-lite
-          path: yrb-lite
+          repository: jpcamara/y-ruby
+          path: y-ruby
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -44,10 +44,10 @@ jobs:
         working-directory: lexxy-realtime
         run: bun install --frozen-lockfile
 
-      # Build the yrb-lite native extension in place, then install the test
+      # Build the y-ruby native extension in place, then install the test
       # server's bundle (which depends on it via path).
-      - name: Compile yrb-lite native extension
-        working-directory: yrb-lite
+      - name: Compile y-ruby native extension
+        working-directory: y-ruby
         run: |
           bundle install
           bundle exec rake compile

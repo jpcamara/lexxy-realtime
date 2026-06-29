@@ -1,4 +1,4 @@
-// Browser e2e: two real Lexxy editors collaborate through the yrb-lite server,
+// Browser e2e: two real Lexxy editors collaborate through the y-ruby server,
 // driven headlessly with agent-browser. Asserts live convergence both ways and
 // server-side durability (a fresh client, opened after the others have left,
 // is rebuilt from the durable store).

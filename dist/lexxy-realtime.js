@@ -3,7 +3,7 @@ import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG, createEditor } from 
 import * as Y from "yjs";
 import { Doc, applyUpdate, mergeUpdates } from "yjs";
 
-//#region node_modules/yrb-lite-client/dist/reliable_sync.js
+//#region node_modules/@y-ruby/client/dist/reliable_sync.js
 const DEFAULTS = { resendInterval: 1e3 };
 var ReliableSync = class {
 	/** Unacked local updates, in order. */
@@ -1189,7 +1189,7 @@ const applyAwarenessUpdate = (awareness, update, origin) => {
 };
 
 //#endregion
-//#region node_modules/yrb-lite-client/dist/y_protocol_session.js
+//#region node_modules/@y-ruby/client/dist/y_protocol_session.js
 const MessageType = {
 	Sync: 0,
 	Awareness: 1
@@ -1210,7 +1210,7 @@ var YProtocolSession = class {
 		this.doc = doc;
 		this.awareness = awareness;
 		this.#send = send;
-		this.#onError = onError ?? ((error, context) => console.warn(`[yrb-lite] ${context}:`, error));
+		this.#onError = onError ?? ((error, context) => console.warn(`[y-ruby] ${context}:`, error));
 		this.#delivery = new ReliableSync({
 			merge: mergeUpdates,
 			send: (update, id) => this.#send(this.#frameUpdate(update), id),
@@ -1362,12 +1362,12 @@ var YProtocolSession = class {
 };
 
 //#endregion
-//#region node_modules/yrb-lite-client/dist/base64.js
+//#region node_modules/@y-ruby/client/dist/base64.js
 const toBase64 = (bytes) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
 const fromBase64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
 
 //#endregion
-//#region node_modules/yrb-lite-client/dist/actioncable_provider.js
+//#region node_modules/@y-ruby/client/dist/actioncable_provider.js
 var ActionCableProvider = class {
 	doc;
 	consumer;
@@ -1387,7 +1387,7 @@ var ActionCableProvider = class {
 		this.channelName = channelName;
 		this.channelParams = channelParams;
 		this.awareness = new Awareness(doc);
-		this.#onError = opts.onError ?? ((error, context) => console.warn(`[yrb-lite] ${context}:`, error));
+		this.#onError = opts.onError ?? ((error, context) => console.warn(`[y-ruby] ${context}:`, error));
 		this.session = new YProtocolSession(doc, {
 			awareness: this.awareness,
 			resendInterval: opts.resendInterval,
@@ -1653,7 +1653,7 @@ function detectNoArgThrowingNodes(nodes) {
 	});
 	if (candidates.length === 0) return throwers;
 	createEditor({
-		namespace: "yrb-lite-node-probe",
+		namespace: "y-ruby-node-probe",
 		nodes: candidates.map((c) => c.klass),
 		onError: () => {}
 	}).update(() => {
@@ -1711,4 +1711,4 @@ function registerCollaborationListeners(editor, provider, binding) {
 if (!customElements.get("lexxy-collaboration")) customElements.define("lexxy-collaboration", Collaboration);
 
 //#endregion
-export { Collaboration, ActionCableProvider as YrbLiteProvider };
+export { Collaboration, ActionCableProvider as YRubyProvider };

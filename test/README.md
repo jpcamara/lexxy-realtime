@@ -1,6 +1,6 @@
 # lexxy-realtime tests
 
-These tests run the real collaboration stack against a **yrb-lite** server and
+These tests run the real collaboration stack against a **y-ruby** server and
 exercise its durability guarantees.
 
 ```
@@ -14,13 +14,13 @@ npm run test:browser  # just the browser e2e
 ## Pieces
 
 - **`server/`** — a minimal Rails + ActionCable app whose only channel is
-  `DocumentChannel` (one `include YrbLite::Sync`). It runs the memory backend
+  `DocumentChannel` (one `include Y::Sync`). It runs the memory backend
   with an `on_change`/`on_load` file store (`lib/file_store.rb`), so it's the
   authoritative, record-before-distribute path: every change is durably logged
   before it's relayed, and a document is rebuilt from the log on a cold start.
   `GET /content/:id` returns the durable state for assertions.
 
-- **`headless/`** — Node/Yjs tests driving the `YrbLiteProvider` (no DOM):
+- **`headless/`** — Node/Yjs tests driving the `YRubyProvider` (no DOM):
   - `convergence.mjs` — two clients sync both ways; a late joiner is caught up
     by the server.
   - `durability.mjs` — an edit is recorded before relay, survives every client

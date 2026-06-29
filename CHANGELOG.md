@@ -25,7 +25,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - Remote cursors and selections now update live. The re-render trigger listened
-  on a separately-created `Awareness` instance, but `YrbLiteProvider` always
+  on a separately-created `Awareness` instance, but `YRubyProvider` always
   creates and uses its own, so awareness-only changes from a peer (moving the
   caret or selecting, with no text edit) never triggered a re-render — a remote
   caret appeared to move only when that peer also typed. The collaboration
@@ -55,7 +55,7 @@ so the upstream packages are never modified on disk.
 - `LICENSE` (MIT), `CHANGELOG.md`, `CONTRIBUTING.md`.
 - GitHub Actions CI: a hermetic build/bundle job, and a headless durability job
   that runs the convergence / durability / loss suites against the real
-  `yrb-lite` Rails server.
+  `y-ruby` Rails server.
 
 ### Removed
 
