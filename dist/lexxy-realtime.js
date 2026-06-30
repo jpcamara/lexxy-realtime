@@ -1546,7 +1546,7 @@ var Collaboration = class extends HTMLElement {
 		this.#teardown?.();
 	}
 	#init() {
-		const id = this.getAttribute("id") || "main";
+		const id = this.getAttribute("doc-id") || "main";
 		const name = this.getAttribute("name") || "Example User";
 		const color = this.getAttribute("color") || "#958DF1";
 		const channelName = this.getAttribute("channel-name") || "SyncChannel";

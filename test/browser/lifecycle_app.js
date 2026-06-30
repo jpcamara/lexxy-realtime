@@ -40,7 +40,7 @@ function makeCollab(room, provider) {
   const doc = new Y.Doc();
   const p = provider || new YrbyProvider(doc, consumer, "DocumentChannel", { id: room });
   const collab = document.createElement("lexxy-collaboration");
-  collab.setAttribute("id", room);
+  collab.setAttribute("doc-id", room);
   collab.setAttribute("name", "LC");
   collab.setAttribute("channel-name", "DocumentChannel");
   collab.setAttribute("channel-params", JSON.stringify({ id: room }));

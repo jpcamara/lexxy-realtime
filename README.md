@@ -60,8 +60,9 @@ function startCollaborating() {
   const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: documentId });
 
   const collab = document.createElement("lexxy-collaboration");
-  collab.setAttribute("name", currentUserName);   // shown on your cursor to others
-  collab.setAttribute("color", "#3b82f6");         // optional cursor color
+  collab.setAttribute("doc-id", documentId);       // Yjs document id (defaults to "main")
+  collab.setAttribute("name", currentUserName);    // shown on your cursor to others
+  collab.setAttribute("color", "#3b82f6");          // optional cursor color
   collab.doc = doc;
   collab.provider = provider;
   editor.appendChild(collab);

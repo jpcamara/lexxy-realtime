@@ -41,7 +41,9 @@ export class Collaboration extends HTMLElement {
   }
 
   #init() {
-    const id = this.getAttribute('id') || 'main';
+    // The Yjs document id (the @lexical/yjs binding key). A dedicated attribute
+    // rather than the global HTML `id`, which it used to overload.
+    const id = this.getAttribute('doc-id') || 'main';
     const name = this.getAttribute('name') || 'Example User';
     const color = this.getAttribute('color') || '#958DF1';
     const channelName = this.getAttribute('channel-name') || 'SyncChannel';

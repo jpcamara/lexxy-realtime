@@ -24,7 +24,7 @@ function start() {
   const awareness = provider.awareness; // the provider owns awareness; read it back
 
   const collab = document.createElement("lexxy-collaboration");
-  collab.setAttribute("id", room);
+  collab.setAttribute("doc-id", room);
   collab.setAttribute("name", name);
   collab.setAttribute("color", color);
   collab.setAttribute("channel-name", "DocumentChannel");

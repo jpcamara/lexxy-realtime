@@ -6,7 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.1.4] - 2026-06-29
+## [0.2.0] - 2026-06-29
+
+### Changed
+
+- **BREAKING:** the document id is now read from a dedicated `doc-id` attribute
+  instead of the global HTML `id` attribute (which it overloaded). Set
+  `collab.setAttribute("doc-id", ...)` instead of `collab.setAttribute("id", ...)`.
+  Still defaults to `"main"` when omitted.
+- Internal: dropped `async` from the no-`await` `#init`, removed dead rolldown
+  externals (`@y-rb/actioncable`, `@anycable/web`), and documented the page-wide
+  blast radius of the shared `CollabElementNode.splice` patch.
 
 ### Fixed
 
@@ -24,12 +34,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   error instead of throwing an opaque `Cannot read properties of null` TypeError.
 - A malformed `channel-params` attribute no longer throws an uncaught
   `SyntaxError`; it logs a clear error and falls back to `{}`.
-
-### Changed
-
-- Internal: dropped `async` from the no-`await` `#init`, removed dead rolldown
-  externals (`@y-rb/actioncable`, `@anycable/web`), and documented the page-wide
-  blast radius of the shared `CollabElementNode.splice` patch.
 
 ## [0.1.3] - 2026-06-29
 
