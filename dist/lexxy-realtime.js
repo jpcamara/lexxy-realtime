@@ -1479,7 +1479,7 @@ var ActionCableProvider = class {
 		this.#connected = false;
 		this.#subscription = null;
 		this.#removeUnloadHandler();
-		queueMicrotask(() => this.consumer.subscriptions.remove(sub));
+		queueMicrotask(() => sub.unsubscribe?.());
 		this.#refreshStatus();
 	}
 	destroy() {

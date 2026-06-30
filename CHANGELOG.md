@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-29
+
+### Fixed
+
+- Bundles `yrby-client@0.4.2`, whose `ActionCableProvider` now tears down via
+  `subscription.unsubscribe()` (universal) instead of
+  `consumer.subscriptions.remove()` — the latter doesn't exist on `@anycable/web`,
+  so disconnect threw there. Also loosens the cable consumer types so an
+  `@anycable/web` consumer is assignable with no adapter/casts.
+
 ## [0.2.0] - 2026-06-29
 
 ### Changed
