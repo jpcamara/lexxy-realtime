@@ -31,9 +31,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   progress bar) next to the real attachment, forever. The attachment
   classes now exclude their unsyncable properties from collaboration:
   `file`, `editor` (a live reference that synced as "[object Object]"),
-  `previewSrc` (a client-local object URL), and the upload machinery
-  (`uploadUrl`, `blobUrlTemplate`, `progress`, `uploadError`,
-  `pendingPreview`).
+  `previewSrc` (a client-local object URL), `uploadUrl` and
+  `blobUrlTemplate` (host config; an absent uploadUrl is also what stops a
+  peer from starting a duplicate upload), and `pendingPreview`. `progress`
+  and `uploadError` still sync on purpose, so peers watching an upload in
+  progress see a live progress bar and the error state rather than a
+  frozen placeholder.
 
 ## [0.2.1] - 2026-06-29
 

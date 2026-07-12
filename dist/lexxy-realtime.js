@@ -1627,8 +1627,6 @@ const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
 	"previewSrc",
 	"uploadUrl",
 	"blobUrlTemplate",
-	"progress",
-	"uploadError",
 	"pendingPreview"
 ]);
 function guardedClassFor(Original) {

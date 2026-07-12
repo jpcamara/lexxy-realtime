@@ -204,14 +204,20 @@ const BUILTIN_NODE_TYPES = new Set(['root', 'text', 'linebreak', 'tab', 'paragra
 // Returns the Map to pass to createBinding.
 const GUARDED_CLASSES = new WeakMap();
 
+// What stays local: `file` (yjs can't encode a File and throws mid-sync),
+// `editor` (live object reference), `previewSrc` (client-local object URL),
+// `uploadUrl` and `blobUrlTemplate` (host config — and an absent uploadUrl
+// is what stops a peer from starting its own duplicate DirectUpload), and
+// `pendingPreview` (drives local preview polling). `progress` and
+// `uploadError` are NOT excluded on purpose: they're plain scalars, and
+// syncing them gives peers a live progress bar and the error state during
+// an upload instead of a frozen placeholder.
 const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
   'editor',
   'file',
   'previewSrc',
   'uploadUrl',
   'blobUrlTemplate',
-  'progress',
-  'uploadError',
   'pendingPreview',
 ]);
 
