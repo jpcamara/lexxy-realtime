@@ -1,13 +1,13 @@
 PATH
   remote: ../../../yrby
   specs:
-    yrby (0.2.1)
+    yrby (0.6.0)
       rb_sys (~> 0.9)
-    yrby-actioncable (0.2.1)
+    yrby-actioncable (0.3.1)
       actioncable (>= 7.0)
       activesupport (>= 7.0)
       base64 (~> 0.2)
-      yrby (>= 0.2.1)
+      yrby (>= 0.3.1)
 
 GEM
   remote: https://rubygems.org/
@@ -313,8 +313,8 @@ CHECKSUMS
   useragent (0.16.11) sha256=700e6413ad4bb954bb63547fa098dddf7b0ebe75b40cc6f93b8d54255b173844
   websocket-driver (0.8.1) sha256=5ab238238ce230e5d4b262d2be39624c867914eab99171dc4952b58b577c2d96
   websocket-extensions (0.1.5) sha256=1c6ba63092cda343eb53fc657110c71c754c56484aad42578495227d717a8241
-  yrby (0.2.1)
-  yrby-actioncable (0.2.1)
+  yrby (0.6.0)
+  yrby-actioncable (0.3.1)
   zeitwerk (2.8.2) sha256=7212a61311083c604184b1ea2574b9aa05cd14f855a0841c06985cabe9181d12
 
 BUNDLED WITH

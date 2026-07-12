@@ -6,6 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-12
+
+### Fixed
+
+- Remote attachments now render. @lexical/yjs constructs node classes with
+  no arguments when it materializes a node from a remote update, and
+  Lexxy's attachment constructors destructure their first parameter, so
+  every attachment coming from a peer threw ("Cannot destructure property
+  'tagName' of 'undefined'") and silently never appeared — the peer's Yjs
+  doc had the node, the editor didn't. The existing constructor guard only
+  covered the bind-time snapshot and reverted itself afterwards; it is now
+  permanent, memoized per class, and keeps Lexical's class-identity
+  assertion satisfied for locally-created nodes too. The browser e2e now
+  inserts an attachment and asserts both the live peer and a late joiner
+  materialize it.
+- Attachment nodes no longer serialize their live `editor` object
+  reference into the shared document (peers used to receive
+  `editor="[object Object]"`). Excluded via @lexical/yjs's
+  excludedProperties.
+
 ## [0.2.1] - 2026-06-29
 
 ### Fixed

@@ -1568,7 +1568,8 @@ var Collaboration = class extends HTMLElement {
 			tag: HISTORY_MERGE_TAG,
 			discrete: true
 		});
-		const binding = bindWithLexxyNodeGuard(this.editor, () => createBinding(this.editor, provider, id, doc, docMap));
+		const excludedProperties = guardLexxyNodes(this.editor);
+		const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
 		patchCollabElementSplice(binding);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
 		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding);
@@ -1619,34 +1620,38 @@ const BUILTIN_NODE_TYPES = new Set([
 	"tab",
 	"paragraph"
 ]);
-function bindWithLexxyNodeGuard(editor, bind) {
-	const nodes = editor?._nodes;
-	if (!nodes || typeof nodes.forEach !== "function") return bind();
-	let throwers;
-	try {
-		throwers = detectNoArgThrowingNodes(nodes);
-	} catch {
-		return bind();
-	}
-	if (throwers.size === 0) return bind();
-	const restore = [];
-	for (const info of throwers) {
-		const Original = info.klass;
-		const Guarded = class extends Original {
+const GUARDED_CLASSES = /* @__PURE__ */ new WeakMap();
+function guardedClassFor(Original) {
+	let Guarded = GUARDED_CLASSES.get(Original);
+	if (!Guarded) {
+		Guarded = class extends Original {
 			constructor(...args) {
 				super(args.length === 0 || args[0] === void 0 ? {} : args[0], args[1]);
 			}
 		};
-		info.klass = Guarded;
-		restore.push(() => {
-			info.klass = Original;
-		});
+		GUARDED_CLASSES.set(Original, Guarded);
 	}
+	return Guarded;
+}
+function guardLexxyNodes(editor) {
+	const excludedProperties = /* @__PURE__ */ new Map();
+	const nodes = editor?._nodes;
+	if (!nodes || typeof nodes.forEach !== "function") return excludedProperties;
+	let throwers;
 	try {
-		return bind();
-	} finally {
-		for (const undo of restore) undo();
+		throwers = detectNoArgThrowingNodes(nodes);
+	} catch {
+		return excludedProperties;
 	}
+	for (const info of throwers) {
+		const Original = info.klass;
+		const Guarded = guardedClassFor(Original);
+		info.klass = Guarded;
+		Original.prototype.constructor = Guarded;
+		excludedProperties.set(Original, new Set(["editor"]));
+		excludedProperties.set(Guarded, new Set(["editor"]));
+	}
+	return excludedProperties;
 }
 function detectNoArgThrowingNodes(nodes) {
 	const throwers = /* @__PURE__ */ new Set();

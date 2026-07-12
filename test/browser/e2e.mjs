@@ -71,6 +71,27 @@ ab("bob", "click", "#editor [contenteditable]");
 ab("bob", "keyboard", "type", "BOB-EDIT");
 check("Alice received Bob's edit", await waitEval("alice", 'window.__test.text().includes("BOB-EDIT")', "alice sees BOB-EDIT"));
 
+// Attachments must materialize on the PEER. @lexical/yjs constructs node
+// classes with no arguments when applying a remote update; before the
+// permanent node guard, Lexxy's attachment constructor threw
+// ("Cannot destructure property 'tagName' of 'undefined'") and the peer
+// silently never rendered the node, even though its Yjs doc had it.
+ab("alice", "eval", 'window.__test.insertAttachment("TEST-SGID-123")');
+check(
+  "Bob materialized Alice's attachment node",
+  await waitEval("bob", 'window.__test.attachmentSgids().includes("TEST-SGID-123")', "bob has attachment")
+);
+check(
+  "no Yjs update errors on Bob",
+  /\btrue\b/.test(ab("bob", "eval", 'window.__test.errors().filter(e => e.includes("destructure") || e.includes("Yjs update")).length === 0'))
+);
+// The live `editor` object reference must not be serialized into the doc
+// (excluded properties): peers used to receive editor="[object Object]".
+check(
+  "no editor object reference leaked into the shared doc",
+  /\btrue\b/.test(ab("bob", "eval", '!window.__test.docRoot().includes("editor=")'))
+);
+
 // Both leave; the server should hold the durable doc on its own.
 ab("alice", "close");
 ab("bob", "close");
@@ -85,6 +106,12 @@ const carolHasBoth = await waitEval(
   "carol loaded persisted doc"
 );
 check("fresh client rebuilt the document from the server (durability)", carolHasBoth);
+// The late joiner materializes the attachment from the initial sync too —
+// the bind-time path, not just the live-update path.
+check(
+  "fresh client materialized the attachment",
+  await waitEval("carol", 'window.__test.attachmentSgids().includes("TEST-SGID-123")', "carol has attachment")
+);
 
 ab("carol", "close");
 

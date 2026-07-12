@@ -89,9 +89,8 @@ export class Collaboration extends HTMLElement {
     // bootstrapWhenSynced); existing docs are loaded by the Yjs->Lexical observer.
     this.editor.update(() => $getRoot().clear(), { tag: HISTORY_MERGE_TAG, discrete: true });
 
-    const binding = bindWithLexxyNodeGuard(this.editor, () =>
-      createBinding(this.editor, provider, id, doc, docMap)
-    );
+    const excludedProperties = guardLexxyNodes(this.editor);
+    const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
     patchCollabElementSplice(binding);
     const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
     const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding);
@@ -160,55 +159,77 @@ export class Collaboration extends HTMLElement {
 // re-registered on a probe editor (Lexical seeds them itself).
 const BUILTIN_NODE_TYPES = new Set(['root', 'text', 'linebreak', 'tab', 'paragraph']);
 
-// @lexical/yjs's createBinding snapshots default node properties by constructing
-// every registered node with NO arguments (`new klass()` in
-// initializeNodeProperties). Lexxy's attachment nodes destructure their first
-// parameter (`constructor({ tagName, ... }, key)`), so they throw on no-arg
-// construction and abort the bind. Lexxy 0.9 ships without default parameters.
+// @lexical/yjs constructs registered node classes with NO arguments in two
+// places: createBinding's initializeNodeProperties (snapshotting default
+// property values at bind time), and again whenever a peer's node is
+// materialized from a remote Yjs update. Lexxy's attachment nodes
+// destructure their first parameter (`constructor({ tagName, ... }, key)`),
+// so a no-arg construction throws. At bind time that aborted the bind.
+// After bind it silently dropped every remote attachment: the peer's Yjs
+// doc had the node, the editor never showed it, and each update logged
+// "Cannot destructure property 'tagName' of 'undefined'". Lexxy 0.9 ships
+// without default parameters.
 //
-// Rather than require a consumer-side patch, we make those constructions tolerate
-// no args. We can't wrap the class (Lexical asserts `registeredNode.klass ===
-// node.constructor` on every construct, so a Proxy/foreign wrapper trips
-// errorOnTypeKlassMismatch) and we can't safely probe construction on the live
-// editor. So: detect the offending classes on an isolated probe editor, then for
-// the bind window only, swap each into editor._nodes for an identity-preserving
-// subclass that supplies `{}` when constructed with no args (exactly what `= {}`
-// defaults would do). The subclass IS the registered klass during the bind, so
-// the identity assertion holds; we revert immediately after, so real attachment
-// creation (with real args, against the original class) is untouched. This
-// replaces the consumer-side @37signals/lexxy patch.
-function bindWithLexxyNodeGuard(editor, bind) {
+// The guard replaces each offending class in editor._nodes with an
+// identity-preserving subclass that supplies `{}` when constructed with no
+// args (what `= {}` defaults would do). The replacement is permanent — an
+// earlier version swapped for the bind window only, which fixed the
+// snapshot and left remote materialization broken. Two details make the
+// permanent swap safe:
+//
+// - Lexical asserts `registeredNode.klass === node.constructor`, and
+//   Lexxy's own statics construct through hardcoded class references
+//   (`new ActionTextAttachmentNode(...)` in clone/importJSON). Pointing the
+//   original prototype's `constructor` at the subclass makes those
+//   instances report the registered class, so the assertion holds on both
+//   creation paths.
+// - The subclass is memoized per class, so several editors on one page all
+//   register the same subclass and the constructor patch never flaps.
+//
+// The same classes also get an excluded-properties entry: Lexxy attachment
+// nodes carry a live `editor` object reference, which @lexical/yjs would
+// otherwise serialize into the shared doc as the string "[object Object]".
+// Returns the Map to pass to createBinding.
+const GUARDED_CLASSES = new WeakMap();
+
+function guardedClassFor(Original) {
+  let Guarded = GUARDED_CLASSES.get(Original);
+  if (!Guarded) {
+    Guarded = class extends Original {
+      constructor(...args) {
+        super(args.length === 0 || args[0] === undefined ? {} : args[0], args[1]);
+      }
+    };
+    GUARDED_CLASSES.set(Original, Guarded);
+  }
+  return Guarded;
+}
+
+function guardLexxyNodes(editor) {
+  const excludedProperties = new Map();
   const nodes = editor?._nodes;
-  if (!nodes || typeof nodes.forEach !== 'function') return bind();
+  if (!nodes || typeof nodes.forEach !== 'function') return excludedProperties;
 
   let throwers;
   try {
     throwers = detectNoArgThrowingNodes(nodes);
   } catch {
-    // If detection fails for any reason, fall back to an unguarded bind rather
-    // than break collaboration -- the original error (if any) still surfaces.
-    return bind();
+    // If detection fails for any reason, bind unguarded rather than break
+    // collaboration -- the original error (if any) still surfaces.
+    return excludedProperties;
   }
-  if (throwers.size === 0) return bind();
-
-  const restore = [];
   for (const info of throwers) {
     const Original = info.klass;
-    const Guarded = class extends Original {
-      constructor(...args) {
-        super(args.length === 0 || args[0] === undefined ? {} : args[0], args[1]);
-      }
-    };
+    const Guarded = guardedClassFor(Original);
     info.klass = Guarded;
-    restore.push(() => {
-      info.klass = Original;
-    });
+    Original.prototype.constructor = Guarded;
+    // Keyed by both classes: @lexical/yjs looks the map up by the node's
+    // constructor, which differs between locally- and remotely-created
+    // instances here.
+    excludedProperties.set(Original, new Set(['editor']));
+    excludedProperties.set(Guarded, new Set(['editor']));
   }
-  try {
-    return bind();
-  } finally {
-    for (const undo of restore) undo();
-  }
+  return excludedProperties;
 }
 
 // Probe each non-builtin registered node on a throwaway editor (so the live

@@ -9,6 +9,16 @@ import "@37signals/lexxy";
 import { YrbyProvider } from "../../src/index.js"; // also registers <lexxy-collaboration>
 import * as Y from "yjs";
 import { createConsumer } from "@rails/actioncable";
+import { $getRoot } from "lexical";
+
+// Collaboration errors are logged, not thrown (a bad remote update must not
+// kill the page), so the e2e reads them from here.
+window.__errors = [];
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  window.__errors.push(args.map(String).join(" ").slice(0, 300));
+  originalConsoleError(...args);
+};
 
 const params = new URLSearchParams(location.search);
 const room = params.get("room") || "browser-demo";
@@ -48,6 +58,37 @@ function start() {
       return ce ? ce.innerText : "";
     },
     synced: () => provider.synced,
+    errors: () => window.__errors,
+    // Insert an attachment the way a finished upload does: a real
+    // action_text_attachment node with an sgid, appended to the root. Uses
+    // the class registered on the editor so the test exercises whatever the
+    // guard registered.
+    insertAttachment: (sgid) => {
+      const lexical = editor.editor;
+      let klass;
+      lexical._nodes.forEach((info) => {
+        try {
+          if (info.klass.getType() === "action_text_attachment") klass = info.klass;
+        } catch { /* builtin without getType */ }
+      });
+      lexical.update(() => {
+        const node = new klass({
+          sgid,
+          src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+          contentType: "image/png",
+          fileName: "collab-test.png",
+          previewable: true,
+        });
+        $getRoot().append(node);
+      });
+    },
+    // The attachment sgids present in the editor's own state.
+    attachmentSgids: () => {
+      const json = JSON.stringify(editor.editor.getEditorState().toJSON());
+      return [...json.matchAll(/"sgid":"([^"]+)"/g)].map((m) => m[1]);
+    },
+    // The shared doc's root as XML, for asserting what actually synced.
+    docRoot: () => (doc.share.get("root") ? doc.share.get("root").toString() : ""),
     peers: () =>
       // @lexical/yjs stores presence identity at the top level (s.name), not s.user.
       [...awareness.getStates().values()].map((s) => s.name).filter(Boolean),
