@@ -50,17 +50,24 @@ binding an empty/collaborative document. We apply both fixes **at runtime, from
 inside `editor_collaboration.js`'s bind path**, so consumers don't have to patch
 their `node_modules`:
 
-1. **`@37signals/lexxy` attachment-node constructors.** `createBinding` snapshots
-   default node properties by constructing every registered node with no
-   arguments (`new klass()` in `initializeNodeProperties`). Lexxy's three
-   ActionText attachment nodes destructure their first parameter and throw on
-   no-arg construction. Lexical also asserts `registeredNode.klass ===
-   node.constructor` on every construct, so a `Proxy`/foreign wrapper trips
-   `errorOnTypeKlassMismatch`. We instead detect the offending classes on an
-   isolated probe editor, then — for the bind window only — swap each into
-   `editor._nodes` for an identity-preserving subclass that defaults the missing
-   argument to `{}`, and revert immediately after. The fix upstream is trivial
-   (default the parameter, `= {}`).
+1. **`@37signals/lexxy` attachment nodes.** @lexical/yjs constructs registered
+   node classes with no arguments in two places: `createBinding`'s bind-time
+   property snapshot, and again whenever a peer's node is materialized from a
+   remote update. Lexxy's three ActionText attachment nodes destructure their
+   first parameter and throw on no-arg construction. We detect the offending
+   classes on an isolated probe editor and permanently swap each into
+   `editor._nodes` for a subclass that defaults the missing argument to `{}`.
+   Lexical asserts `registeredNode.klass === node.constructor`, and which
+   class is right depends on the editor doing the asserting (a plain Lexxy
+   editor on the same page registers the original class), so `constructor`
+   is a getter that answers with whatever the active editor registered.
+   The same classes get excluded properties — a raw `File` on the upload
+   node makes yjs throw mid-sync, and `editor`/`previewSrc` are
+   client-local — and a small `createDOM` fixup that blanks the
+   "NaN undefined" size caption Lexxy renders for a File it doesn't have.
+   The fix upstream is mostly trivial (default the constructor parameter to
+   `{}`; keep non-serializable state off enumerable instance properties;
+   guard the size formatter).
 
 2. **`@lexical/yjs` `CollabElementNode.splice`.** It throws (dev) / appends
    `undefined` (prod) when asked to splice at an index with no existing child and
