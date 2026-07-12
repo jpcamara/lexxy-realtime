@@ -5,6 +5,12 @@ over [Yjs](https://github.com/yjs/yjs). Drop a `<lexxy-collaboration>` element
 inside your `<lexxy-editor>` and people editing the same document see each other's
 **text, cursors, and selections** live.
 
+![One browser watching another type, with a labeled remote caret](docs/images/collab.gif)
+
+Each side sees the other's cursor and selection:
+
+![Two browsers side by side, each showing the other's selection and caret](docs/images/presence.png)
+
 It works with **any Yjs provider**. [`yrby`](https://github.com/jpcamara/yrby)
 is the recommended one — a reliable, Rails-native provider over Action Cable /
 AnyCable with ack-tracked delivery (an acknowledged edit isn't silently lost on a
