@@ -87,6 +87,11 @@ thing that exercises the real editor binding and these shims.
 When an upstream release lands, drop the corresponding shim and bump the peer
 range.
 
+Last checked: lexxy 0.9.23 (July 2026). The attachment constructors still
+destructure their first parameter with no default, and the upload node's size
+caption still formats `this.file?.size` unguarded, so both shims remain. The
+full browser suite passes against 0.9.23.
+
 ## Pull requests
 
 - Keep the bind path readable; both shims are commented with *why*, not just
