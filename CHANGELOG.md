@@ -36,7 +36,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   peer from starting a duplicate upload), and `pendingPreview`. `progress`
   and `uploadError` still sync on purpose, so peers watching an upload in
   progress see a live progress bar and the error state rather than a
-  frozen placeholder.
+  frozen placeholder. The guarded classes also scrub the "NaN undefined"
+  size caption Lexxy renders on peers during the upload window (it formats
+  `file.size`, and the File never leaves the uploader's browser).
 
 ## [0.2.1] - 2026-06-29
 

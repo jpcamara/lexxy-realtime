@@ -1636,6 +1636,14 @@ function guardedClassFor(Original) {
 			constructor(...args) {
 				super(args.length === 0 || args[0] === void 0 ? {} : args[0], args[1]);
 			}
+			createDOM(...args) {
+				const dom = super.createDOM(...args);
+				if (dom && !this.file) {
+					const size$1 = dom.querySelector?.(".attachment__size");
+					if (size$1 && /NaN/.test(size$1.textContent)) size$1.textContent = "";
+				}
+				return dom;
+			}
 		};
 		GUARDED_CLASSES.set(Original, Guarded);
 	}

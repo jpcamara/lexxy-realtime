@@ -228,6 +228,20 @@ function guardedClassFor(Original) {
       constructor(...args) {
         super(args.length === 0 || args[0] === undefined ? {} : args[0], args[1]);
       }
+
+      // Remote instances have no local File (it never syncs), and Lexxy's
+      // upload caption formats `this.file?.size`, which renders as
+      // "NaN undefined" on peers. Scrub it; the filename and the synced
+      // progress bar remain. Locally created nodes construct through the
+      // original class and never reach this override.
+      createDOM(...args) {
+        const dom = super.createDOM(...args);
+        if (dom && !this.file) {
+          const size = dom.querySelector?.('.attachment__size');
+          if (size && /NaN/.test(size.textContent)) size.textContent = '';
+        }
+        return dom;
+      }
     };
     GUARDED_CLASSES.set(Original, Guarded);
   }
