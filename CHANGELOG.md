@@ -21,10 +21,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   assertion satisfied for locally-created nodes too. The browser e2e now
   inserts an attachment and asserts both the live peer and a late joiner
   materialize it.
-- Attachment nodes no longer serialize their live `editor` object
-  reference into the shared document (peers used to receive
-  `editor="[object Object]"`). Excluded via @lexical/yjs's
-  excludedProperties.
+- Finished uploads no longer leave a zombie upload placeholder on peers.
+  The provisional upload node carries a raw `File` object as a plain
+  property; yjs cannot encode it as an attribute value and threw
+  "Unexpected content type" mid-sync, which aborted the Lexical-to-Yjs
+  update — so when Lexxy swapped the provisional node for the finished
+  attachment, the removal never reached the shared doc. Peers and late
+  joiners rendered a broken upload placeholder ("NaN undefined", stuck
+  progress bar) next to the real attachment, forever. The attachment
+  classes now exclude their unsyncable properties from collaboration:
+  `file`, `editor` (a live reference that synced as "[object Object]"),
+  `previewSrc` (a client-local object URL), and the upload machinery
+  (`uploadUrl`, `blobUrlTemplate`, `progress`, `uploadError`,
+  `pendingPreview`).
 
 ## [0.2.1] - 2026-06-29
 

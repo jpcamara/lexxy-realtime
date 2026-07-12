@@ -1621,6 +1621,16 @@ const BUILTIN_NODE_TYPES = new Set([
 	"paragraph"
 ]);
 const GUARDED_CLASSES = /* @__PURE__ */ new WeakMap();
+const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
+	"editor",
+	"file",
+	"previewSrc",
+	"uploadUrl",
+	"blobUrlTemplate",
+	"progress",
+	"uploadError",
+	"pendingPreview"
+]);
 function guardedClassFor(Original) {
 	let Guarded = GUARDED_CLASSES.get(Original);
 	if (!Guarded) {
@@ -1648,8 +1658,8 @@ function guardLexxyNodes(editor) {
 		const Guarded = guardedClassFor(Original);
 		info.klass = Guarded;
 		Original.prototype.constructor = Guarded;
-		excludedProperties.set(Original, new Set(["editor"]));
-		excludedProperties.set(Guarded, new Set(["editor"]));
+		excludedProperties.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+		excludedProperties.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
 	}
 	return excludedProperties;
 }

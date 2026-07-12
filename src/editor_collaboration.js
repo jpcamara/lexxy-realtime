@@ -186,11 +186,34 @@ const BUILTIN_NODE_TYPES = new Set(['root', 'text', 'linebreak', 'tab', 'paragra
 // - The subclass is memoized per class, so several editors on one page all
 //   register the same subclass and the constructor patch never flaps.
 //
-// The same classes also get an excluded-properties entry: Lexxy attachment
-// nodes carry a live `editor` object reference, which @lexical/yjs would
-// otherwise serialize into the shared doc as the string "[object Object]".
+// The same classes also get an excluded-properties entry, because Lexxy
+// attachment nodes carry plain properties that must not sync:
+//
+// - `editor` is a live object reference; it serialized as the string
+//   "[object Object]".
+// - `file` is a File object. yjs cannot encode it as an attribute value
+//   and throws "Unexpected content type" MID-SYNC, which aborts the whole
+//   Lexical->Yjs update. The visible symptom: when an upload finishes and
+//   Lexxy swaps its provisional upload node for the final attachment, the
+//   removal never reaches the shared doc, and every peer and late joiner
+//   renders a zombie upload placeholder next to the real attachment.
+// - `previewSrc` is a client-local object URL, `uploadUrl` /
+//   `blobUrlTemplate` / `progress` / `uploadError` / `pendingPreview` are
+//   upload machinery with no meaning on another client.
+//
 // Returns the Map to pass to createBinding.
 const GUARDED_CLASSES = new WeakMap();
+
+const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
+  'editor',
+  'file',
+  'previewSrc',
+  'uploadUrl',
+  'blobUrlTemplate',
+  'progress',
+  'uploadError',
+  'pendingPreview',
+]);
 
 function guardedClassFor(Original) {
   let Guarded = GUARDED_CLASSES.get(Original);
@@ -226,8 +249,8 @@ function guardLexxyNodes(editor) {
     // Keyed by both classes: @lexical/yjs looks the map up by the node's
     // constructor, which differs between locally- and remotely-created
     // instances here.
-    excludedProperties.set(Original, new Set(['editor']));
-    excludedProperties.set(Guarded, new Set(['editor']));
+    excludedProperties.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+    excludedProperties.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
   }
   return excludedProperties;
 }
