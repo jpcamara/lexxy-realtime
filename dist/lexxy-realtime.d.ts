@@ -1,8 +1,12 @@
 // Hand-maintained type declarations for lexxy-realtime (the source is plain
-// JavaScript). Keep in sync with src/editor_collaboration.js.
+// JavaScript). Keep in sync with src/editor_collaboration.js — and keep
+// YrbyProvider in sync with yrby-client's ActionCableProvider, which is
+// compiled into the bundle rather than installed, so these declarations
+// must not import from it.
 import type { Doc } from "yjs";
 import type { Awareness } from "y-protocols/awareness";
-import type { ActionCableProvider } from "yrby-client";
+
+export type ProviderStatus = "connecting" | "connected" | "synced" | "disconnected";
 
 /**
  * The provider surface `<lexxy-collaboration>` requires. `YrbyProvider`
@@ -43,10 +47,36 @@ export declare class Collaboration extends HTMLElement {
 
 /**
  * The yrby provider for ActionCable / AnyCable: `yrby-client`'s
- * `ActionCableProvider` re-exported under a friendly name. Reliable
+ * `ActionCableProvider`, compiled into this package's bundle. Reliable
  * ack-tracked delivery, reconnect replay, `whenSynced`, and presence.
  */
-export { ActionCableProvider as YrbyProvider } from "yrby-client";
+export declare class YrbyProvider implements CollaborationProvider {
+  constructor(
+    doc: Doc,
+    consumer: unknown,
+    channelName: string,
+    channelParams?: object,
+    opts?: {
+      resendInterval?: number;
+      onError?: (error: unknown, context: string) => void;
+    }
+  );
+  readonly doc: Doc;
+  readonly awareness: Awareness;
+  /** True once the document has caught up with the server. */
+  readonly synced: boolean;
+  /** Resolves on the first catch-up; immediately if it already happened. */
+  readonly whenSynced: Promise<void>;
+  readonly status: ProviderStatus;
+  /** True while unacknowledged local edits are in flight. */
+  readonly hasPending: boolean;
+  onStatusChange(listener: (event: { status: ProviderStatus }) => void): () => void;
+  /** Apply already-durable state without re-sending it as a local edit. */
+  applyRemoteUpdate(update: Uint8Array): void;
+  connect(): void;
+  disconnect(): void;
+  destroy(): void;
+}
 
 declare global {
   interface HTMLElementTagNameMap {
