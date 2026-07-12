@@ -6,7 +6,7 @@ import {
   setLocalStateFocus,
   initLocalState,
 } from '@lexical/yjs';
-import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG, createEditor } from 'lexical';
+import { $getEditor, $getRoot, $createParagraphNode, HISTORY_MERGE_TAG, createEditor } from 'lexical';
 import { Doc } from 'yjs';
 import { YrbyProvider } from './yrby_provider';
 
@@ -203,22 +203,50 @@ const BUILTIN_NODE_TYPES = new Set(['root', 'text', 'linebreak', 'tab', 'paragra
 //
 // Returns the Map to pass to createBinding.
 const GUARDED_CLASSES = new WeakMap();
+const GUARDED_ORIGINALS = new WeakMap(); // Guarded -> Original
+const GUARDED_EXCLUSIONS = new WeakMap(); // either class -> excluded property Set
+const CONSTRUCTOR_PATCHED = new WeakSet();
+
+// Lexical asserts `registeredNode.klass === node.constructor`, and which
+// class is "right" depends on the editor doing the asserting: a
+// collaborative editor registered Guarded, while a plain Lexxy editor on
+// the same page registered Original. A blanket
+// `Original.prototype.constructor = Guarded` satisfies the first and
+// breaks attachment creation in the second. Instead, `constructor` answers
+// with whatever the ACTIVE editor registered for this node type; outside
+// an editor update it falls back to the real class.
+function patchConstructorLookup(Original, Guarded) {
+  if (CONSTRUCTOR_PATCHED.has(Original)) return;
+  CONSTRUCTOR_PATCHED.add(Original);
+  Object.defineProperty(Original.prototype, 'constructor', {
+    configurable: true,
+    get() {
+      try {
+        const registered = $getEditor()._nodes.get(this.getType())?.klass;
+        if (registered === Guarded) return Guarded;
+      } catch {
+        // No active editor; fall through.
+      }
+      return Original;
+    },
+  });
+}
 
 // What stays local: `file` (yjs can't encode a File and throws mid-sync),
 // `editor` (live object reference), `previewSrc` (client-local object URL),
-// `uploadUrl` and `blobUrlTemplate` (host config — and an absent uploadUrl
-// is what stops a peer from starting its own duplicate DirectUpload), and
-// `pendingPreview` (drives local preview polling). `progress` and
-// `uploadError` are NOT excluded on purpose: they're plain scalars, and
-// syncing them gives peers a live progress bar and the error state during
-// an upload instead of a frozen placeholder.
+// and `uploadUrl` / `blobUrlTemplate` (host config — and an absent
+// uploadUrl is what stops a peer from starting its own duplicate
+// DirectUpload). Everything else syncs on purpose: `progress` and
+// `uploadError` give peers a live progress bar and the error state, and
+// `pendingPreview` tells peers to render the poll-until-ready placeholder
+// for server-generated previews (PDFs and friends) instead of requesting a
+// preview that doesn't exist yet and giving up.
 const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
   'editor',
   'file',
   'previewSrc',
   'uploadUrl',
   'blobUrlTemplate',
-  'pendingPreview',
 ]);
 
 function guardedClassFor(Original) {
@@ -253,6 +281,19 @@ function guardLexxyNodes(editor) {
   const nodes = editor?._nodes;
   if (!nodes || typeof nodes.forEach !== 'function') return excludedProperties;
 
+  // A re-bind (disconnect/reconnect, a DOM move) sees classes that are
+  // already the tolerant Guarded subclasses. The thrower probe below skips
+  // them — they no longer throw — so their exclusions have to be carried
+  // over explicitly, or a new binding would serialize the next upload's
+  // raw File and abort mid-sync all over again.
+  nodes.forEach((info) => {
+    const exclusions = GUARDED_EXCLUSIONS.get(info.klass);
+    if (!exclusions) return;
+    excludedProperties.set(info.klass, exclusions);
+    const counterpart = GUARDED_ORIGINALS.get(info.klass) || GUARDED_CLASSES.get(info.klass);
+    if (counterpart) excludedProperties.set(counterpart, exclusions);
+  });
+
   let throwers;
   try {
     throwers = detectNoArgThrowingNodes(nodes);
@@ -265,7 +306,10 @@ function guardLexxyNodes(editor) {
     const Original = info.klass;
     const Guarded = guardedClassFor(Original);
     info.klass = Guarded;
-    Original.prototype.constructor = Guarded;
+    patchConstructorLookup(Original, Guarded);
+    GUARDED_ORIGINALS.set(Guarded, Original);
+    GUARDED_EXCLUSIONS.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+    GUARDED_EXCLUSIONS.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
     // Keyed by both classes: @lexical/yjs looks the map up by the node's
     // constructor, which differs between locally- and remotely-created
     // instances here.

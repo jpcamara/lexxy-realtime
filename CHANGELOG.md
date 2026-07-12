@@ -36,9 +36,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   peer from starting a duplicate upload), and `pendingPreview`. `progress`
   and `uploadError` still sync on purpose, so peers watching an upload in
   progress see a live progress bar and the error state rather than a
-  frozen placeholder. The guarded classes also scrub the "NaN undefined"
-  size caption Lexxy renders on peers during the upload window (it formats
-  `file.size`, and the File never leaves the uploader's browser).
+  frozen placeholder, and `pendingPreview` syncs so peers render the
+  poll-until-ready placeholder for server-generated previews (PDFs) instead
+  of requesting a preview that doesn't exist yet and giving up. The guarded
+  classes also scrub the "NaN undefined" size caption Lexxy renders on
+  peers during the upload window (it formats `file.size`, and the File
+  never leaves the uploader's browser).
+- The class-identity handling answers per editor. Lexical asserts
+  `registeredNode.klass === node.constructor`; a collaborative editor
+  registers the guarded subclass while a plain Lexxy editor on the same
+  page registers the original class, so `constructor` now resolves against
+  whatever the active editor registered instead of being reassigned
+  globally (which broke attachment creation in non-collaborative editors
+  sharing the page).
+- Re-binding (unmounting and remounting the collaboration element) keeps
+  the excluded properties. The already-guarded classes no longer trip the
+  no-arg probe, so their exclusions are carried over explicitly; before,
+  a re-bound editor's next upload node aborted mid-sync on its raw File —
+  partially writing the node's attributes into the shared doc.
 
 ## [0.2.1] - 2026-06-29
 

@@ -1,5 +1,5 @@
 import { createBinding, initLocalState, setLocalStateFocus, syncCursorPositions, syncLexicalUpdateToYjs, syncYjsChangesToLexical } from "@lexical/yjs";
-import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG, createEditor } from "lexical";
+import { $createParagraphNode, $getEditor, $getRoot, HISTORY_MERGE_TAG, createEditor } from "lexical";
 import * as Y from "yjs";
 import { Doc, applyUpdate, mergeUpdates } from "yjs";
 
@@ -1621,13 +1621,28 @@ const BUILTIN_NODE_TYPES = new Set([
 	"paragraph"
 ]);
 const GUARDED_CLASSES = /* @__PURE__ */ new WeakMap();
+const GUARDED_ORIGINALS = /* @__PURE__ */ new WeakMap();
+const GUARDED_EXCLUSIONS = /* @__PURE__ */ new WeakMap();
+const CONSTRUCTOR_PATCHED = /* @__PURE__ */ new WeakSet();
+function patchConstructorLookup(Original, Guarded) {
+	if (CONSTRUCTOR_PATCHED.has(Original)) return;
+	CONSTRUCTOR_PATCHED.add(Original);
+	Object.defineProperty(Original.prototype, "constructor", {
+		configurable: true,
+		get() {
+			try {
+				if ($getEditor()._nodes.get(this.getType())?.klass === Guarded) return Guarded;
+			} catch {}
+			return Original;
+		}
+	});
+}
 const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
 	"editor",
 	"file",
 	"previewSrc",
 	"uploadUrl",
-	"blobUrlTemplate",
-	"pendingPreview"
+	"blobUrlTemplate"
 ]);
 function guardedClassFor(Original) {
 	let Guarded = GUARDED_CLASSES.get(Original);
@@ -1653,6 +1668,13 @@ function guardLexxyNodes(editor) {
 	const excludedProperties = /* @__PURE__ */ new Map();
 	const nodes = editor?._nodes;
 	if (!nodes || typeof nodes.forEach !== "function") return excludedProperties;
+	nodes.forEach((info) => {
+		const exclusions = GUARDED_EXCLUSIONS.get(info.klass);
+		if (!exclusions) return;
+		excludedProperties.set(info.klass, exclusions);
+		const counterpart = GUARDED_ORIGINALS.get(info.klass) || GUARDED_CLASSES.get(info.klass);
+		if (counterpart) excludedProperties.set(counterpart, exclusions);
+	});
 	let throwers;
 	try {
 		throwers = detectNoArgThrowingNodes(nodes);
@@ -1663,7 +1685,10 @@ function guardLexxyNodes(editor) {
 		const Original = info.klass;
 		const Guarded = guardedClassFor(Original);
 		info.klass = Guarded;
-		Original.prototype.constructor = Guarded;
+		patchConstructorLookup(Original, Guarded);
+		GUARDED_ORIGINALS.set(Guarded, Original);
+		GUARDED_EXCLUSIONS.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+		GUARDED_EXCLUSIONS.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
 		excludedProperties.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
 		excludedProperties.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
 	}

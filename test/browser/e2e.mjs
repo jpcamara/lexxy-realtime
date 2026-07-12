@@ -113,6 +113,35 @@ check(
   await waitEval("carol", 'window.__test.attachmentSgids().includes("TEST-SGID-123")', "carol has attachment")
 );
 
+// A plain (non-collaborative) editor on the same page still creates
+// attachments: the constructor patch answers per active editor, so the
+// collaborative editor's Guarded registration must not poison the plain
+// editor's class-identity assertion.
+check(
+  "plain editor on the same page still creates attachments",
+  /\bok\b/.test(ab("carol", "eval", "window.__test.plainEditorAttachment()"))
+);
+
+// A re-bind (unmount + remount of the collaboration element) must keep the
+// excluded properties: the already-guarded classes no longer trip the
+// thrower probe, so exclusions have to carry over — otherwise the next
+// upload node's raw File aborts the Lexical->Yjs sync all over again.
+ab("carol", "eval", 'window.__test.remountCollab()');
+check("carol re-synced after remount", await waitEval("carol", "window.__test.synced()", "carol re-synced"));
+ab("carol", "eval", 'window.__test.insertUploadNode("rebind-probe.png")');
+check(
+  "upload node synced after the re-bind",
+  await waitEval("carol", 'window.__test.docRoot().includes("rebind-probe.png")', "upload node in doc")
+);
+check(
+  "re-bind kept the property exclusions (no mid-sync throw)",
+  /\btrue\b/.test(ab("carol", "eval", 'window.__test.errors().filter(e => /Unexpected content type|insertUploadNode/.test(e)).length === 0'))
+);
+check(
+  "re-bind kept the property exclusions (no File in the shared doc)",
+  /\btrue\b/.test(ab("carol", "eval", '!window.__test.docRoot().includes("file=")'))
+);
+
 ab("carol", "close");
 
 console.log("");
