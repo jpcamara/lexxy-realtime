@@ -59,3 +59,46 @@ jobs:
       - name: Headless durability suite
         working-directory: lexxy-realtime
         run: bun run test:headless
+
+  browser:
+    name: Browser e2e (real Chrome)
+    runs-on: ubuntu-latest
+    steps:
+      # Same sibling layout as the headless job: the test server's gems are
+      # path-pinned to ../../../yrby.
+      - uses: actions/checkout@v5
+        with:
+          path: lexxy-realtime
+      - uses: actions/checkout@v5
+        with:
+          repository: jpcamara/yrby
+          path: yrby
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install JS deps
+        working-directory: lexxy-realtime
+        run: bun install --frozen-lockfile
+
+      - name: Compile yrby native extension
+        working-directory: yrby
+        run: |
+          bundle install
+          bundle exec rake compile
+
+      - name: Install test-server gems
+        working-directory: lexxy-realtime/test/server
+        run: bundle install
+
+      # The browser suite is the only thing that exercises the real editor
+      # binding (and the runtime shims). It drives the runner's preinstalled
+      # Chrome through agent-browser.
+      - name: Browser e2e suite
+        working-directory: lexxy-realtime
+        run: |
+          export AGENT_BROWSER_EXECUTABLE_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser)"
+          bun run test:browser

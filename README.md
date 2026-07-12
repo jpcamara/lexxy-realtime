@@ -44,7 +44,36 @@ doc and a provider, mount the element inside your `<lexxy-editor>`, and go. The
 element is the same regardless of provider — only how you build the provider
 differs.
 
-### With yrby (recommended for Rails)
+### Element-managed (simplest)
+
+Give the element a cable consumer and attributes; it builds the `Y.Doc` and
+`YrbyProvider` itself, connects, and disconnects on removal:
+
+```js
+import "@37signals/lexxy";
+import "lexxy-realtime"; // registers <lexxy-collaboration>
+import { createConsumer } from "@rails/actioncable"; // or "@anycable/web"
+
+const editor = document.querySelector("lexxy-editor");
+
+function startCollaborating() {
+  const collab = document.createElement("lexxy-collaboration");
+  collab.setAttribute("doc-id", documentId);
+  collab.setAttribute("name", currentUserName);
+  collab.setAttribute("channel-name", "DocumentChannel");
+  collab.setAttribute("channel-params", JSON.stringify({ id: documentId }));
+  collab.consumer = createConsumer();
+  editor.appendChild(collab);
+}
+
+if (editor.editor) startCollaborating();
+else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
+```
+
+Manage the provider yourself instead when you need its lifecycle — status
+UI, `whenSynced`, sharing one doc across components:
+
+### With yrby (host-managed provider)
 
 ```js
 import "@37signals/lexxy";                          // registers <lexxy-editor>
@@ -157,13 +186,57 @@ provider.disconnect();     // pause; queued edits are kept
 provider.destroy();        // tear down (also clears presence)
 
 provider.synced;           // caught up with the server?
+await provider.whenSynced; // resolves on the first catch-up (immediately if already synced)
 provider.status;           // "connecting" | "connected" | "synced" | "disconnected"
 provider.onStatusChange(({ status }) => render(status)); // returns an unsubscribe fn
 provider.awareness;        // the Yjs Awareness instance (presence/cursors)
+provider.hasPending;       // unacknowledged local edits in flight?
 ```
 
 It owns presence — it creates its own `Awareness`. Read `provider.awareness` if
 you need it (e.g. to show who's here); don't pass one in.
+
+## Attachments
+
+File and image uploads work under collaboration (v0.2.2+). The uploader's
+browser does the ActiveStorage direct upload as usual; the attachment node
+syncs through Yjs, and peers render the finished image from its URL. While
+an upload is in flight, peers see a placeholder with the filename and a
+live progress bar. Nothing client-local crosses the wire: the `File`
+object, preview object-URLs, and upload configuration stay on the
+uploader's machine, and a peer never starts a duplicate upload.
+
+## Persisting to ActionText
+
+The collaborative document lives in your durable store as CRDT updates.
+When the rest of your app needs it as rich text — display, search, mailers
+— render it server-side with the `yrby` gem's `Y::Lexxy`, which reproduces
+Lexxy's own HTML byte for byte:
+
+```ruby
+ydoc = Y::Doc.new
+ydoc.apply_update(store.replay(document_id))
+html = Y::Lexxy.new(ydoc).to_html("root")
+note.content = html # a has_rich_text attribute
+```
+
+No browser is involved and no client-submitted HTML is trusted. The
+[yrby demo's `NoteMaterializer`](https://github.com/jpcamara/yrby/blob/main/examples/actioncable-demo/app/lib/note_materializer.rb)
+shows the full pattern, refreshed on read with a store-version staleness
+check.
+
+## Turbo
+
+Two things matter under Turbo Drive:
+
+- Run your wiring on `turbo:load` (or make the editor page a Turbo frame
+  boundary), so a fresh `<lexxy-collaboration>` mounts per visit. The
+  element tears down cleanly on removal — unmount before first sync,
+  DOM moves, and remounts are all covered by the test suite.
+- Don't cache a live editor: mark the editor container
+  `data-turbo-temporary` (or `data-turbo-cache="false"` on the page) so
+  Turbo's snapshot doesn't restore a stale editor DOM next to a fresh
+  binding.
 
 ## A single copy of `lexical` & `yjs`
 

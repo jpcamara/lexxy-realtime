@@ -6,6 +6,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-12
+
+### Fixed
+
+- The element-managed wiring works. When the host supplies only a cable
+  `consumer` plus attributes, the element builds its own `YrbyProvider` —
+  which does not auto-connect — and nothing ever connected it, so that
+  wiring produced a dead editor. The element now connects a provider it
+  created and still leaves host-supplied providers alone.
+
+### Added
+
+- TypeScript declarations, covering the `<lexxy-collaboration>` element
+  (both wirings, all attributes), the provider surface the element
+  requires, and the `YrbyProvider` re-export typed via `yrby-client`.
+- The browser e2e suite runs in CI (real Chrome). It is the only suite
+  that exercises the actual editor binding and the runtime shims; before,
+  CI ran only the build and the headless protocol tests.
+- README sections for attachments under collaboration, persisting to
+  ActionText with server-side rendering (`Y::Lexxy`), and Turbo Drive.
+
+### Changed
+
+- Bundles `yrby-client` 0.5.0 from the registry (adds
+  `provider.whenSynced`); the vendored-tarball workaround is gone.
+- `package.json` declares `sideEffects` (the custom-element registration
+  must survive tree shaking), ships `types`, and adds keywords.
+
 ## [0.2.2] - 2026-07-12
 
 ### Fixed

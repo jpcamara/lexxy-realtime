@@ -1352,7 +1352,17 @@ var YProtocolSession = class {
 				break;
 			}
 			case MessageType.Awareness:
-				readVarUint8Array(decoder);
+				{
+					const payload = readVarUint8Array(decoder);
+					const inner = createDecoder(payload);
+					const count = readVarUint(inner);
+					for (let i = 0; i < count; i++) {
+						readVarUint(inner);
+						readVarUint(inner);
+						JSON.parse(readVarString(inner));
+					}
+					if (hasContent(inner)) throw new Error("awareness payload has trailing bytes");
+				}
 				break;
 			default: return null;
 		}
@@ -1380,7 +1390,11 @@ var ActionCableProvider = class {
 	#connected = false;
 	#status = "disconnected";
 	#statusListeners = /* @__PURE__ */ new Set();
+	#whenSynced = null;
+	#everSynced = false;
 	#onUnload = null;
+	#onRestore = null;
+	#stashedPresence = null;
 	constructor(doc, consumer, channelName, channelParams = {}, opts = {}) {
 		this.doc = doc;
 		this.consumer = consumer;
@@ -1398,6 +1412,33 @@ var ActionCableProvider = class {
 	/** True once the document has caught up with the server (received a SyncStep2). */
 	get synced() {
 		return this.session.synced;
+	}
+	/**
+	* Resolves once the document has first caught up with the server. Most
+	* editor bindings seed an empty document when they mount, so binding
+	* before the server's state arrives makes each client insert its own
+	* top-level node. Create the editor after this resolves:
+	*
+	*   provider.connect();
+	*   await provider.whenSynced;
+	*   // now hand the doc to the editor binding
+	*
+	* Resolves immediately if the first catch-up has already happened, even
+	* while the transport is down (`synced` is false during a reconnect;
+	* whether the doc has ever synced does not change). It stays resolved
+	* across later reconnects; use `onStatusChange` to track the live
+	* connection. If the provider is destroyed before the first sync, the
+	* promise never settles.
+	*/
+	get whenSynced() {
+		this.#whenSynced ??= this.#everSynced ? Promise.resolve() : new Promise((resolve) => {
+			const off = this.onStatusChange(({ status }) => {
+				if (status !== "synced") return;
+				off();
+				resolve();
+			});
+		});
+		return this.#whenSynced;
 	}
 	/** True while there are unacknowledged local document updates in flight. */
 	get hasPending() {
@@ -1466,6 +1507,10 @@ var ActionCableProvider = class {
 				provider.#connected = false;
 				provider.session.onDisconnect();
 				provider.#refreshStatus();
+			},
+			rejected() {
+				provider.#onError(/* @__PURE__ */ new Error("subscription rejected by the server"), "rejected");
+				provider.disconnect();
 			}
 		});
 		this.#installUnloadHandler();
@@ -1497,31 +1542,55 @@ var ActionCableProvider = class {
 		const next = this.#computeStatus();
 		if (next === this.#status) return;
 		this.#status = next;
+		if (next === "synced") this.#everSynced = true;
 		for (const listener of this.#statusListeners) listener({ status: next });
 	}
 	#installUnloadHandler() {
 		if (typeof window === "undefined" || this.#onUnload) return;
-		this.#onUnload = () => this.session.removeLocalAwareness();
+		this.#onUnload = () => {
+			this.#stashedPresence = this.awareness.getLocalState();
+			this.session.removeLocalAwareness();
+		};
+		this.#onRestore = (event) => {
+			if (!event.persisted || !this.#stashedPresence) return;
+			if (this.awareness.getLocalState() === null) this.awareness.setLocalState(this.#stashedPresence);
+			this.#stashedPresence = null;
+		};
 		window.addEventListener("pagehide", this.#onUnload);
+		window.addEventListener("pageshow", this.#onRestore);
 	}
 	#removeUnloadHandler() {
-		if (typeof window === "undefined" || !this.#onUnload) return;
-		window.removeEventListener("pagehide", this.#onUnload);
-		this.#onUnload = null;
+		if (typeof window === "undefined") return;
+		if (this.#onUnload) {
+			window.removeEventListener("pagehide", this.#onUnload);
+			this.#onUnload = null;
+		}
+		if (this.#onRestore) {
+			window.removeEventListener("pageshow", this.#onRestore);
+			this.#onRestore = null;
+		}
 	}
 	#send(frame, id) {
 		const sub = this.#subscription;
 		if (!sub) return;
 		const update = toBase64(frame);
-		if (frame[0] === MessageType.Awareness && typeof sub.whisper === "function") {
-			sub.whisper({ awareness: update });
-			return;
+		const isAwareness = frame[0] === MessageType.Awareness;
+		try {
+			if (isAwareness && typeof sub.whisper === "function") {
+				this.#observe(sub.whisper({ awareness: update }));
+				return;
+			}
+			const payload = id === void 0 ? { update } : {
+				update,
+				id
+			};
+			this.#observe(sub.send(payload));
+		} catch (error) {
+			this.#onError(error, "send");
 		}
-		const payload = id === void 0 ? { update } : {
-			update,
-			id
-		};
-		sub.send(payload);
+	}
+	#observe(result) {
+		if (result instanceof Promise) result.catch((error) => this.#onError(error, "send"));
 	}
 };
 
@@ -1561,6 +1630,7 @@ var Collaboration = class extends HTMLElement {
 		const ownsProvider = !this.provider;
 		const doc = this.doc || new Doc();
 		const provider = this.provider || new ActionCableProvider(doc, this.consumer, channelName, channelParams);
+		if (ownsProvider) provider.connect();
 		const awareness = provider.awareness;
 		const docMap = /* @__PURE__ */ new Map();
 		docMap.set(id, doc);
