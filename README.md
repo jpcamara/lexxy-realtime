@@ -5,7 +5,7 @@ over [Yjs](https://github.com/yjs/yjs). Drop a `<lexxy-collaboration>` element
 inside your `<lexxy-editor>` and people editing the same document see each other's
 **text, cursors, and selections** live.
 
-![One browser watching another type, with a labeled remote caret](docs/images/collab.gif)
+![Two people typing on separate lines of the same document, each keystroke synced live, seen from a third browser with labeled carets](docs/images/collab.gif)
 
 Each side sees the other's cursor and selection:
 
