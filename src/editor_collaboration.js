@@ -208,7 +208,6 @@ const BUILTIN_NODE_TYPES = new Set(['root', 'text', 'linebreak', 'tab', 'paragra
 // Returns the Map to pass to createBinding.
 const GUARDED_CLASSES = new WeakMap();
 const GUARDED_ORIGINALS = new WeakMap(); // Guarded -> Original
-const GUARDED_EXCLUSIONS = new WeakMap(); // either class -> excluded property Set
 const CONSTRUCTOR_PATCHED = new WeakSet();
 
 // Lexical asserts `registeredNode.klass === node.constructor`, and which
@@ -253,6 +252,17 @@ const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
   'blobUrlTemplate',
 ]);
 
+// The Lexxy node types that carry those properties. Exclusions key off the
+// node TYPE, not off which classes fail the no-arg constructor probe: a
+// future Lexxy that defaults its constructor parameters stops throwing —
+// the whole guard machinery below goes dormant — but a raw File still
+// can't cross the sync boundary.
+const LEXXY_ATTACHMENT_NODE_TYPES = new Set([
+  'action_text_attachment',
+  'action_text_attachment_upload',
+  'custom_action_text_attachment',
+]);
+
 function guardedClassFor(Original) {
   let Guarded = GUARDED_CLASSES.get(Original);
   if (!Guarded) {
@@ -285,17 +295,19 @@ function guardLexxyNodes(editor) {
   const nodes = editor?._nodes;
   if (!nodes || typeof nodes.forEach !== 'function') return excludedProperties;
 
-  // A re-bind (disconnect/reconnect, a DOM move) sees classes that are
-  // already the tolerant Guarded subclasses. The thrower probe below skips
-  // them — they no longer throw — so their exclusions have to be carried
-  // over explicitly, or a new binding would serialize the next upload's
-  // raw File and abort mid-sync all over again.
-  nodes.forEach((info) => {
-    const exclusions = GUARDED_EXCLUSIONS.get(info.klass);
-    if (!exclusions) return;
-    excludedProperties.set(info.klass, exclusions);
+  // Every registered attachment type gets its exclusions, whether or not
+  // its class needs (or already has) the constructor guard. This covers a
+  // re-bind, where the classes are already the tolerant Guarded subclasses
+  // and the thrower probe below skips them, and it covers a Lexxy whose
+  // constructors no longer throw at all. Both classes are keyed when a
+  // guarded counterpart exists: @lexical/yjs looks the map up by the
+  // node's constructor, which differs between locally- and
+  // remotely-created instances.
+  nodes.forEach((info, type) => {
+    if (!LEXXY_ATTACHMENT_NODE_TYPES.has(type)) return;
+    excludedProperties.set(info.klass, UNSYNCABLE_ATTACHMENT_PROPERTIES);
     const counterpart = GUARDED_ORIGINALS.get(info.klass) || GUARDED_CLASSES.get(info.klass);
-    if (counterpart) excludedProperties.set(counterpart, exclusions);
+    if (counterpart) excludedProperties.set(counterpart, UNSYNCABLE_ATTACHMENT_PROPERTIES);
   });
 
   let throwers;
@@ -312,13 +324,11 @@ function guardLexxyNodes(editor) {
     info.klass = Guarded;
     patchConstructorLookup(Original, Guarded);
     GUARDED_ORIGINALS.set(Guarded, Original);
-    GUARDED_EXCLUSIONS.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
-    GUARDED_EXCLUSIONS.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
-    // Keyed by both classes: @lexical/yjs looks the map up by the node's
-    // constructor, which differs between locally- and remotely-created
-    // instances here.
-    excludedProperties.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
-    excludedProperties.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+    // The type-keyed pass above ran before the swap, so the freshly
+    // registered Guarded class still needs its exclusions entry.
+    if (excludedProperties.has(Original)) {
+      excludedProperties.set(Guarded, excludedProperties.get(Original));
+    }
     rekeyMutationListeners(editor, Original, Guarded);
   }
   return excludedProperties;

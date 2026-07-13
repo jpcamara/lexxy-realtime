@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- The attachment property exclusions now key off the node type instead of
+  which classes fail the no-arg constructor probe. On a future Lexxy that
+  defaults its constructor parameters (proposed upstream), the probe finds
+  nothing, and the old wiring silently stopped applying exclusions — the
+  raw `File` aborted the Lexical-to-Yjs sync again and the `editor`
+  reference leaked into the shared doc. Verified both ways in the browser
+  suite: against today's Lexxy, and against a locally patched copy with
+  the upstream constructor fix applied.
+
 ## [0.3.0] - 2026-07-12
 
 ### Fixed
