@@ -141,6 +141,15 @@ check(
   "re-bind kept the property exclusions (no File in the shared doc)",
   /\btrue\b/.test(ab("carol", "eval", '!window.__test.docRoot().includes("file=")'))
 );
+// Lexxy's upload tracker is a mutation listener registered BEFORE the class
+// swap, keyed to the original class. Lexical buckets mutations by the
+// currently registered class, so without re-keying the listener never fires,
+// the uploads count stays at zero, and forms submit mid-upload. The pending
+// upload node inserted above must have marked the editor invalid.
+check(
+  "Lexxy's upload mutation listener still fires (editor invalid while uploading)",
+  /\btrue\b/.test(ab("carol", "eval", "window.__test.editorInvalidWhileUploading()"))
+);
 
 ab("carol", "close");
 

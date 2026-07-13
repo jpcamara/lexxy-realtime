@@ -82,6 +82,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   no-arg probe, so their exclusions are carried over explicitly; before,
   a re-bound editor's next upload node aborted mid-sync on its raw File —
   partially writing the node's attributes into the shared doc.
+- Lexxy's uploads-in-progress tracking survives the class swap. Lexical
+  buckets mutations by the currently registered class, but Lexxy's upload
+  mutation listener resolved its key to the original class before the
+  swap, so it never fired again — the uploads count stayed at zero and a
+  form could submit while files were still uploading. The swap now re-keys
+  pre-existing mutation listeners to the guarded class; the browser e2e
+  asserts the editor reports invalid while an upload node is pending.
 
 ## [0.2.1] - 2026-06-29
 

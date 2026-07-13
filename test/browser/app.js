@@ -118,6 +118,15 @@ function start() {
         return "ERR: " + e.message;
       }
     },
+    // Lexxy's upload mutation listener flags the editor invalid while an
+    // upload node exists ("Please wait for all files to upload"). If the
+    // klass swap orphans that listener, the editor stays valid. The element
+    // is form-associated but doesn't proxy validationMessage, so ask
+    // checkValidity().
+    editorInvalidWhileUploading: () => {
+      const el = document.querySelector("lexxy-editor");
+      return !!el && typeof el.checkValidity === "function" && !el.checkValidity();
+    },
     // Detach and re-attach the collaboration element: unbind + re-bind.
     remountCollab: () => {
       const c = document.querySelector("lexxy-collaboration");

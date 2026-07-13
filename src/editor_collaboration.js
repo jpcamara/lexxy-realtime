@@ -319,8 +319,33 @@ function guardLexxyNodes(editor) {
     // instances here.
     excludedProperties.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
     excludedProperties.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+    rekeyMutationListeners(editor, Original, Guarded);
   }
   return excludedProperties;
+}
+
+// Lexical buckets mutations by the CURRENTLY registered klass, but a
+// listener registered before the swap resolved its klass key at
+// registration time — Lexxy's upload tracker
+// (`registerMutationListener(ActionTextAttachmentUploadNode, ...)`) is one,
+// and it's what holds form submission while uploads are pending. Without
+// re-keying, its mutations land in the Guarded bucket, the listener's
+// Original key never matches, the uploads count stays at zero, and a form
+// can submit mid-upload. Listeners registered after the swap resolve
+// through editor._nodes and get Guarded on their own. The trade-off: a
+// re-keyed listener's unsubscribe closure still deletes the Original key,
+// so unsubscribing one of these pre-swap listeners after the swap leaves
+// it registered. Lexxy's are editor-lifetime listeners, so that doesn't
+// bite; it's the cost of keeping upload tracking alive.
+function rekeyMutationListeners(editor, Original, Guarded) {
+  const mutationListeners = editor._listeners?.mutation;
+  if (!mutationListeners || typeof mutationListeners.forEach !== 'function') return;
+  mutationListeners.forEach((klassSet) => {
+    if (klassSet?.has?.(Original)) {
+      klassSet.delete(Original);
+      klassSet.add(Guarded);
+    }
+  });
 }
 
 // Probe each non-builtin registered node on a throwaway editor (so the live
