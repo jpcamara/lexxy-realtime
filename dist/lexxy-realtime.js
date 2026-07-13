@@ -1691,8 +1691,19 @@ function guardLexxyNodes(editor) {
 		GUARDED_EXCLUSIONS.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
 		excludedProperties.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
 		excludedProperties.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+		rekeyMutationListeners(editor, Original, Guarded);
 	}
 	return excludedProperties;
+}
+function rekeyMutationListeners(editor, Original, Guarded) {
+	const mutationListeners = editor._listeners?.mutation;
+	if (!mutationListeners || typeof mutationListeners.forEach !== "function") return;
+	mutationListeners.forEach((klassSet) => {
+		if (klassSet?.has?.(Original)) {
+			klassSet.delete(Original);
+			klassSet.add(Guarded);
+		}
+	});
 }
 function detectNoArgThrowingNodes(nodes) {
 	const throwers = /* @__PURE__ */ new Set();

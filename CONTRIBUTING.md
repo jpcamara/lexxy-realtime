@@ -65,6 +65,11 @@ their `node_modules`:
    node makes yjs throw mid-sync, and `editor`/`previewSrc` are
    client-local — and a small `createDOM` fixup that blanks the
    "NaN undefined" size caption Lexxy renders for a File it doesn't have.
+   The swap also re-keys mutation listeners that were registered against
+   the original class (Lexxy's upload tracker, which holds form submission
+   while uploads are pending): Lexical buckets mutations by the currently
+   registered class, so a pre-swap listener would otherwise never fire
+   again.
    The fix upstream is mostly trivial (default the constructor parameter to
    `{}`; keep non-serializable state off enumerable instance properties;
    guard the size formatter).
