@@ -4,3 +4,4 @@ node_modules
 *.tgz
 package-lock.json
 test/server/data
+package-lock.json

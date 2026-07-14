@@ -6,36 +6,27 @@
       "name": "lexxy-realtime",
       "devDependencies": {
         "@37signals/lexxy": "0.9.18",
-        "@anycable/web": "*",
         "@lexical/yjs": "^0.44.0",
         "@rails/actioncable": "^8.1.300",
         "@rollup/plugin-terser": "^0.4.4",
-        "@yrby/client": "file:vendor/yrby-client-0.4.0.tgz",
         "agent-browser": "^0.28.0",
         "lexical": "^0.44.0",
         "rolldown": "^1.0.0-beta.49",
         "y-protocols": "*",
         "yjs": "^13.6.0",
+        "yrby-client": "^0.5.0",
       },
       "peerDependencies": {
         "@37signals/lexxy": "^0.9",
-        "@anycable/web": "*",
         "@lexical/yjs": "^0.44",
         "lexical": "^0.44",
         "y-protocols": "^1.0",
         "yjs": "^13.6",
       },
-      "optionalPeers": [
-        "@anycable/web",
-      ],
     },
   },
   "packages": {
     "@37signals/lexxy": ["@37signals/lexxy@0.9.18", "", { "dependencies": { "@lexical/clipboard": "^0.44.0", "@lexical/code": "^0.44.0", "@lexical/extension": "^0.44.0", "@lexical/history": "^0.44.0", "@lexical/html": "^0.44.0", "@lexical/link": "^0.44.0", "@lexical/list": "^0.44.0", "@lexical/markdown": "^0.44.0", "@lexical/plain-text": "^0.44.0", "@lexical/rich-text": "^0.44.0", "@lexical/selection": "^0.44.0", "@lexical/table": "^0.44.0", "@lexical/utils": "^0.44.0", "dompurify": "^3.3.0", "lexical": "^0.44.0", "marked": "^16.4.1", "prismjs": "^1.30.0" }, "peerDependencies": { "@rails/activestorage": ">= 7.0.0" }, "optionalPeers": ["@rails/activestorage"] }, "sha512-oZpVNeaHO8lUEvEQ2Zp/vD+ovciuBAiIqrvzjqdScoUwYGrjKYro4NvrqZXGqLwNAYn1MXBFEBawI5Y8GsEtwA=="],
-
-    "@anycable/core": ["@anycable/core@1.1.4", "", { "dependencies": { "nanoevents": "^9.1.0" } }, "sha512-ih+htQpLYyaXRi8cscn9i+g7PKAmmeOm2iuqXGG/iX308oQhNLPG8vbFseRyGd+zF9q5QZ1ePaM0yog42bVqHg=="],
-
-    "@anycable/web": ["@anycable/web@1.1.0", "", { "dependencies": { "@anycable/core": "^1.1.0" } }, "sha512-9PQKW0xZ6zBQR9xqRZELP1POEOw1IYpgPuDSEcpQFH6z5yUAMMMnqhfQBG4GCtnSmAGot6SnItjgCqFJWxhf6Q=="],
 
     "@emnapi/core": ["@emnapi/core@1.7.1", "", { "dependencies": { "@emnapi/wasi-threads": "1.1.0", "tslib": "^2.4.0" } }, "sha512-o1uhUASyo921r2XtHYOHy7gdkGLge8ghBEQHMWmyJFoXlpU58kIrhhN3w26lpQb6dspetweapMn2CSNwQ8I4wg=="],
 
@@ -133,8 +124,6 @@
 
     "@types/trusted-types": ["@types/trusted-types@2.0.7", "", {}, "sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw=="],
 
-    "@yrby/client": ["@yrby/client@vendor/yrby-client-0.4.0.tgz", { "dependencies": { "lib0": "^0.2.117" }, "peerDependencies": { "y-protocols": "^1.0.5", "yjs": "^13.6.0" }, "optionalPeers": ["y-protocols", "yjs"] }],
-
     "acorn": ["acorn@8.15.0", "", { "bin": "bin/acorn" }, "sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg=="],
 
     "agent-browser": ["agent-browser@0.28.0", "", { "bin": "bin/agent-browser.js" }, "sha512-rPpFXR3AUhi9wgyhCKOPffPnceTZP29Y2qr20FzTXc6Dailv0QoHF9XfYrb8nXP7Wt8K9wmVxoKf1nVU1U8S5w=="],
@@ -152,8 +141,6 @@
     "lib0": ["lib0@0.2.117", "", { "dependencies": { "isomorphic.js": "^0.2.4" }, "bin": { "0ecdsa-generate-keypair": "bin/0ecdsa-generate-keypair.js", "0gentesthtml": "bin/gentesthtml.js", "0serve": "bin/0serve.js" } }, "sha512-DeXj9X5xDCjgKLU/7RR+/HQEVzuuEUiwldwOGsHK/sfAfELGWEyTcf0x+uOvCvK3O2zPmZePXWL85vtia6GyZw=="],
 
     "marked": ["marked@16.4.2", "", { "bin": "bin/marked.js" }, "sha512-TI3V8YYWvkVf3KJe1dRkpnjs68JUPyEa5vjKrp1XEEJUAOaQc+Qj+L1qWbPd0SJuAdQkFU0h73sXXqwDYxsiDA=="],
-
-    "nanoevents": ["nanoevents@9.1.0", "", {}, "sha512-Jd0fILWG44a9luj8v5kED4WI+zfkkgwKyRQKItTtlPfEsh7Lznfi1kr8/iZ+XAIss4Qq5GqRB0qtWbaz9ceO/A=="],
 
     "prismjs": ["prismjs@1.30.0", "", {}, "sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw=="],
 
@@ -178,5 +165,7 @@
     "y-protocols": ["y-protocols@1.0.6", "", { "dependencies": { "lib0": "^0.2.85" }, "peerDependencies": { "yjs": "^13.0.0" } }, "sha512-vHRF2L6iT3rwj1jub/K5tYcTT/mEYDUppgNPXwp8fmLpui9f7Yeq3OEtTLVF012j39QnV+KEQpNqoN7CWU7Y9Q=="],
 
     "yjs": ["yjs@13.6.27", "", { "dependencies": { "lib0": "^0.2.99" } }, "sha512-OIDwaflOaq4wC6YlPBy2L6ceKeKuF7DeTxx+jPzv1FHn9tCZ0ZwSRnUBxD05E3yed46fv/FWJbvR+Ud7x0L7zw=="],
+
+    "yrby-client": ["yrby-client@0.5.0", "", { "dependencies": { "lib0": "^0.2.117" }, "peerDependencies": { "y-protocols": "^1.0.5", "yjs": "^13.6.0" }, "optionalPeers": ["y-protocols", "yjs"] }, "sha512-04cX0ixPRGY401P60TMdg71xNOK48uBHJGTDM9hTnskertLql7eoxTxxxl8ZnthoG5EDAuGTfSl29fDNjwBAJA=="],
   }
 }
