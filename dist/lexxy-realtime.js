@@ -1622,7 +1622,6 @@ const BUILTIN_NODE_TYPES = new Set([
 ]);
 const GUARDED_CLASSES = /* @__PURE__ */ new WeakMap();
 const GUARDED_ORIGINALS = /* @__PURE__ */ new WeakMap();
-const GUARDED_EXCLUSIONS = /* @__PURE__ */ new WeakMap();
 const CONSTRUCTOR_PATCHED = /* @__PURE__ */ new WeakSet();
 function patchConstructorLookup(Original, Guarded) {
 	if (CONSTRUCTOR_PATCHED.has(Original)) return;
@@ -1643,6 +1642,11 @@ const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
 	"previewSrc",
 	"uploadUrl",
 	"blobUrlTemplate"
+]);
+const LEXXY_ATTACHMENT_NODE_TYPES = new Set([
+	"action_text_attachment",
+	"action_text_attachment_upload",
+	"custom_action_text_attachment"
 ]);
 function guardedClassFor(Original) {
 	let Guarded = GUARDED_CLASSES.get(Original);
@@ -1668,12 +1672,11 @@ function guardLexxyNodes(editor) {
 	const excludedProperties = /* @__PURE__ */ new Map();
 	const nodes = editor?._nodes;
 	if (!nodes || typeof nodes.forEach !== "function") return excludedProperties;
-	nodes.forEach((info) => {
-		const exclusions = GUARDED_EXCLUSIONS.get(info.klass);
-		if (!exclusions) return;
-		excludedProperties.set(info.klass, exclusions);
+	nodes.forEach((info, type) => {
+		if (!LEXXY_ATTACHMENT_NODE_TYPES.has(type)) return;
+		excludedProperties.set(info.klass, UNSYNCABLE_ATTACHMENT_PROPERTIES);
 		const counterpart = GUARDED_ORIGINALS.get(info.klass) || GUARDED_CLASSES.get(info.klass);
-		if (counterpart) excludedProperties.set(counterpart, exclusions);
+		if (counterpart) excludedProperties.set(counterpart, UNSYNCABLE_ATTACHMENT_PROPERTIES);
 	});
 	let throwers;
 	try {
@@ -1687,10 +1690,7 @@ function guardLexxyNodes(editor) {
 		info.klass = Guarded;
 		patchConstructorLookup(Original, Guarded);
 		GUARDED_ORIGINALS.set(Guarded, Original);
-		GUARDED_EXCLUSIONS.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
-		GUARDED_EXCLUSIONS.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
-		excludedProperties.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
-		excludedProperties.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+		if (excludedProperties.has(Original)) excludedProperties.set(Guarded, excludedProperties.get(Original));
 		rekeyMutationListeners(editor, Original, Guarded);
 	}
 	return excludedProperties;
