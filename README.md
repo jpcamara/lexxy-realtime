@@ -11,22 +11,13 @@ Each side sees the other's cursor and selection:
 
 ![Two browsers side by side, each showing the other's selection and caret live](docs/images/presence.gif)
 
-It works with **any Yjs provider** — a Node `y-websocket` server, Hocuspocus,
-y-webrtc, anything that exposes the standard provider surface. Supply your own
-provider and that's what the element uses. Supply none, and the element assumes
-[`yrby`](https://github.com/jpcamara/yrby): it builds a `YrbyProvider` from your
-Action Cable / AnyCable consumer — a Rails-native provider with ack-tracked
-delivery, where an acknowledged edit isn't silently lost on a flaky connection
-and a reconnecting client catches up from the server. The yrby client is bundled,
-so the default path needs nothing beyond a cable consumer, and bringing your own
-provider means you never touch it.
-
-lexxy-realtime is tested extensively against the `yrby` stack — every CI suite
-drives a real yrby Rails server with real editors in Chrome. Other providers
-plug into the same small contract, documented below.
-
-> Pre-1.0, and tracks pre-1.0 peers (`@37signals/lexxy` `^0.9`, `lexical` /
-> `@lexical/yjs` `^0.44`). See [`CHANGELOG.md`](CHANGELOG.md).
+It works with **any Yjs provider** (`y-websocket`, Hocuspocus, y-webrtc, ...).
+Supply your own provider and that's what the element uses. Supply none and it
+assumes [`yrby`](https://github.com/jpcamara/yrby), building a Rails-native
+Action Cable / AnyCable provider from your cable consumer — the yrby client is
+bundled, so that path needs nothing else installed. lexxy-realtime is tested
+extensively against the yrby stack; other providers plug into the small
+contract documented below.
 
 ## Requirements
 

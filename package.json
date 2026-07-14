@@ -42,20 +42,13 @@
   },
   "peerDependencies": {
     "@37signals/lexxy": "^0.9",
-    "@anycable/web": "*",
     "@lexical/yjs": "^0.44",
     "lexical": "^0.44",
     "y-protocols": "^1.0",
     "yjs": "^13.6"
   },
-  "peerDependenciesMeta": {
-    "@anycable/web": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@37signals/lexxy": "0.9.18",
-    "@anycable/web": "*",
     "@lexical/yjs": "^0.44.0",
     "@rails/actioncable": "^8.1.300",
     "@rollup/plugin-terser": "^0.4.4",
