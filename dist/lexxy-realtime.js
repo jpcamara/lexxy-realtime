@@ -1,5 +1,5 @@
 import { createBinding, initLocalState, setLocalStateFocus, syncCursorPositions, syncLexicalUpdateToYjs, syncYjsChangesToLexical } from "@lexical/yjs";
-import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG, createEditor } from "lexical";
+import { $createParagraphNode, $getEditor, $getRoot, HISTORY_MERGE_TAG, createEditor } from "lexical";
 import * as Y from "yjs";
 import { Doc, applyUpdate, mergeUpdates } from "yjs";
 
@@ -1568,7 +1568,8 @@ var Collaboration = class extends HTMLElement {
 			tag: HISTORY_MERGE_TAG,
 			discrete: true
 		});
-		const binding = bindWithLexxyNodeGuard(this.editor, () => createBinding(this.editor, provider, id, doc, docMap));
+		const excludedProperties = guardLexxyNodes(this.editor);
+		const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
 		patchCollabElementSplice(binding);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
 		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding);
@@ -1619,34 +1620,90 @@ const BUILTIN_NODE_TYPES = new Set([
 	"tab",
 	"paragraph"
 ]);
-function bindWithLexxyNodeGuard(editor, bind) {
+const GUARDED_CLASSES = /* @__PURE__ */ new WeakMap();
+const GUARDED_ORIGINALS = /* @__PURE__ */ new WeakMap();
+const GUARDED_EXCLUSIONS = /* @__PURE__ */ new WeakMap();
+const CONSTRUCTOR_PATCHED = /* @__PURE__ */ new WeakSet();
+function patchConstructorLookup(Original, Guarded) {
+	if (CONSTRUCTOR_PATCHED.has(Original)) return;
+	CONSTRUCTOR_PATCHED.add(Original);
+	Object.defineProperty(Original.prototype, "constructor", {
+		configurable: true,
+		get() {
+			try {
+				if ($getEditor()._nodes.get(this.getType())?.klass === Guarded) return Guarded;
+			} catch {}
+			return Original;
+		}
+	});
+}
+const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
+	"editor",
+	"file",
+	"previewSrc",
+	"uploadUrl",
+	"blobUrlTemplate"
+]);
+function guardedClassFor(Original) {
+	let Guarded = GUARDED_CLASSES.get(Original);
+	if (!Guarded) {
+		Guarded = class extends Original {
+			constructor(...args) {
+				super(args.length === 0 || args[0] === void 0 ? {} : args[0], args[1]);
+			}
+			createDOM(...args) {
+				const dom = super.createDOM(...args);
+				if (dom && !this.file) {
+					const size$1 = dom.querySelector?.(".attachment__size");
+					if (size$1 && /NaN/.test(size$1.textContent)) size$1.textContent = "";
+				}
+				return dom;
+			}
+		};
+		GUARDED_CLASSES.set(Original, Guarded);
+	}
+	return Guarded;
+}
+function guardLexxyNodes(editor) {
+	const excludedProperties = /* @__PURE__ */ new Map();
 	const nodes = editor?._nodes;
-	if (!nodes || typeof nodes.forEach !== "function") return bind();
+	if (!nodes || typeof nodes.forEach !== "function") return excludedProperties;
+	nodes.forEach((info) => {
+		const exclusions = GUARDED_EXCLUSIONS.get(info.klass);
+		if (!exclusions) return;
+		excludedProperties.set(info.klass, exclusions);
+		const counterpart = GUARDED_ORIGINALS.get(info.klass) || GUARDED_CLASSES.get(info.klass);
+		if (counterpart) excludedProperties.set(counterpart, exclusions);
+	});
 	let throwers;
 	try {
 		throwers = detectNoArgThrowingNodes(nodes);
 	} catch {
-		return bind();
+		return excludedProperties;
 	}
-	if (throwers.size === 0) return bind();
-	const restore = [];
 	for (const info of throwers) {
 		const Original = info.klass;
-		const Guarded = class extends Original {
-			constructor(...args) {
-				super(args.length === 0 || args[0] === void 0 ? {} : args[0], args[1]);
-			}
-		};
+		const Guarded = guardedClassFor(Original);
 		info.klass = Guarded;
-		restore.push(() => {
-			info.klass = Original;
-		});
+		patchConstructorLookup(Original, Guarded);
+		GUARDED_ORIGINALS.set(Guarded, Original);
+		GUARDED_EXCLUSIONS.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+		GUARDED_EXCLUSIONS.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+		excludedProperties.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+		excludedProperties.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+		rekeyMutationListeners(editor, Original, Guarded);
 	}
-	try {
-		return bind();
-	} finally {
-		for (const undo of restore) undo();
-	}
+	return excludedProperties;
+}
+function rekeyMutationListeners(editor, Original, Guarded) {
+	const mutationListeners = editor._listeners?.mutation;
+	if (!mutationListeners || typeof mutationListeners.forEach !== "function") return;
+	mutationListeners.forEach((klassSet) => {
+		if (klassSet?.has?.(Original)) {
+			klassSet.delete(Original);
+			klassSet.add(Guarded);
+		}
+	});
 }
 function detectNoArgThrowingNodes(nodes) {
 	const throwers = /* @__PURE__ */ new Set();

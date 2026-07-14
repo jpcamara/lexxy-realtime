@@ -9,6 +9,16 @@ import "@37signals/lexxy";
 import { YrbyProvider } from "../../src/index.js"; // also registers <lexxy-collaboration>
 import * as Y from "yjs";
 import { createConsumer } from "@rails/actioncable";
+import { $getRoot } from "lexical";
+
+// Collaboration errors are logged, not thrown (a bad remote update must not
+// kill the page), so the e2e reads them from here.
+window.__errors = [];
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  window.__errors.push(args.map(String).join(" ").slice(0, 300));
+  originalConsoleError(...args);
+};
 
 const params = new URLSearchParams(location.search);
 const room = params.get("room") || "browser-demo";
@@ -48,6 +58,110 @@ function start() {
       return ce ? ce.innerText : "";
     },
     synced: () => provider.synced,
+    errors: () => window.__errors,
+    // Insert an attachment the way a finished upload does: a real
+    // action_text_attachment node with an sgid, appended to the root. Uses
+    // the class registered on the editor so the test exercises whatever the
+    // guard registered.
+    insertAttachment: (sgid) => {
+      const lexical = editor.editor;
+      let klass;
+      lexical._nodes.forEach((info) => {
+        try {
+          if (info.klass.getType() === "action_text_attachment") klass = info.klass;
+        } catch { /* builtin without getType */ }
+      });
+      lexical.update(() => {
+        const node = new klass({
+          sgid,
+          src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+          contentType: "image/png",
+          fileName: "collab-test.png",
+          previewable: true,
+        });
+        $getRoot().append(node);
+      });
+    },
+    // The attachment sgids present in the editor's own state.
+    attachmentSgids: () => {
+      const json = JSON.stringify(editor.editor.getEditorState().toJSON());
+      return [...json.matchAll(/"sgid":"([^"]+)"/g)].map((m) => m[1]);
+    },
+    // The shared doc's root as XML, for asserting what actually synced.
+    docRoot: () => (doc.share.get("root") ? doc.share.get("root").toString() : ""),
+    // Insert a PROVISIONAL upload node carrying a real File — the
+    // unsyncable property. No uploadUrl, so no DirectUpload starts; this
+    // exists to prove the excluded properties survive a re-bind.
+    insertUploadNode: (name) => {
+      const lexical = editor.editor;
+      let klass;
+      lexical._nodes.forEach((info) => {
+        try {
+          if (info.klass.getType() === "action_text_attachment_upload") klass = info.klass;
+        } catch { /* builtin without getType */ }
+      });
+      try {
+        lexical.update(() => {
+          const node = new klass({
+            file: new File([new Uint8Array(16)], name, { type: "image/png" }),
+            fileName: name,
+            contentType: "image/png",
+          });
+          $getRoot().append(node);
+        }, { discrete: true });
+        return "ok";
+      } catch (e) {
+        // A discrete update throws synchronously (yjs "Unexpected content
+        // type" when an excluded property leaks); record it where the e2e
+        // reads errors, since it never reaches console.error.
+        window.__errors.push("insertUploadNode: " + e.message);
+        return "ERR: " + e.message;
+      }
+    },
+    // Lexxy's upload mutation listener flags the editor invalid while an
+    // upload node exists ("Please wait for all files to upload"). If the
+    // klass swap orphans that listener, the editor stays valid. The element
+    // is form-associated but doesn't proxy validationMessage, so ask
+    // checkValidity().
+    editorInvalidWhileUploading: () => {
+      const el = document.querySelector("lexxy-editor");
+      return !!el && typeof el.checkValidity === "function" && !el.checkValidity();
+    },
+    // Detach and re-attach the collaboration element: unbind + re-bind.
+    remountCollab: () => {
+      const c = document.querySelector("lexxy-collaboration");
+      const parent = c.parentElement;
+      c.remove();
+      parent.appendChild(c);
+      return "remounted";
+    },
+    // A second, non-collaborative editor on the same page. Its registry
+    // holds the original attachment class; creating an attachment there
+    // exercises Lexical's class-identity assertion outside collaboration.
+    plainEditorAttachment: () => new Promise((resolve) => {
+      const el = document.createElement("lexxy-editor");
+      document.body.appendChild(el);
+      const run = () => {
+        try {
+          const lexical = el.editor;
+          let klass;
+          lexical._nodes.forEach((info) => {
+            try {
+              if (info.klass.getType() === "action_text_attachment") klass = info.klass;
+            } catch { /* builtin without getType */ }
+          });
+          lexical.update(() => {
+            const node = new klass({ sgid: "PLAIN-1", src: "", contentType: "image/png", fileName: "plain.png" });
+            $getRoot().append(node);
+          }, { discrete: true });
+          resolve("ok");
+        } catch (e) {
+          resolve("ERR: " + e.message);
+        }
+      };
+      if (el.editor) run();
+      else el.addEventListener("lexxy:initialize", run, { once: true });
+    }),
     peers: () =>
       // @lexical/yjs stores presence identity at the top level (s.name), not s.user.
       [...awareness.getStates().values()].map((s) => s.name).filter(Boolean),

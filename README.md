@@ -165,6 +165,16 @@ provider.awareness;        // the Yjs Awareness instance (presence/cursors)
 It owns presence — it creates its own `Awareness`. Read `provider.awareness` if
 you need it (e.g. to show who's here); don't pass one in.
 
+## Attachments
+
+File and image uploads work under collaboration (v0.3.1+). The uploader's
+browser does the ActiveStorage direct upload as usual; the attachment node
+syncs through Yjs, and peers render the finished image from its URL. While
+an upload is in flight, peers see a placeholder with the filename and a
+live progress bar. Nothing client-local crosses the wire: the `File`
+object, preview object-URLs, and upload configuration stay on the
+uploader's machine, and a peer never starts a duplicate upload.
+
 ## A single copy of `lexical` & `yjs`
 
 Lexxy and lexxy-realtime both leave `lexical` (and lexxy-realtime leaves `yjs` /

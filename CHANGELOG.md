@@ -6,6 +6,62 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] - Unreleased
+
+### Fixed
+
+- Remote attachments now render. @lexical/yjs constructs node classes with
+  no arguments when it materializes a node from a remote update, and
+  Lexxy's attachment constructors destructure their first parameter, so
+  every attachment coming from a peer threw ("Cannot destructure property
+  'tagName' of 'undefined'") and silently never appeared — the peer's Yjs
+  doc had the node, the editor didn't. The existing constructor guard only
+  covered the bind-time snapshot and reverted itself afterwards; it is now
+  permanent, memoized per class, and keeps Lexical's class-identity
+  assertion satisfied for locally-created nodes too. The browser e2e now
+  inserts an attachment and asserts both the live peer and a late joiner
+  materialize it.
+- Finished uploads no longer leave a zombie upload placeholder on peers.
+  The provisional upload node carries a raw `File` object as a plain
+  property; yjs cannot encode it as an attribute value and threw
+  "Unexpected content type" mid-sync, which aborted the Lexical-to-Yjs
+  update — so when Lexxy swapped the provisional node for the finished
+  attachment, the removal never reached the shared doc. Peers and late
+  joiners rendered a broken upload placeholder ("NaN undefined", stuck
+  progress bar) next to the real attachment, forever. The attachment
+  classes now exclude their unsyncable properties from collaboration:
+  `file`, `editor` (a live reference that synced as "[object Object]"),
+  `previewSrc` (a client-local object URL), `uploadUrl` and
+  `blobUrlTemplate` (host config; an absent uploadUrl is also what stops a
+  peer from starting a duplicate upload), and `pendingPreview`. `progress`
+  and `uploadError` still sync on purpose, so peers watching an upload in
+  progress see a live progress bar and the error state rather than a
+  frozen placeholder, and `pendingPreview` syncs so peers render the
+  poll-until-ready placeholder for server-generated previews (PDFs) instead
+  of requesting a preview that doesn't exist yet and giving up. The guarded
+  classes also scrub the "NaN undefined" size caption Lexxy renders on
+  peers during the upload window (it formats `file.size`, and the File
+  never leaves the uploader's browser).
+- The class-identity handling answers per editor. Lexical asserts
+  `registeredNode.klass === node.constructor`; a collaborative editor
+  registers the guarded subclass while a plain Lexxy editor on the same
+  page registers the original class, so `constructor` now resolves against
+  whatever the active editor registered instead of being reassigned
+  globally (which broke attachment creation in non-collaborative editors
+  sharing the page).
+- Re-binding (unmounting and remounting the collaboration element) keeps
+  the excluded properties. The already-guarded classes no longer trip the
+  no-arg probe, so their exclusions are carried over explicitly; before,
+  a re-bound editor's next upload node aborted mid-sync on its raw File —
+  partially writing the node's attributes into the shared doc.
+- Lexxy's uploads-in-progress tracking survives the class swap. Lexical
+  buckets mutations by the currently registered class, but Lexxy's upload
+  mutation listener resolved its key to the original class before the
+  swap, so it never fired again — the uploads count stayed at zero and a
+  form could submit while files were still uploading. The swap now re-keys
+  pre-existing mutation listeners to the guarded class; the browser e2e
+  asserts the editor reports invalid while an upload node is pending.
+
 ## [0.2.1] - 2026-06-29
 
 ### Fixed

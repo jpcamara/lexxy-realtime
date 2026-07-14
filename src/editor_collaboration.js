@@ -6,7 +6,7 @@ import {
   setLocalStateFocus,
   initLocalState,
 } from '@lexical/yjs';
-import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG, createEditor } from 'lexical';
+import { $getEditor, $getRoot, $createParagraphNode, HISTORY_MERGE_TAG, createEditor } from 'lexical';
 import { Doc } from 'yjs';
 import { YrbyProvider } from './yrby_provider';
 
@@ -89,9 +89,8 @@ export class Collaboration extends HTMLElement {
     // bootstrapWhenSynced); existing docs are loaded by the Yjs->Lexical observer.
     this.editor.update(() => $getRoot().clear(), { tag: HISTORY_MERGE_TAG, discrete: true });
 
-    const binding = bindWithLexxyNodeGuard(this.editor, () =>
-      createBinding(this.editor, provider, id, doc, docMap)
-    );
+    const excludedProperties = guardLexxyNodes(this.editor);
+    const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
     patchCollabElementSplice(binding);
     const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
     const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding);
@@ -160,55 +159,189 @@ export class Collaboration extends HTMLElement {
 // re-registered on a probe editor (Lexical seeds them itself).
 const BUILTIN_NODE_TYPES = new Set(['root', 'text', 'linebreak', 'tab', 'paragraph']);
 
-// @lexical/yjs's createBinding snapshots default node properties by constructing
-// every registered node with NO arguments (`new klass()` in
-// initializeNodeProperties). Lexxy's attachment nodes destructure their first
-// parameter (`constructor({ tagName, ... }, key)`), so they throw on no-arg
-// construction and abort the bind. Lexxy 0.9 ships without default parameters.
+// @lexical/yjs constructs registered node classes with NO arguments in two
+// places: createBinding's initializeNodeProperties (snapshotting default
+// property values at bind time), and again whenever a peer's node is
+// materialized from a remote Yjs update. Lexxy's attachment nodes
+// destructure their first parameter (`constructor({ tagName, ... }, key)`),
+// so a no-arg construction throws. At bind time that aborted the bind.
+// After bind it silently dropped every remote attachment: the peer's Yjs
+// doc had the node, the editor never showed it, and each update logged
+// "Cannot destructure property 'tagName' of 'undefined'". Lexxy 0.9 ships
+// without default parameters.
 //
-// Rather than require a consumer-side patch, we make those constructions tolerate
-// no args. We can't wrap the class (Lexical asserts `registeredNode.klass ===
-// node.constructor` on every construct, so a Proxy/foreign wrapper trips
-// errorOnTypeKlassMismatch) and we can't safely probe construction on the live
-// editor. So: detect the offending classes on an isolated probe editor, then for
-// the bind window only, swap each into editor._nodes for an identity-preserving
-// subclass that supplies `{}` when constructed with no args (exactly what `= {}`
-// defaults would do). The subclass IS the registered klass during the bind, so
-// the identity assertion holds; we revert immediately after, so real attachment
-// creation (with real args, against the original class) is untouched. This
-// replaces the consumer-side @37signals/lexxy patch.
-function bindWithLexxyNodeGuard(editor, bind) {
+// The guard replaces each offending class in editor._nodes with an
+// identity-preserving subclass that supplies `{}` when constructed with no
+// args (what `= {}` defaults would do). The replacement is permanent — an
+// earlier version swapped for the bind window only, which fixed the
+// snapshot and left remote materialization broken. Two details make the
+// permanent swap safe:
+//
+// - Lexical asserts `registeredNode.klass === node.constructor`, and
+//   Lexxy's own statics construct through hardcoded class references
+//   (`new ActionTextAttachmentNode(...)` in clone/importJSON). Pointing the
+//   original prototype's `constructor` at the subclass makes those
+//   instances report the registered class, so the assertion holds on both
+//   creation paths.
+// - The subclass is memoized per class, so several editors on one page all
+//   register the same subclass and the constructor patch never flaps.
+//
+// The same classes also get an excluded-properties entry, because Lexxy
+// attachment nodes carry plain properties that must not sync:
+//
+// - `editor` is a live object reference; it serialized as the string
+//   "[object Object]".
+// - `file` is a File object. yjs cannot encode it as an attribute value
+//   and throws "Unexpected content type" MID-SYNC, which aborts the whole
+//   Lexical->Yjs update. The visible symptom: when an upload finishes and
+//   Lexxy swaps its provisional upload node for the final attachment, the
+//   removal never reaches the shared doc, and every peer and late joiner
+//   renders a zombie upload placeholder next to the real attachment.
+// - `previewSrc` is a client-local object URL, `uploadUrl` /
+//   `blobUrlTemplate` / `progress` / `uploadError` / `pendingPreview` are
+//   upload machinery with no meaning on another client.
+//
+// Returns the Map to pass to createBinding.
+const GUARDED_CLASSES = new WeakMap();
+const GUARDED_ORIGINALS = new WeakMap(); // Guarded -> Original
+const GUARDED_EXCLUSIONS = new WeakMap(); // either class -> excluded property Set
+const CONSTRUCTOR_PATCHED = new WeakSet();
+
+// Lexical asserts `registeredNode.klass === node.constructor`, and which
+// class is "right" depends on the editor doing the asserting: a
+// collaborative editor registered Guarded, while a plain Lexxy editor on
+// the same page registered Original. A blanket
+// `Original.prototype.constructor = Guarded` satisfies the first and
+// breaks attachment creation in the second. Instead, `constructor` answers
+// with whatever the ACTIVE editor registered for this node type; outside
+// an editor update it falls back to the real class.
+function patchConstructorLookup(Original, Guarded) {
+  if (CONSTRUCTOR_PATCHED.has(Original)) return;
+  CONSTRUCTOR_PATCHED.add(Original);
+  Object.defineProperty(Original.prototype, 'constructor', {
+    configurable: true,
+    get() {
+      try {
+        const registered = $getEditor()._nodes.get(this.getType())?.klass;
+        if (registered === Guarded) return Guarded;
+      } catch {
+        // No active editor; fall through.
+      }
+      return Original;
+    },
+  });
+}
+
+// What stays local: `file` (yjs can't encode a File and throws mid-sync),
+// `editor` (live object reference), `previewSrc` (client-local object URL),
+// and `uploadUrl` / `blobUrlTemplate` (host config — and an absent
+// uploadUrl is what stops a peer from starting its own duplicate
+// DirectUpload). Everything else syncs on purpose: `progress` and
+// `uploadError` give peers a live progress bar and the error state, and
+// `pendingPreview` tells peers to render the poll-until-ready placeholder
+// for server-generated previews (PDFs and friends) instead of requesting a
+// preview that doesn't exist yet and giving up.
+const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
+  'editor',
+  'file',
+  'previewSrc',
+  'uploadUrl',
+  'blobUrlTemplate',
+]);
+
+function guardedClassFor(Original) {
+  let Guarded = GUARDED_CLASSES.get(Original);
+  if (!Guarded) {
+    Guarded = class extends Original {
+      constructor(...args) {
+        super(args.length === 0 || args[0] === undefined ? {} : args[0], args[1]);
+      }
+
+      // Remote instances have no local File (it never syncs), and Lexxy's
+      // upload caption formats `this.file?.size`, which renders as
+      // "NaN undefined" on peers. Scrub it; the filename and the synced
+      // progress bar remain. Locally created nodes construct through the
+      // original class and never reach this override.
+      createDOM(...args) {
+        const dom = super.createDOM(...args);
+        if (dom && !this.file) {
+          const size = dom.querySelector?.('.attachment__size');
+          if (size && /NaN/.test(size.textContent)) size.textContent = '';
+        }
+        return dom;
+      }
+    };
+    GUARDED_CLASSES.set(Original, Guarded);
+  }
+  return Guarded;
+}
+
+function guardLexxyNodes(editor) {
+  const excludedProperties = new Map();
   const nodes = editor?._nodes;
-  if (!nodes || typeof nodes.forEach !== 'function') return bind();
+  if (!nodes || typeof nodes.forEach !== 'function') return excludedProperties;
+
+  // A re-bind (disconnect/reconnect, a DOM move) sees classes that are
+  // already the tolerant Guarded subclasses. The thrower probe below skips
+  // them — they no longer throw — so their exclusions have to be carried
+  // over explicitly, or a new binding would serialize the next upload's
+  // raw File and abort mid-sync all over again.
+  nodes.forEach((info) => {
+    const exclusions = GUARDED_EXCLUSIONS.get(info.klass);
+    if (!exclusions) return;
+    excludedProperties.set(info.klass, exclusions);
+    const counterpart = GUARDED_ORIGINALS.get(info.klass) || GUARDED_CLASSES.get(info.klass);
+    if (counterpart) excludedProperties.set(counterpart, exclusions);
+  });
 
   let throwers;
   try {
     throwers = detectNoArgThrowingNodes(nodes);
   } catch {
-    // If detection fails for any reason, fall back to an unguarded bind rather
-    // than break collaboration -- the original error (if any) still surfaces.
-    return bind();
+    // If detection fails for any reason, bind unguarded rather than break
+    // collaboration -- the original error (if any) still surfaces.
+    return excludedProperties;
   }
-  if (throwers.size === 0) return bind();
-
-  const restore = [];
   for (const info of throwers) {
     const Original = info.klass;
-    const Guarded = class extends Original {
-      constructor(...args) {
-        super(args.length === 0 || args[0] === undefined ? {} : args[0], args[1]);
-      }
-    };
+    const Guarded = guardedClassFor(Original);
     info.klass = Guarded;
-    restore.push(() => {
-      info.klass = Original;
-    });
+    patchConstructorLookup(Original, Guarded);
+    GUARDED_ORIGINALS.set(Guarded, Original);
+    GUARDED_EXCLUSIONS.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+    GUARDED_EXCLUSIONS.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+    // Keyed by both classes: @lexical/yjs looks the map up by the node's
+    // constructor, which differs between locally- and remotely-created
+    // instances here.
+    excludedProperties.set(Original, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+    excludedProperties.set(Guarded, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+    rekeyMutationListeners(editor, Original, Guarded);
   }
-  try {
-    return bind();
-  } finally {
-    for (const undo of restore) undo();
-  }
+  return excludedProperties;
+}
+
+// Lexical buckets mutations by the CURRENTLY registered klass, but a
+// listener registered before the swap resolved its klass key at
+// registration time — Lexxy's upload tracker
+// (`registerMutationListener(ActionTextAttachmentUploadNode, ...)`) is one,
+// and it's what holds form submission while uploads are pending. Without
+// re-keying, its mutations land in the Guarded bucket, the listener's
+// Original key never matches, the uploads count stays at zero, and a form
+// can submit mid-upload. Listeners registered after the swap resolve
+// through editor._nodes and get Guarded on their own. The trade-off: a
+// re-keyed listener's unsubscribe closure still deletes the Original key,
+// so unsubscribing one of these pre-swap listeners after the swap leaves
+// it registered. Lexxy's are editor-lifetime listeners, so that doesn't
+// bite; it's the cost of keeping upload tracking alive.
+function rekeyMutationListeners(editor, Original, Guarded) {
+  const mutationListeners = editor._listeners?.mutation;
+  if (!mutationListeners || typeof mutationListeners.forEach !== 'function') return;
+  mutationListeners.forEach((klassSet) => {
+    if (klassSet?.has?.(Original)) {
+      klassSet.delete(Original);
+      klassSet.add(Guarded);
+    }
+  });
 }
 
 // Probe each non-builtin registered node on a throwaway editor (so the live
