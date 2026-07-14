@@ -11,21 +11,28 @@ Each side sees the other's cursor and selection:
 
 ![Two browsers side by side, each showing the other's selection and caret live](docs/images/presence.gif)
 
-It works with **any Yjs provider** (`y-websocket`, Hocuspocus, y-webrtc, ...).
-Supply your own provider and that's what the element uses. Supply none and it
-assumes [`yrby`](https://github.com/jpcamara/yrby), building a Rails-native
-Action Cable / AnyCable provider from your cable consumer — the yrby client is
-bundled, so that path needs nothing else installed. lexxy-realtime is tested
-extensively against the yrby stack; other providers plug into the small
-contract documented below.
+## How it fits together
+
+`<lexxy-collaboration>` works with any Yjs provider (`y-websocket`, Hocuspocus,
+y-webrtc, ...). There are two setup paths:
+
+- **Default yrby path:** leave the provider unset and give the element an Action
+  Cable or AnyCable consumer. It builds the `Y.Doc` and
+  [`YrbyProvider`](https://github.com/jpcamara/yrby) from the consumer and the
+  element's attributes. The yrby client is bundled.
+- **Bring your own provider:** create a `Y.Doc` and provider, then assign both to
+  the element. The provider can use any backend that satisfies its requirements;
+  yrby is not involved in this path.
+
+lexxy-realtime is tested extensively against the yrby stack. Other providers
+plug into the small contract documented below.
 
 ## Requirements
 
 - A **Lexxy editor** on the page (`@37signals/lexxy`) — see
   [Lexxy's docs](https://basecamp.github.io/lexxy).
-- A **Yjs provider** and its backend. With `yrby` that's a Rails channel (see
-  [Server](#server-yrby)); with another provider it's whatever that provider
-  connects to.
+- A backend for your **Yjs provider**; see [Server](#server-yrby) for the yrby
+  setup.
 - A **JS bundler** (jsbundling-rails / esbuild, or any app that bundles its
   JavaScript). Collaboration relies on one shared copy of `lexical` and `yjs`
   across Lexxy and lexxy-realtime; a bundler dedupes them for you (see
@@ -37,23 +44,22 @@ contract documented below.
 npm install lexxy-realtime @lexical/yjs yjs y-protocols
 ```
 
-You also need a Lexxy editor and `lexical` (`^0.44`), which your app already has,
-**plus a provider**: a cable consumer (`@rails/actioncable` or `@anycable/web`)
-for the built-in yrby path, or the Yjs provider of your choice (e.g.
-`y-websocket`) — in which case no yrby anything is involved.
+You also need a Lexxy editor and `lexical` (`^0.44`), which your app already has.
+Install the client transport for your setup: `@rails/actioncable` or
+`@anycable/web` for yrby, or the package for your chosen Yjs provider (for
+example, `y-websocket`).
 
 ## Client
 
-`lexxy-realtime` registers a `<lexxy-collaboration>` custom element. Create a Yjs
-doc and a provider, mount the element inside your `<lexxy-editor>`, and go. The
-element is the same regardless of provider — only how you build the provider
-differs.
+`lexxy-realtime` registers the `<lexxy-collaboration>` custom element. Mount it
+inside your `<lexxy-editor>` using one of these wirings.
 
-### Element-managed (simplest — assumes yrby)
+### Default yrby path
 
-When you don't hand the element a provider, it assumes yrby. Give it a cable
-consumer and attributes; it builds the `Y.Doc` and `YrbyProvider` itself,
-connects, and disconnects on removal:
+#### Element-managed
+
+Give the element a cable consumer and attributes. It connects the provider and
+disconnects it on removal:
 
 ```js
 import "@37signals/lexxy";
@@ -76,52 +82,10 @@ if (editor.editor) startCollaborating();
 else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
 ```
 
-### Bring your own provider
+#### Host-managed
 
-Same element, any Yjs provider — no yrby involved. For example, a Node
-`y-websocket` server:
-
-```js
-import "@37signals/lexxy";
-import "lexxy-realtime"; // registers <lexxy-collaboration>
-import * as Y from "yjs";
-import { WebsocketProvider } from "y-websocket";
-
-const editor = document.querySelector("lexxy-editor");
-
-function startCollaborating() {
-  const doc = new Y.Doc();
-  const provider = new WebsocketProvider("wss://your-server", documentId, doc);
-
-  const collab = document.createElement("lexxy-collaboration");
-  collab.setAttribute("name", currentUserName);
-  collab.doc = doc;
-  collab.provider = provider;
-  editor.appendChild(collab);
-  // y-websocket connects on construction — no connect() call needed.
-}
-
-if (editor.editor) startCollaborating();
-else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
-```
-
-**What the element needs from a provider.** Any provider with the standard Yjs
-surface works:
-
-- `provider.awareness` — a [`y-protocols`](https://github.com/yjs/y-protocols)
-  `Awareness` instance (used for remote cursors/selections).
-- `provider.synced` — `true` once caught up with the server (used to seed a
-  brand-new, empty document the first time).
-- `provider.disconnect()` — called when the element is removed.
-
-You start the connection however that provider expects (`provider.connect()` for
-`YrbyProvider`; `y-websocket` connects on construction). `y-websocket`,
-Hocuspocus, and y-webrtc all satisfy this.
-
-### yrby, host-managed
-
-Manage the yrby provider yourself when you need its lifecycle — status UI,
-`whenSynced`, sharing one doc across components:
+Create and manage the yrby provider yourself when you need its lifecycle for
+status UI, `whenSynced`, or sharing one document across components:
 
 ```js
 import "@37signals/lexxy";                          // registers <lexxy-editor>
@@ -155,6 +119,51 @@ if (editor.editor) {
 }
 ```
 
+### Bring your own Yjs provider
+
+Create the document and provider, then assign both to the element. This example
+uses a Node `y-websocket` server:
+
+```js
+import "@37signals/lexxy";
+import "lexxy-realtime"; // registers <lexxy-collaboration>
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
+
+const editor = document.querySelector("lexxy-editor");
+
+function startCollaborating() {
+  const doc = new Y.Doc();
+  const provider = new WebsocketProvider("wss://your-server", documentId, doc);
+
+  const collab = document.createElement("lexxy-collaboration");
+  collab.setAttribute("name", currentUserName);
+  collab.doc = doc;
+  collab.provider = provider;
+  editor.appendChild(collab);
+  // y-websocket connects on construction — no connect() call needed.
+}
+
+if (editor.editor) startCollaborating();
+else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
+```
+
+Point the provider at its own backend. Nothing else in the client wiring changes.
+
+#### Provider contract
+
+Any provider with the standard Yjs surface works:
+
+- `provider.awareness` — a [`y-protocols`](https://github.com/yjs/y-protocols)
+  `Awareness` instance (used for remote cursors/selections).
+- `provider.synced` — `true` once caught up with the server (used to seed a
+  brand-new, empty document the first time).
+- `provider.disconnect()` — called when the element is removed.
+
+You start the connection however that provider expects (`provider.connect()` for
+`YrbyProvider`; `y-websocket` connects on construction). `y-websocket`,
+Hocuspocus, and y-webrtc all satisfy this.
+
 ## Server (yrby)
 
 Collaboration needs a server that records and relays Yjs updates. On the yrby
@@ -178,10 +187,7 @@ end
 ```
 
 See [`yrby`](https://github.com/jpcamara/yrby) for durable-store options
-and the full protocol (reliable delivery, causal-gap handling). Using a different
-provider instead? Point it at that provider's own backend (e.g. a `y-websocket`
-Node server) — nothing on the client above changes except how you build the
-provider.
+and the full protocol (reliable delivery, causal-gap handling).
 
 ## Provider API (yrby)
 
