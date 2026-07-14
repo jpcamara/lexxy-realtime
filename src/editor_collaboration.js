@@ -68,6 +68,10 @@ export class Collaboration extends HTMLElement {
     const doc = this.doc || new Doc();
     const provider =
       this.provider || new YrbyProvider(doc, this.consumer, channelName, channelParams);
+    // A provider we created is ours to run: YrbyProvider does not
+    // auto-connect. A host-supplied provider is the host's — it decides
+    // when to connect.
+    if (ownsProvider) provider.connect();
 
     // The provider owns its Awareness: it constructs its own and ignores any
     // passed in. Every presence operation here -- initLocalState,

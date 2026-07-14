@@ -53,6 +53,31 @@ function makeCollab(room, provider) {
 const results = {};
 
 const scenarios = {
+  // #0: the element-managed wiring — only a consumer and attributes; the
+  // element builds the doc and provider itself, and must CONNECT the
+  // provider it owns (YrbyProvider does not auto-connect). Teardown must
+  // disconnect it.
+  async elementManaged() {
+    const room = `lc-owned-${Date.now()}`;
+    const editor = await makeEditor();
+    const collab = document.createElement("lexxy-collaboration");
+    collab.setAttribute("doc-id", room);
+    collab.setAttribute("name", "LC");
+    collab.setAttribute("channel-name", "DocumentChannel");
+    collab.setAttribute("channel-params", JSON.stringify({ id: room }));
+    collab.consumer = consumer;
+    editor.appendChild(collab);
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline && !collab.provider?.synced) await sleep(200);
+    const synced = !!collab.provider?.synced;
+    const provider = collab.provider;
+    collab.remove();
+    await sleep(200);
+    const disconnectedAfterTeardown = provider ? provider.status === "disconnected" : false;
+    editor.remove();
+    return { synced, disconnectedAfterTeardown };
+  },
+
   // #1: unmounting before the first sync must clear the bootstrap poll interval.
   async bootstrapLeak() {
     const editor = await makeEditor();

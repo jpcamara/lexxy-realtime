@@ -5,12 +5,25 @@ over [Yjs](https://github.com/yjs/yjs). Drop a `<lexxy-collaboration>` element
 inside your `<lexxy-editor>` and people editing the same document see each other's
 **text, cursors, and selections** live.
 
-It works with **any Yjs provider**. [`yrby`](https://github.com/jpcamara/yrby)
-is the recommended one — a reliable, Rails-native provider over Action Cable /
-AnyCable with ack-tracked delivery (an acknowledged edit isn't silently lost on a
-flaky connection, and a reconnecting client catches up from the server). But you
-can just as well point it at a Node `y-websocket` server, Hocuspocus, y-webrtc,
-and so on.
+![Two people typing on separate lines of the same document, each keystroke synced live, seen from a third browser with labeled carets](docs/images/collab.gif)
+
+Each side sees the other's cursor and selection:
+
+![Two browsers side by side, each showing the other's selection and caret live](docs/images/presence.gif)
+
+It works with **any Yjs provider** — a Node `y-websocket` server, Hocuspocus,
+y-webrtc, anything that exposes the standard provider surface. Supply your own
+provider and that's what the element uses. Supply none, and the element assumes
+[`yrby`](https://github.com/jpcamara/yrby): it builds a `YrbyProvider` from your
+Action Cable / AnyCable consumer — a Rails-native provider with ack-tracked
+delivery, where an acknowledged edit isn't silently lost on a flaky connection
+and a reconnecting client catches up from the server. The yrby client is bundled,
+so the default path needs nothing beyond a cable consumer, and bringing your own
+provider means you never touch it.
+
+lexxy-realtime is tested extensively against the `yrby` stack — every CI suite
+drives a real yrby Rails server with real editors in Chrome. Other providers
+plug into the same small contract, documented below.
 
 > Pre-1.0, and tracks pre-1.0 peers (`@37signals/lexxy` `^0.9`, `lexical` /
 > `@lexical/yjs` `^0.44`). See [`CHANGELOG.md`](CHANGELOG.md).
@@ -34,8 +47,9 @@ npm install lexxy-realtime @lexical/yjs yjs y-protocols
 ```
 
 You also need a Lexxy editor and `lexical` (`^0.44`), which your app already has,
-**plus a provider**: for `yrby`, a cable consumer (`@rails/actioncable` or
-`@anycable/web`); otherwise the provider of your choice (e.g. `y-websocket`).
+**plus a provider**: a cable consumer (`@rails/actioncable` or `@anycable/web`)
+for the built-in yrby path, or the Yjs provider of your choice (e.g.
+`y-websocket`) — in which case no yrby anything is involved.
 
 ## Client
 
@@ -44,43 +58,37 @@ doc and a provider, mount the element inside your `<lexxy-editor>`, and go. The
 element is the same regardless of provider — only how you build the provider
 differs.
 
-### With yrby (recommended for Rails)
+### Element-managed (simplest — assumes yrby)
+
+When you don't hand the element a provider, it assumes yrby. Give it a cable
+consumer and attributes; it builds the `Y.Doc` and `YrbyProvider` itself,
+connects, and disconnects on removal:
 
 ```js
-import "@37signals/lexxy";                          // registers <lexxy-editor>
-import { YrbyProvider } from "lexxy-realtime";   // registers <lexxy-collaboration>
-import * as Y from "yjs";
+import "@37signals/lexxy";
+import "lexxy-realtime"; // registers <lexxy-collaboration>
 import { createConsumer } from "@rails/actioncable"; // or "@anycable/web"
 
 const editor = document.querySelector("lexxy-editor");
 
 function startCollaborating() {
-  const doc = new Y.Doc();
-  const consumer = createConsumer();
-  const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: documentId });
-
   const collab = document.createElement("lexxy-collaboration");
-  collab.setAttribute("doc-id", documentId);       // Yjs document id (defaults to "main")
-  collab.setAttribute("name", currentUserName);    // shown on your cursor to others
-  collab.setAttribute("color", "#3b82f6");          // optional cursor color
-  collab.doc = doc;
-  collab.provider = provider;
+  collab.setAttribute("doc-id", documentId);
+  collab.setAttribute("name", currentUserName);
+  collab.setAttribute("channel-name", "DocumentChannel");
+  collab.setAttribute("channel-params", JSON.stringify({ id: documentId }));
+  collab.consumer = createConsumer();
   editor.appendChild(collab);
-
-  provider.connect(); // YrbyProvider does not auto-connect
 }
 
-// Lexxy sets up its editor asynchronously; start once it's ready.
-if (editor.editor) {
-  startCollaborating();
-} else {
-  editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
-}
+if (editor.editor) startCollaborating();
+else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
 ```
 
-### With any other Yjs provider
+### Bring your own provider
 
-Same element — bring your own provider. For example, a Node `y-websocket` server:
+Same element, any Yjs provider — no yrby involved. For example, a Node
+`y-websocket` server:
 
 ```js
 import "@37signals/lexxy";
@@ -119,10 +127,47 @@ You start the connection however that provider expects (`provider.connect()` for
 `YrbyProvider`; `y-websocket` connects on construction). `y-websocket`,
 Hocuspocus, and y-webrtc all satisfy this.
 
+### yrby, host-managed
+
+Manage the yrby provider yourself when you need its lifecycle — status UI,
+`whenSynced`, sharing one doc across components:
+
+```js
+import "@37signals/lexxy";                          // registers <lexxy-editor>
+import { YrbyProvider } from "lexxy-realtime";   // registers <lexxy-collaboration>
+import * as Y from "yjs";
+import { createConsumer } from "@rails/actioncable"; // or "@anycable/web"
+
+const editor = document.querySelector("lexxy-editor");
+
+function startCollaborating() {
+  const doc = new Y.Doc();
+  const consumer = createConsumer();
+  const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: documentId });
+
+  const collab = document.createElement("lexxy-collaboration");
+  collab.setAttribute("doc-id", documentId);       // Yjs document id (defaults to "main")
+  collab.setAttribute("name", currentUserName);    // shown on your cursor to others
+  collab.setAttribute("color", "#3b82f6");          // optional cursor color
+  collab.doc = doc;
+  collab.provider = provider;
+  editor.appendChild(collab);
+
+  provider.connect(); // YrbyProvider does not auto-connect
+}
+
+// Lexxy sets up its editor asynchronously; start once it's ready.
+if (editor.editor) {
+  startCollaborating();
+} else {
+  editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
+}
+```
+
 ## Server (yrby)
 
-The recommended path. Collaboration needs a server that records and relays Yjs
-updates; with `yrby` that's one Action Cable channel including the
+Collaboration needs a server that records and relays Yjs updates. On the yrby
+path that's one Action Cable channel including the
 [`yrby-actioncable`](https://rubygems.org/gems/yrby-actioncable) concern:
 
 ```ruby
@@ -157,13 +202,47 @@ provider.disconnect();     // pause; queued edits are kept
 provider.destroy();        // tear down (also clears presence)
 
 provider.synced;           // caught up with the server?
+await provider.whenSynced; // resolves on the first catch-up (immediately if already synced)
 provider.status;           // "connecting" | "connected" | "synced" | "disconnected"
 provider.onStatusChange(({ status }) => render(status)); // returns an unsubscribe fn
 provider.awareness;        // the Yjs Awareness instance (presence/cursors)
+provider.hasPending;       // unacknowledged local edits in flight?
 ```
 
 It owns presence — it creates its own `Awareness`. Read `provider.awareness` if
 you need it (e.g. to show who's here); don't pass one in.
+
+## Persisting to ActionText
+
+The collaborative document lives in your durable store as CRDT updates.
+When the rest of your app needs it as rich text — display, search, mailers
+— render it server-side with the `yrby` gem's `Y::Lexxy`, which reproduces
+Lexxy's own HTML byte for byte:
+
+```ruby
+ydoc = Y::Doc.new
+ydoc.apply_update(store.replay(document_id))
+html = Y::Lexxy.new(ydoc).to_html("root")
+note.content = html # a has_rich_text attribute
+```
+
+No browser is involved and no client-submitted HTML is trusted. The
+[yrby demo's `NoteMaterializer`](https://github.com/jpcamara/yrby/blob/main/examples/actioncable-demo/app/lib/note_materializer.rb)
+shows the full pattern, refreshed on read with a store-version staleness
+check.
+
+## Turbo
+
+Two things matter under Turbo Drive:
+
+- Run your wiring on `turbo:load` (or make the editor page a Turbo frame
+  boundary), so a fresh `<lexxy-collaboration>` mounts per visit. The
+  element tears down cleanly on removal — unmount before first sync,
+  DOM moves, and remounts are all covered by the test suite.
+- Don't cache a live editor: mark the editor container
+  `data-turbo-temporary` (or `data-turbo-cache="false"` on the page) so
+  Turbo's snapshot doesn't restore a stale editor DOM next to a fresh
+  binding.
 
 ## A single copy of `lexical` & `yjs`
 

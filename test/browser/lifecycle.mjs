@@ -68,8 +68,13 @@ if (!(await waitEval("document.body.dataset.lcReady === 'true'", "lifecycle harn
   process.exit(1);
 }
 
+// #0 — the element-managed wiring must connect the provider it builds.
+await runScenario("elementManaged");
 // #1 — bootstrap poll interval must be cleared on unmount-before-sync.
 await runScenario("bootstrapLeak");
+check("element-managed wiring syncs (element connects its own provider)", field("elementManaged", "r.synced === true"));
+check("element-managed provider disconnects on teardown", field("elementManaged", "r.disconnectedAfterTeardown === true"));
+
 check("bootstrap interval starts (scenario valid)", field("bootstrapLeak", "r.started === true"));
 check("no leaked bootstrap interval after unmount-before-sync", field("bootstrapLeak", "r.leaked === false"));
 
