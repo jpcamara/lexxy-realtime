@@ -38,6 +38,18 @@ class CollaborativeTest < Minitest::Test
     assert_equal lexxy_full_html, @post.reload.body
   end
 
+  def test_materialize_never_replaces_present_content_with_a_blank_render
+    # A pre-collaboration body exists; the collaborative doc holds only the
+    # empty bootstrap (renders no text). Materializing must not destroy the
+    # stored content.
+    @post.update!(body: "<p>existing content</p>")
+    empty_doc = Y::Doc.new
+    TestStore.append(@post.collaborative_document_key(:body), empty_doc.encode_state_as_update)
+
+    refute @post.materialize_collaborative_rich_text!(:body)
+    assert_equal "<p>existing content</p>", @post.reload.body
+  end
+
   def test_materialize_is_idempotent
     TestStore.append(@post.collaborative_document_key(:body), lexxy_full_state)
     @post.materialize_collaborative_rich_text!(:body)
