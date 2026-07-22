@@ -8,9 +8,9 @@ module LexxyRealtime
     # `bin/rails generate lexxy_realtime:install`
     #
     # Wires a Rails app for collaborative Lexxy editing: the document channel
-    # (signed-GlobalID join, store-backed sync, materialization), the
-    # ActiveRecord-backed update store with compaction, its migration, and the
-    # one-line JavaScript import. The generated files are plain app code.
+    # (signed-GlobalID join, store-backed sync, materialization), the update
+    # log's migration (the LexxyRealtime::Update model ships in the gem), and
+    # the one-line JavaScript import.
     class InstallGenerator < Rails::Generators::Base
       include ActiveRecord::Generators::Migration
 
@@ -29,17 +29,11 @@ module LexxyRealtime
         template "document_channel.rb", "app/channels/document_channel.rb"
       end
 
-      def create_model
-        template "yrby_document_update.rb", "app/models/yrby_document_update.rb"
-      end
-
-      def create_store
-        template "yrby_document_store.rb", "app/models/yrby_document_store.rb"
-      end
-
+      # The update-log model (LexxyRealtime::Update) ships in the gem, like
+      # ActionText::RichText — only its table is created here.
       def create_migration_file
-        migration_template "create_yrby_document_updates.rb",
-                           File.join(db_migrate_path, "create_yrby_document_updates.rb")
+        migration_template "create_lexxy_realtime_updates.rb",
+                           File.join(db_migrate_path, "create_lexxy_realtime_updates.rb")
       end
 
       def add_javascript_import

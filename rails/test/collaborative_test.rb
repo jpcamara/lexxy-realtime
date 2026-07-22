@@ -4,8 +4,8 @@ require "test_helper"
 
 class CollaborativeTest < Minitest::Test
   def setup
-    TestStore.reset!
-    LexxyRealtime.store_name = "TestStore"
+    LexxyRealtime::Update.delete_all
+    LexxyRealtime.store_name = nil
     @post = Post.create!(title: "Doc")
   end
 
@@ -30,7 +30,7 @@ class CollaborativeTest < Minitest::Test
   end
 
   def test_materialize_renders_the_document_to_html_and_saves
-    TestStore.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
 
     assert @post.materialize_collaborative_rich_text!(:body)
     # Byte-identical to the Lexxy editor's own serialization of the same
@@ -44,14 +44,14 @@ class CollaborativeTest < Minitest::Test
     # stored content.
     @post.update!(body: "<p>existing content</p>")
     empty_doc = Y::Doc.new
-    TestStore.append(@post.collaborative_document_key(:body), empty_doc.encode_state_as_update)
+    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), empty_doc.encode_state_as_update)
 
     refute @post.materialize_collaborative_rich_text!(:body)
     assert_equal "<p>existing content</p>", @post.reload.body
   end
 
   def test_materialize_is_idempotent
-    TestStore.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
     @post.materialize_collaborative_rich_text!(:body)
     first = @post.reload.body
 

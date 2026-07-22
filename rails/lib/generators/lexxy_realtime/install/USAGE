@@ -1,15 +1,14 @@
 Description:
     Wires the app for collaborative Lexxy editing: a DocumentChannel that
     joins clients by signed GlobalID and materializes edits back into
-    Action Text, an ActiveRecord-backed durable store with compaction, its
-    migration, and the lexxy-realtime JavaScript import.
+    Action Text, the migration for the gem's update-log table, and the
+    lexxy-realtime JavaScript import.
 
 Example:
     bin/rails generate lexxy_realtime:install
 
     This will create:
         app/channels/document_channel.rb
-        app/models/yrby_document_update.rb
-        app/models/yrby_document_store.rb
-        db/migrate/XXXXXXXX_create_yrby_document_updates.rb
+        db/migrate/XXXXXXXX_create_lexxy_realtime_updates.rb
     and append `import "lexxy-realtime"` to app/javascript/application.js.
+    The update-log model (LexxyRealtime::Update) ships in the gem.

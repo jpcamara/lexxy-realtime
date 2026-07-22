@@ -6,6 +6,7 @@ require "active_job"
 require "global_id"
 require "y"
 require "lexxy_realtime"
+require_relative "../app/models/lexxy_realtime/update"
 
 # The suite runs against real ActiveRecord (in-memory SQLite), real yrby
 # rendering (a captured Lexxy editor session fixture), and a real signed
@@ -19,6 +20,12 @@ ActiveRecord::Schema.define do
     t.string :title
     t.text :body
     t.timestamps
+  end
+
+  create_table :lexxy_realtime_updates, force: true do |t|
+    t.binary :payload, null: false
+    t.string :document_key, null: false, index: true
+    t.datetime :created_at, null: false
   end
 end
 
@@ -36,7 +43,9 @@ class Post < ActiveRecord::Base
   has_collaborative_rich_text :body
 end
 
-# The store double: the YrbyDocumentStore contract (load/append) over a hash.
+# A store double implementing the load/append contract, for the
+# store-swap config test. Everything else runs against the real
+# LexxyRealtime::Update model.
 class TestStore
   class << self
     def documents = @documents ||= Hash.new { |h, k| h[k] = [] }

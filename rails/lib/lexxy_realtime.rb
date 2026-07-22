@@ -33,7 +33,7 @@ module LexxyRealtime
     attr_writer :store_name
 
     def store_name
-      @store_name ||= "YrbyDocumentStore"
+      @store_name ||= "LexxyRealtime::Update"
     end
 
     def store
