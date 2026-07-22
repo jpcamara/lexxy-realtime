@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-class CreateYrbyDocumentUpdates < ActiveRecord::Migration[8.1]
+class CreateLexxyRealtimeUpdates < ActiveRecord::Migration[8.1]
   def change
-    create_table :yrby_document_updates do |t|
+    create_table :lexxy_realtime_updates do |t|
       # Mediumblob (~16 MB cap) on MySQL — one byte over this limit selects
       # longblob instead. A no-op hint on PostgreSQL/SQLite. A single CRDT
       # delta is tiny; snapshots grow with document size.
