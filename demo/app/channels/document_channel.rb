@@ -14,8 +14,11 @@ class DocumentChannel < ApplicationCable::Channel
   on_load { |key| LexxyRealtime.store.load(key) }
   on_change do |key, update|
     LexxyRealtime.store.append(key, update)
+    # perform_later returns false when the adapter refuses the job; raising
+    # rejects the update (no ack), so the client retransmits and the enqueue
+    # is retried rather than leaving Action Text stale after the last edit.
     LexxyRealtime::MaterializeJob.set(wait: LexxyRealtime.materialize_after)
-                                 .perform_later(record, field)
+                                 .perform_later(record, field) || raise("materialize enqueue failed")
   end
 
   def subscribed
