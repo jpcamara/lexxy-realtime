@@ -18,10 +18,14 @@ module LexxyRealtime
 
       def create_application_cable
         # Apps generated with certain rails-new skips have no Action Cable
-        # boilerplate; the channel below inherits from it.
+        # boilerplate; the channel below inherits from it. Each file is
+        # checked separately — a partially configured app may have one
+        # without the other.
+        unless File.exist?(File.join(destination_root, "app/channels/application_cable/connection.rb"))
+          template "application_cable_connection.rb", "app/channels/application_cable/connection.rb"
+        end
         return if File.exist?(File.join(destination_root, "app/channels/application_cable/channel.rb"))
 
-        template "application_cable_connection.rb", "app/channels/application_cable/connection.rb"
         template "application_cable_channel.rb", "app/channels/application_cable/channel.rb"
       end
 

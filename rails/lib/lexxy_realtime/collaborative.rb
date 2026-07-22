@@ -27,9 +27,11 @@ module LexxyRealtime
 
     # The stable server-side document key for one collaborative field. Clients
     # never send this — the channel derives it after resolving the record from
-    # a signed GlobalID.
+    # a signed GlobalID. Built from the class name (not model_name.param_key,
+    # which collapses namespaces: Blog::Post and News::Post both report
+    # "post" and would share documents).
     def collaborative_document_key(name)
-      "#{model_name.param_key}/#{id}/#{name}"
+      "#{self.class.name.underscore.tr('/', '_')}/#{id}/#{name}"
     end
 
     def collaborative_rich_text?(name)
@@ -76,7 +78,7 @@ module LexxyRealtime
     private
 
     def blank_rendered_html?(html)
-      html.gsub(/<[^>]*>/, "").gsub(/\s|&nbsp;/, "").empty?
+      LexxyRealtime.blank_rendered_html?(html)
     end
   end
 end

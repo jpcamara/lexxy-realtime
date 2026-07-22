@@ -80,5 +80,18 @@ module LexxyRealtime
     def resolve_identity(view)
       identity.call(view)
     end
+
+    # True when rendered document HTML carries no user content: no text once
+    # tags and whitespace are stripped, and none of the elements that are
+    # content in themselves (attachments, media, rules, tables). Used by the
+    # materializer to tell an empty just-opened editor from a document whose
+    # content simply isn't text.
+    CONTENT_ELEMENTS = /<(action-text-attachment|img|figure|hr|iframe|video|audio|table)\b/i
+
+    def blank_rendered_html?(html)
+      return false if html.match?(CONTENT_ELEMENTS)
+
+      html.gsub(/<[^>]*>/, "").gsub(/\s|&nbsp;/, "").empty?
+    end
   end
 end

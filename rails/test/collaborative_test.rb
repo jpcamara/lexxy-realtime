@@ -16,8 +16,15 @@ class CollaborativeTest < Minitest::Test
     refute @post.collaborative_rich_text?(:title)
   end
 
-  def test_document_key_is_stable_and_scoped
+  def test_document_key_is_stable_and_namespace_safe
     assert_equal "post/#{@post.id}/body", @post.collaborative_document_key(:body)
+    # Namespaced classes must not collapse to the same key as each other or
+    # as a top-level class with the same demodulized name.
+    namespaced = Class.new(Post) do
+      def self.name = "Blog::Post"
+    end
+
+    assert_equal "blog_post/#{@post.id}/body", namespaced.find(@post.id).collaborative_document_key(:body)
   end
 
   def test_materialize_raises_for_a_non_collaborative_attribute
