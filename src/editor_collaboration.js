@@ -8,7 +8,15 @@ import {
 } from '@lexical/yjs';
 import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG, createEditor } from 'lexical';
 import { Doc } from 'yjs';
+import { createConsumer } from '@rails/actioncable';
 import { YrbyProvider } from './yrby_provider';
+
+// One shared Action Cable consumer for every element that isn't handed one.
+// createConsumer() reads the standard `action-cable-url` meta tag (rendered by
+// Rails' action_cable_meta_tag) and falls back to /cable, so a server-rendered
+// element works with no host JavaScript at all. Shared so multiple editors on
+// a page ride one WebSocket, like Rails' own consumer module.
+let sharedConsumer;
 
 export class Collaboration extends HTMLElement {
   #teardown = null;
@@ -65,9 +73,11 @@ export class Collaboration extends HTMLElement {
     // moving the element fires disconnect+reconnect, and disconnecting the
     // host's provider (then reusing it without reconnecting) left it dead.
     const ownsProvider = !this.provider;
+    const ownsDoc = !this.doc;
     const doc = this.doc || new Doc();
     const provider =
-      this.provider || new YrbyProvider(doc, this.consumer, channelName, channelParams);
+      this.provider ||
+      new YrbyProvider(doc, this.consumer || (sharedConsumer ??= createConsumer()), channelName, channelParams);
     // A provider we created is ours to run: YrbyProvider does not
     // auto-connect. A host-supplied provider is the host's — it decides
     // when to connect.
@@ -128,6 +138,7 @@ export class Collaboration extends HTMLElement {
     syncCursorPositions(binding, provider); // initial paint of anyone already present
 
     this.provider = provider;
+    this.doc = doc; // expose the doc (created or host-supplied) to the host
     this.awareness = awareness; // expose the real (provider-owned) instance to the host
     this.binding = binding;
     this.#teardown = () => {
@@ -144,6 +155,7 @@ export class Collaboration extends HTMLElement {
         provider.disconnect();
         this.provider = null;
       }
+      if (ownsDoc) this.doc = null;
     };
   }
 

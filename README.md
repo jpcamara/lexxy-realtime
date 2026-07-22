@@ -58,28 +58,31 @@ inside your `<lexxy-editor>` using one of these wirings.
 
 #### Element-managed
 
-Give the element a cable consumer and attributes. It connects the provider and
-disconnects it on removal:
+Render (or create) the element with attributes inside the editor and import the
+package once — nothing else. The element waits for the editor, creates a shared
+Action Cable consumer (from the standard `action-cable-url` meta tag, falling
+back to `/cable`), builds the doc and provider, connects, and disconnects on
+removal:
+
+```html
+<lexxy-editor>
+  <lexxy-collaboration doc-id="doc-42" name="Ada"
+    channel-name="DocumentChannel" channel-params='{"id":"doc-42"}'>
+  </lexxy-collaboration>
+</lexxy-editor>
+```
 
 ```js
 import "@37signals/lexxy";
 import "lexxy-realtime"; // registers <lexxy-collaboration>
-import { createConsumer } from "@rails/actioncable"; // or "@anycable/web"
+```
 
-const editor = document.querySelector("lexxy-editor");
+To use a specific consumer (for example `@anycable/web`), assign it before the
+element initializes:
 
-function startCollaborating() {
-  const collab = document.createElement("lexxy-collaboration");
-  collab.setAttribute("doc-id", documentId);
-  collab.setAttribute("name", currentUserName);
-  collab.setAttribute("channel-name", "DocumentChannel");
-  collab.setAttribute("channel-params", JSON.stringify({ id: documentId }));
-  collab.consumer = createConsumer();
-  editor.appendChild(collab);
-}
-
-if (editor.editor) startCollaborating();
-else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
+```js
+const collab = document.querySelector("lexxy-collaboration");
+collab.consumer = createCable(); // or createConsumer() from @rails/actioncable
 ```
 
 #### Host-managed
