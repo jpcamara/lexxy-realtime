@@ -1,0 +1,13 @@
+<h1><%= @post.title %></h1>
+
+<p>
+  Open this page in a second browser to edit together. The document is saved
+  back to <code>@post.body</code> (regular Action Text) a few seconds after
+  each change.
+</p>
+
+<%= form_with model: @post do |form| %>
+  <%= collaborative_rich_text_area form, :body %>
+<% end %>
+
+<p><%= link_to "View saved post", post_path(@post) %></p>

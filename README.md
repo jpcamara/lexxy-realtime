@@ -11,21 +11,94 @@ Each side sees the other's cursor and selection:
 
 ![Two browsers side by side, each showing the other's selection and caret live](docs/images/presence.gif)
 
-## How it fits together
+## Rails
+
+The whole setup is one gem, one generator, three lines. The npm package and the
+Rails gem ship from this repo under the same name.
+
+```bash
+# Gemfile
+gem "lexxy-realtime"
+```
+```bash
+bin/rails generate lexxy_realtime:install
+bin/rails db:migrate
+npm install lexxy-realtime   # or yarn/bun/pnpm
+```
+```ruby
+class Post < ApplicationRecord
+  has_collaborative_rich_text :body
+end
+```
+```erb
+<%= collaborative_rich_text_area form, :body %>
+```
+```js
+// app/javascript/application.js
+import "lexxy-realtime"
+```
+
+Open the page in two browsers and edit together. A working app doing exactly
+this lives in [`demo/`](demo/).
+
+### What the generator created, and why
+
+**A migration and two models** — `yrby_document_updates` is an append-only log
+of CRDT deltas, one row per recorded edit, scoped by `document_key`.
+`YrbyDocumentStore` reads and writes it: `load` merges a document's rows,
+`append` adds one, and every 500 rows a document's log is compacted into a
+single snapshot row so loads stay fast. This log is the collaboration
+transport's source of truth while people edit; your Action Text table remains
+the artifact everything else reads (next section).
+
+**A channel** — `DocumentChannel` speaks the Yjs sync protocol over Action
+Cable (or AnyCable), backed by the store: every edit is recorded durably
+before it's acknowledged or relayed, so replaying the log always rebuilds the
+document. Clients join with a signed GlobalID minted by the form helper —
+they never name documents directly, and a signed id from another feature
+can't be replayed here. Tighten access further in `authorized?`.
+
+### How it stays in sync with Action Text
+
+`has_collaborative_rich_text :body` is a regular `has_rich_text` attribute
+underneath. A few seconds after each change (`LexxyRealtime.materialize_after`),
+a job renders the collaborative document to HTML **on the server** — yrby's
+`Y::Lexxy` produces byte-identical markup to the editor's own serializer, no
+Node anywhere — and saves it through the normal Action Text writer. So
+`post.body` always reflects the collaborative state, and everything downstream
+(rendering, search, mailers) is plain Action Text.
+
+One current caveat: the collaborative document is the source of truth once
+editing starts. A record with a pre-existing Action Text body starts its
+collaborative document empty rather than seeded from that body (server-side
+seeding needs write support yrby doesn't have yet), so collaboration fits
+records edited collaboratively from the start.
+
+### Who shows up on cursors
+
+The helper resolves the collaborator's name from `current_user` (name,
+username, handle, or email — first present wins) and derives a stable cursor
+color from it. Customize either globally or per render:
+
+```ruby
+LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil } }
+```
+```erb
+<%= collaborative_rich_text_area form, :body, name: "Reviewer", color: "#0ea5e9" %>
+```
+
+Identity is presence metadata: it labels cursors for other collaborators.
+Document access is what the signed GlobalID and `authorized?` gate.
+
+## Beyond Rails: how it fits together
 
 `<lexxy-collaboration>` works with any Yjs provider (`y-websocket`, Hocuspocus,
-y-webrtc, ...). There are two setup paths:
-
-- **Default yrby path:** leave the provider unset and give the element an Action
-  Cable or AnyCable consumer. It builds the `Y.Doc` and
-  [`YrbyProvider`](https://github.com/jpcamara/yrby) from the consumer and the
-  element's attributes. The yrby client is bundled.
-- **Bring your own provider:** create a `Y.Doc` and provider, then assign both to
-  the element. The provider can use any backend that satisfies its requirements;
-  yrby is not involved in this path.
-
-lexxy-realtime is tested extensively against the yrby stack. Other providers
-plug into the small contract documented below.
+y-webrtc, ...). The Rails path above is the element's default wiring: it builds
+a shared Action Cable consumer, a `Y.Doc`, and a
+[`YrbyProvider`](https://github.com/jpcamara/yrby) from its attributes. You can
+also hand it your own consumer, or a `Y.Doc` and provider for any backend —
+yrby isn't involved in that path. lexxy-realtime is tested extensively against
+the yrby stack; other providers plug into the small contract documented below.
 
 ## Requirements
 
@@ -212,7 +285,11 @@ provider.hasPending;       // unacknowledged local edits in flight?
 It owns presence — it creates its own `Awareness`. Read `provider.awareness` if
 you need it (e.g. to show who's here); don't pass one in.
 
-## Persisting to ActionText
+## Persisting to ActionText (manual)
+
+The Rails gem does this for you (see
+[How it stays in sync with Action Text](#how-it-stays-in-sync-with-action-text));
+this section is the underlying pattern for apps wiring yrby directly.
 
 The collaborative document lives in your durable store as CRDT updates.
 When the rest of your app needs it as rich text — display, search, mailers
