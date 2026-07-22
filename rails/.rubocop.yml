@@ -16,6 +16,11 @@ AllCops:
     # ERB migration template; not parseable as plain Ruby.
     - "lib/generators/lexxy_realtime/install/templates/create_yrby_document_updates.rb"
 
+# The conventional dashed-gem-name require shim.
+Naming/FileName:
+  Exclude:
+    - "lib/lexxy-realtime.rb"
+
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 
