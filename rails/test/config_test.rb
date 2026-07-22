@@ -49,6 +49,18 @@ class ConfigTest < Minitest::Test
     assert_equal "Anonymous", LexxyRealtime.resolve_identity(no_user)[:name]
   end
 
+  def test_blank_rendered_html_detects_content_beyond_text
+    assert LexxyRealtime.blank_rendered_html?("")
+    assert LexxyRealtime.blank_rendered_html?("<p></p>")
+    assert LexxyRealtime.blank_rendered_html?("<p>&nbsp; \n</p>")
+    refute LexxyRealtime.blank_rendered_html?("<p>hi</p>")
+    refute LexxyRealtime.blank_rendered_html?(
+      '<action-text-attachment sgid="x"></action-text-attachment>'
+    ), "an attachment-only document is content"
+    refute LexxyRealtime.blank_rendered_html?("<hr>"), "a rule-only document is content"
+    refute LexxyRealtime.blank_rendered_html?('<figure><img src="a.png"></figure>')
+  end
+
   def test_identity_is_overridable
     LexxyRealtime.identity = ->(_view) { { name: "override", color: "#123456" } }
 
