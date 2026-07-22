@@ -29,16 +29,14 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match "LexxyRealtime.store.append", channel
       assert_match "def authorized?", channel
     end
-    assert_file "app/models/yrby_document_store.rb" do |store|
-      assert_match "compacted_state_update", store
-      assert_match "doc.pending?", store, "compaction must skip a document holding an open gap"
-    end
-    assert_file "app/models/yrby_document_update.rb"
+    assert_no_file "app/models/yrby_document_store.rb"
+    assert_no_file "app/models/yrby_document_update.rb"
     assert_file "app/channels/application_cable/channel.rb"
     assert_file "app/channels/application_cable/connection.rb"
-    assert_migration "db/migrate/create_yrby_document_updates.rb" do |migration|
+    assert_migration "db/migrate/create_lexxy_realtime_updates.rb" do |migration|
       assert_match "t.binary :payload", migration
       assert_match "document_key", migration
+      assert_match ":lexxy_realtime_updates", migration
     end
   end
 

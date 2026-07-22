@@ -5,7 +5,7 @@ require "test_helper"
 class ConfigTest < Minitest::Test
   def teardown
     LexxyRealtime.channel_name = nil
-    LexxyRealtime.store_name = "TestStore"
+    LexxyRealtime.store_name = nil
     LexxyRealtime.identity = nil
     LexxyRealtime.materialize_after = nil
   end
@@ -24,7 +24,10 @@ class ConfigTest < Minitest::Test
     assert_equal :lexxy_realtime, LexxyRealtime.sgid_purpose
   end
 
-  def test_store_resolves_by_name_without_staleness
+  def test_store_defaults_to_the_engine_model_and_is_swappable
+    LexxyRealtime.store_name = nil
+
+    assert_equal LexxyRealtime::Update, LexxyRealtime.store
     LexxyRealtime.store_name = "TestStore"
 
     assert_equal TestStore, LexxyRealtime.store

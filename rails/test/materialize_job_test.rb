@@ -6,13 +6,13 @@ require_relative "../app/jobs/lexxy_realtime/materialize_job"
 
 class MaterializeJobTest < Minitest::Test
   def setup
-    TestStore.reset!
-    LexxyRealtime.store_name = "TestStore"
+    LexxyRealtime::Update.delete_all
+    LexxyRealtime.store_name = nil
     @post = Post.create!(title: "Doc")
   end
 
   def test_perform_materializes_the_field
-    TestStore.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
 
     LexxyRealtime::MaterializeJob.perform_now(@post, "body")
 
