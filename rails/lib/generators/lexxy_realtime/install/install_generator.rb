@@ -16,6 +16,15 @@ module LexxyRealtime
 
       source_root File.expand_path("templates", __dir__)
 
+      def create_application_cable
+        # Apps generated with certain rails-new skips have no Action Cable
+        # boilerplate; the channel below inherits from it.
+        return if File.exist?(File.join(destination_root, "app/channels/application_cable/channel.rb"))
+
+        template "application_cable_connection.rb", "app/channels/application_cable/connection.rb"
+        template "application_cable_channel.rb", "app/channels/application_cable/channel.rb"
+      end
+
       def create_channel
         template "document_channel.rb", "app/channels/document_channel.rb"
       end
@@ -55,7 +64,7 @@ module LexxyRealtime
                    has_collaborative_rich_text :body
                  end
 
-                 <%%= collaborative_rich_text_area form, :body %%>
+                 <%= collaborative_rich_text_area form, :body %>
 
             4. Optional: tighten `authorized?` in
                app/channels/document_channel.rb, and set who shows up on

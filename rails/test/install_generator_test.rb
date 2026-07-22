@@ -34,6 +34,8 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match "doc.pending?", store, "compaction must skip a document holding an open gap"
     end
     assert_file "app/models/yrby_document_update.rb"
+    assert_file "app/channels/application_cable/channel.rb"
+    assert_file "app/channels/application_cable/connection.rb"
     assert_migration "db/migrate/create_yrby_document_updates.rb" do |migration|
       assert_match "t.binary :payload", migration
       assert_match "document_key", migration
