@@ -68,11 +68,14 @@ Node anywhere — and saves it through the normal Action Text writer. So
 `post.body` always reflects the collaborative state, and everything downstream
 (rendering, search, mailers) is plain Action Text.
 
-One current caveat: the collaborative document is the source of truth once
-editing starts. A record with a pre-existing Action Text body starts its
-collaborative document empty rather than seeded from that body (server-side
-seeding needs write support yrby doesn't have yet), so collaboration fits
-records edited collaboratively from the start.
+One current caveat, stated plainly: there is no seeding of pre-existing
+content yet. Use collaboration for records that are collaborative from the
+start (as the demo does). Rendering the editor for a record that already has
+an Action Text body starts the collaborative document empty — the editor
+shows nothing, submitting that form would overwrite the stored body, and
+while the materializer refuses to replace present content with an empty
+render, that same guard means an intentional delete-everything doesn't reach
+the stored body either. Server-side seeding is the tracked fix.
 
 ### Who shows up on cursors
 
