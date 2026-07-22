@@ -5,6 +5,7 @@ require "active_record"
 require "active_job"
 require "global_id"
 require "y"
+require "y/action_cable"
 require "lexxy_realtime"
 require_relative "../app/models/lexxy_realtime/update"
 

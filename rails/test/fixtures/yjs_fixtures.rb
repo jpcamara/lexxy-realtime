@@ -12,11 +12,4 @@ module YjsFixtures
     DOC1_UPDATE = YjsFixtures.b64("AQEBAAQBB2NvbnRlbnQJZnJvbSBkb2MxAA==")
     DOC2_UPDATE = YjsFixtures.b64("AQECAAQBB2NvbnRlbnQJZnJvbSBkb2MyAA==")
   end
-
-  # A causal gap as two deltas: FIRST inserts "a" (client 1); DEPENDENT
-  # inserts "b" after it. Applied without FIRST, DEPENDENT parks as pending.
-  module Gap
-    FIRST = YjsFixtures.b64("AQEBAAQBB25vdGVwYWQBYQA=")
-    DEPENDENT = YjsFixtures.b64("AQEBAYQBAAFiAA==")
-  end
 end
