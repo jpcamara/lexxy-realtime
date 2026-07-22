@@ -71,6 +71,14 @@ Node anywhere — and saves it through the normal Action Text writer. So
 `post.body` always reflects the collaborative state, and everything downstream
 (rendering, search, mailers) is plain Action Text.
 
+Materialization runs through Active Job, and it is scheduled at edit time:
+every recorded change enqueues the (idempotent, per-record-serialized) job with
+a short delay, so a closed browser, a killed tab, or a dropped connection
+changes nothing — the last edit's job is already queued. Nothing depends on a
+session ending cleanly. In development Active Job's built-in async adapter runs
+it with zero setup; a stock Rails 8 app runs it on Solid Queue in production,
+also with zero setup. Any Active Job backend works.
+
 One current caveat, stated plainly: there is no seeding of pre-existing
 content yet. Use collaboration for records that are collaborative from the
 start (as the demo does). Rendering the editor for a record that already has
