@@ -46,7 +46,7 @@ this lives in [`demo/`](demo/).
 **A migration** — for `lexxy_realtime_updates`, an append-only log of CRDT
 deltas, one row per recorded edit, scoped by `document_key`. The model that
 owns it, `LexxyRealtime::Update`, ships in the gem (the way
-`ActionText::RichText` does) and runs yrby's `Y::ActionCable::UpdateLog`:
+`ActionText::RichText` does) and runs yrby's `Y::UpdateLog`:
 `load` merges a document's rows, `append` adds one, and every 500 rows
 (`compact_every`) a document's log is compacted into a single snapshot row so
 loads stay fast. This log is the collaboration
