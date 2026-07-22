@@ -1,0 +1,42 @@
+inherit_mode:
+  merge:
+    - Exclude
+
+plugins:
+  - rubocop-minitest
+  - rubocop-rake
+
+AllCops:
+  TargetRubyVersion: 3.2
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - "tmp/**/*"
+    - "vendor/**/*"
+    # ERB migration template; not parseable as plain Ruby.
+    - "lib/generators/lexxy_realtime/install/templates/create_yrby_document_updates.rb"
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/Documentation:
+  Enabled: false
+
+Metrics/MethodLength:
+  Max: 30
+
+Metrics/AbcSize:
+  Max: 30
+
+Metrics/BlockLength:
+  Exclude:
+    - "test/**/*"
+    - "*.gemspec"
+
+Minitest/MultipleAssertions:
+  Enabled: false
+
+# materialize_collaborative_rich_text! is an action that reports whether there
+# was anything to materialize; it is not a predicate.
+Naming/PredicateMethod:
+  Enabled: false
