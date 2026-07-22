@@ -3,8 +3,10 @@
 // create the provider, set it on <lexxy-collaboration>, append, then connect().
 //
 // Reads `room`, `name`, `color` from the query string so two agent-browser
-// sessions can join the same document as different users. Exposes window.__test
-// for assertions.
+// sessions can join the same document as different users. `mode=zero` skips
+// all host wiring — attributes only, no consumer/doc/provider assignment —
+// exercising the element's self-initializing path (auto-created shared
+// consumer). Exposes window.__test for assertions.
 import "@37signals/lexxy";
 import { YrbyProvider } from "../../src/index.js"; // also registers <lexxy-collaboration>
 import * as Y from "yjs";
@@ -14,43 +16,37 @@ const params = new URLSearchParams(location.search);
 const room = params.get("room") || "browser-demo";
 const name = params.get("name") || "User";
 const color = params.get("color") || "#3b82f6";
+const zeroConfig = params.get("mode") === "zero";
 
-const consumer = createConsumer(`ws://${location.host}/cable`);
 const editor = document.getElementById("editor");
 
-function start() {
-  const doc = new Y.Doc();
-  const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: room });
-  const awareness = provider.awareness; // the provider owns awareness; read it back
-
+function buildCollaborationElement() {
   const collab = document.createElement("lexxy-collaboration");
   collab.setAttribute("doc-id", room);
   collab.setAttribute("name", name);
   collab.setAttribute("color", color);
   collab.setAttribute("channel-name", "DocumentChannel");
   collab.setAttribute("channel-params", JSON.stringify({ id: room }));
-  collab.consumer = consumer;
-  collab.doc = doc;
-  collab.provider = provider;
+  return collab;
+}
 
-  editor.appendChild(collab);
-  provider.connect();
-
-  // Test hooks.
+function installTestHooks(collab) {
+  // Zero-config never holds doc/provider — read them back off the element,
+  // lazily, since the element assigns them during its own init.
   window.__test = {
-    doc,
-    provider,
-    awareness,
+    get doc() { return collab.doc; },
+    get provider() { return collab.provider; },
+    get awareness() { return collab.awareness; },
     room,
     // What the user actually sees: the editor's contenteditable text.
     text: () => {
       const ce = editor.querySelector('[contenteditable="true"]') || editor.querySelector("[contenteditable]");
       return ce ? ce.innerText : "";
     },
-    synced: () => provider.synced,
+    synced: () => !!collab.provider?.synced,
     peers: () =>
       // @lexical/yjs stores presence identity at the top level (s.name), not s.user.
-      [...awareness.getStates().values()].map((s) => s.name).filter(Boolean),
+      [...(collab.awareness?.getStates().values() ?? [])].map((s) => s.name).filter(Boolean),
     // Inspect the remote-cursor overlay @lexical/yjs renders: the names of peers
     // with a visible caret, and the widest selection rect (a caret is ~0px wide;
     // a real range selection is wider).
@@ -69,6 +65,27 @@ function start() {
     },
   };
   document.body.dataset.collabReady = "true";
+}
+
+function start() {
+  const collab = buildCollaborationElement();
+
+  if (!zeroConfig) {
+    const consumer = createConsumer(`ws://${location.host}/cable`);
+    const doc = new Y.Doc();
+    const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: room });
+    collab.consumer = consumer;
+    collab.doc = doc;
+    collab.provider = provider;
+    editor.appendChild(collab);
+    provider.connect();
+  } else {
+    // The element creates its own shared consumer (action-cable-url meta or
+    // /cable) and its own doc + provider, and connects itself.
+    editor.appendChild(collab);
+  }
+
+  installTestHooks(collab);
 }
 
 // Lexxy initializes <lexxy-editor> on its own connectedCallback; wait for it.
