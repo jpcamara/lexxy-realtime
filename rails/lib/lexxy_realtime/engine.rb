@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
-# Lexxy is a dependency of this gem, not of the app's Gemfile, so Bundler
-# doesn't auto-require it; load it (editor helpers, assets, its engine) with
-# ours. Required here rather than in lexxy_realtime.rb because Lexxy's engine
-# assumes Rails is loaded.
+# These are dependencies of this gem, not of the app's Gemfile, so Bundler
+# doesn't auto-require them. lexxy brings the editor helpers/assets;
+# y/action_cable brings Y::ActionCable::Sync and the Y::Doc/Y::Lexxy runtime
+# the generated channel and the materializer use. Required here rather than in
+# lexxy_realtime.rb because Lexxy's engine assumes Rails is loaded.
 require "lexxy"
+require "y"
+require "y/action_cable"
 
 module LexxyRealtime
   class Engine < ::Rails::Engine
