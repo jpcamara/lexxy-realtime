@@ -9,7 +9,7 @@
 # materialization: the collaborative document is rendered to HTML on the server
 # and saved as the record's Action Text body.
 class DocumentChannel < ApplicationCable::Channel
-  include Y::ActionCable::Sync
+  include Y::ActionCable
 
   on_load { |key| LexxyRealtime.store.load(key) }
   on_change do |key, update|
