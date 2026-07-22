@@ -4,7 +4,7 @@ require "test_helper"
 require_relative "fixtures/yjs_fixtures"
 
 # The log behavior (compaction, the pending-gap guard, scoping) is yrby's
-# Y::ActionCable::UpdateLog and is tested there; these pin the binding —
+# Y::UpdateLog and is tested there; these pin the binding —
 # the module is included, wired to the right table, and works end to end.
 class UpdateTest < Minitest::Test
   def setup
@@ -13,7 +13,7 @@ class UpdateTest < Minitest::Test
   end
 
   def test_runs_yrbys_update_log
-    assert_includes LexxyRealtime::Update.included_modules, Y::ActionCable::UpdateLog
+    assert_includes LexxyRealtime::Update.included_modules, Y::UpdateLog
     assert_equal "lexxy_realtime_updates", LexxyRealtime::Update.table_name
   end
 
