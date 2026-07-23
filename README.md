@@ -83,14 +83,14 @@ queued. Nothing depends on a session ending cleanly. In development Active Job's
 it with zero setup; a stock Rails 8 app runs it on Solid Queue in production,
 also with zero setup. Any Active Job backend works.
 
-One current caveat, stated plainly: there is no seeding of pre-existing
-content yet. Use collaboration for records that are collaborative from the
-start (as the demo does). Rendering the editor for a record that already has
-an Action Text body starts the collaborative document empty — the editor
-shows nothing, submitting that form would overwrite the stored body, and
-while the materializer refuses to replace present content with an empty
-render, that same guard means an intentional delete-everything doesn't reach
-the stored body either. Server-side seeding is the tracked fix.
+Records with an existing Action Text body work: on the first collaborative
+open of a document, the element seeds it from the editor's server-rendered
+value, so the stored content becomes the collaborative document (and an
+intentional delete-everything materializes back as empty, like any other
+edit). The one edge: two clients opening a never-collaborated document at the
+same instant can both seed it, duplicating the initial content — the same
+first-writer race as Lexical's own CollaborationPlugin bootstrap, confined to
+a document's first-ever open.
 
 ### Who shows up on cursors
 
