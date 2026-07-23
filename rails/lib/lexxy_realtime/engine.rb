@@ -17,6 +17,14 @@ module LexxyRealtime
         include LexxyRealtime::Collaborative
       end
     end
+
+    # form.collaborative_rich_textarea — the same wiring Lexxy uses for its
+    # own form builder method.
+    initializer "lexxy_realtime.form_builder" do |app|
+      app.config.to_prepare do
+        ActionView::Helpers::FormBuilder.prepend(LexxyRealtime::FormBuilder)
+      end
+    end
     # app/helpers and app/jobs load through the engine's autoload paths;
     # helpers are included into the host app's views automatically.
   end

@@ -2,6 +2,7 @@
 
 require "lexxy_realtime/version"
 require "lexxy_realtime/collaborative"
+require "lexxy_realtime/form_builder"
 require "lexxy_realtime/engine" if defined?(Rails::Engine)
 
 # Rails integration for collaborative Lexxy editing over yrby.
