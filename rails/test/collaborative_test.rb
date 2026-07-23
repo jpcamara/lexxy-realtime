@@ -9,6 +9,33 @@ class CollaborativeTest < Minitest::Test
     @post = Post.create!(title: "Doc")
   end
 
+  def test_models_without_the_macro_get_no_instance_api
+    bare = Class.new(ActiveRecord::Base) do
+      self.table_name = "posts"
+      include LexxyRealtime::Collaborative
+    end
+
+    assert_respond_to bare, :has_collaborative_rich_text, "the macro is available"
+    refute bare.method_defined?(:collaborative_document_key), "instance API arrives only with a declaration"
+    refute bare.method_defined?(:materialize_collaborative_rich_text!)
+  end
+
+  def test_generated_reader_lives_in_a_named_module
+    assert Post.const_defined?(:CollaborativeRichTextMethods)
+    assert_includes Post.ancestors.map(&:name), "Post::CollaborativeRichTextMethods"
+  end
+
+  def test_encrypted_option_is_rejected
+    klass = Class.new(ActiveRecord::Base) do
+      self.table_name = "posts"
+      include LexxyRealtime::Collaborative
+
+      def self.has_rich_text(name, **); end
+    end
+
+    assert_raises(ArgumentError) { klass.has_collaborative_rich_text(:body, encrypted: true) }
+  end
+
   def test_macro_registers_the_attribute
     assert_equal [:body], Post.collaborative_rich_text_names
     assert @post.collaborative_rich_text?(:body)

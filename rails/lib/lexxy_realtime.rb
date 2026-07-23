@@ -3,7 +3,7 @@
 require "lexxy_realtime/version"
 require "lexxy_realtime/collaborative"
 require "lexxy_realtime/form_builder"
-require "lexxy_realtime/engine" if defined?(Rails::Engine)
+require "lexxy_realtime/engine"
 
 # Collaborative Lexxy editing for Rails: a model macro, a form helper, an
 # install generator, and server-side materialization back into Action Text,
@@ -37,9 +37,16 @@ module LexxyRealtime
     def identity
       @identity ||= lambda do |view|
         user = view.respond_to?(:current_user) ? view.current_user : nil
-        name = user && %i[name username handle email_address email].lazy.filter_map { |a| user.try(a).presence }.first
+        # Deliberately no email fallback: an email is a poor thing to print on
+        # a cursor label. Set LexxyRealtime.identity to choose.
+        name = user && %i[name username handle].lazy.filter_map { |a| user.try(a).presence }.first
         { name: name || "Anonymous", color: nil }
       end
+    end
+
+    # A stable, readable cursor color per collaborator name.
+    def collaborator_color(name)
+      "hsl(#{name.to_s.each_byte.reduce(0) { |acc, b| ((acc * 31) + b) % 360 }}, 70%, 45%)"
     end
   end
 end

@@ -9,6 +9,7 @@ Example:
 
     This will create:
         app/channels/document_channel.rb
+        app/channels/application_cable/{connection,channel}.rb  (if missing)
         db/migrate/XXXXXXXX_create_lexxy_realtime_updates.rb
     and append `import "lexxy-realtime"` to app/javascript/application.js.
     The update-log model (LexxyRealtime::Update) ships in the gem.
