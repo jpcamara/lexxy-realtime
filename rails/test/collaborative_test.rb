@@ -78,6 +78,20 @@ class CollaborativeTest < Minitest::Test
     assert_operator @post.reload.updated_at, :>=, first_at, "the newer log row triggered a refresh"
   end
 
+  def test_reading_under_write_contention_serves_the_current_value
+    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    @post.body # materialize once so a stale-but-present value exists
+    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+
+    # The lock is busy (peers typing): the read must not raise, and must
+    # return the last materialized value instead of failing the page.
+    @post.define_singleton_method(:materialize_collaborative_rich_text!) do |_name|
+      raise ActiveRecord::LockWaitTimeout
+    end
+
+    assert_equal lexxy_full_html, @post.body
+  end
+
   def test_reading_with_no_document_reads_the_column_untouched
     @post.update!(body: "<p>manual</p>")
     before = @post.reload.updated_at
