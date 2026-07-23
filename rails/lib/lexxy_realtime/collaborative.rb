@@ -30,7 +30,7 @@ module LexxyRealtime
         # still runs, so most reads find the value already fresh and skip this.
         staleness_check = Module.new do
           define_method(name) do
-            materialize_collaborative_rich_text_if_stale!(name) unless @materializing_collaborative_rich_text
+            materialize_collaborative_rich_text_if_stale!(name)
             super()
           end
         end
@@ -66,11 +66,6 @@ module LexxyRealtime
         raise ArgumentError, "#{name.inspect} is not a collaborative rich text on #{self.class.name}"
       end
 
-      # The blank-render guard below reads the attribute, whose reader triggers
-      # the staleness check — flag the window so materialization never recurses
-      # into itself. (Per record, not per name: materializing one attribute
-      # skips another's check for the duration, a harmless simplification.)
-      @materializing_collaborative_rich_text = true
       with_lock do
         state = LexxyRealtime.store.load(collaborative_document_key(name))
         break false if state.nil?
@@ -80,19 +75,10 @@ module LexxyRealtime
         html = Y::Lexxy.new(doc).to_html
         break false if html.nil?
 
-        # A record can carry a pre-existing Action Text body from before
-        # collaboration, and the collaborative document starts empty (there is
-        # no server-side seeding yet — the doc is read-only from Ruby). Never
-        # replace present content with a render that contains none: the empty
-        # bootstrap of a just-opened editor must not destroy the stored body.
-        break false if blank_rendered_html?(html) && public_send(name).present?
-
         public_send("#{name}=", html)
         save!
         true
       end
-    ensure
-      @materializing_collaborative_rich_text = false
     end
 
     # Materialize only when the update log is newer than the materialized
@@ -126,10 +112,6 @@ module LexxyRealtime
       else
         updated_at
       end
-    end
-
-    def blank_rendered_html?(html)
-      LexxyRealtime.blank_rendered_html?(html)
     end
   end
 end

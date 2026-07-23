@@ -12,14 +12,9 @@ module LexxyRealtime
     # The collaborator's name/color come from LexxyRealtime.identity (which
     # defaults to current_user); pass name:/color: to override per render.
     #
-    # Use this for records that are collaborative from the start. There is no
-    # server-side seeding yet (the collaborative doc is read-only from Ruby),
-    # so rendering it for a record with a PRE-EXISTING Action Text body starts
-    # the collaborative document empty: the editor shows nothing, a form
-    # submit would overwrite the stored body, and the materializer's
-    # blank-render guard keeps the stored body but cannot then reflect a
-    # later intentional clear-all. Seeding existing bodies is tracked as
-    # follow-up work.
+    # A record with an existing body works: the element seeds a brand-new
+    # collaborative document from the editor's server-rendered value on first
+    # open (see the JS package), so the stored content becomes the document.
     def collaborative_rich_text_area(form, method, name: nil, color: nil, **options)
       record = form.object
       unless record.respond_to?(:collaborative_rich_text?) && record.collaborative_rich_text?(method)
