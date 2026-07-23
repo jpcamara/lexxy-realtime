@@ -13,12 +13,15 @@ class DocumentChannel < ApplicationCable::Channel
 
   on_load { |key| LexxyRealtime.store.load(key) }
   on_change do |key, update|
-    LexxyRealtime.store.append(key, update)
-    # perform_later returns false when the adapter refuses the job; raising
-    # rejects the update (no ack), so the client retransmits and the enqueue
-    # is retried rather than leaving Action Text stale after the last edit.
+    # Enqueue BEFORE recording. A failed enqueue (perform_later returns false)
+    # raises with nothing recorded, so the client's retransmit retries both —
+    # recorded-then-failed-to-enqueue would never retry, because a retransmit
+    # of an already-recorded update deliberately skips on_change. The reverse
+    # partial failure (enqueued, then append raises) just schedules a harmless
+    # extra render: the job is idempotent and debounced.
     LexxyRealtime::MaterializeJob.set(wait: LexxyRealtime.materialize_after)
                                  .perform_later(record, field) || raise("materialize enqueue failed")
+    LexxyRealtime.store.append(key, update)
   end
 
   def subscribed
