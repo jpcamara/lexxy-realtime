@@ -60,12 +60,12 @@ class HelperTest < Minitest::Test
 
     assert_equal @post.collaborative_document_key(:body), attrs["doc-id"]
     assert_equal "Ada", attrs["name"]
-    assert_equal LexxyRealtime.channel_name, attrs["channel-name"]
+    assert_equal LexxyRealtime::CHANNEL_NAME, attrs["channel-name"]
 
     params = JSON.parse(attrs["channel-params"])
 
     assert_equal "body", params["field"]
-    located = GlobalID::Locator.locate_signed(params["sgid"], for: LexxyRealtime.sgid_purpose)
+    located = GlobalID::Locator.locate_signed(params["sgid"], for: LexxyRealtime::SGID_PURPOSE)
 
     assert_equal @post, located, "the signed GlobalID round-trips to the record"
   end
