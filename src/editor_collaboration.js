@@ -96,6 +96,13 @@ export class Collaboration extends HTMLElement {
     const docMap = new Map();
     docMap.set(id, doc);
 
+    // Capture what Lexxy loaded before aligning the editor with the collab
+    // tree — the server-rendered field value (an existing Action Text body).
+    // If the document turns out to be brand-new at first sync, this state
+    // seeds it (see bootstrapWhenSynced), so pre-existing content becomes the
+    // collaborative document instead of being lost to an empty bootstrap.
+    const initialEditorState = this.editor.getEditorState();
+
     // Start the editor empty so Lexical and the Yjs collab tree align at bind
     // time. Lexxy otherwise seeds a paragraph that the binding never captures,
     // and @lexical/yjs >= 0.44 then silently refuses to sync edits. New docs are
@@ -108,7 +115,7 @@ export class Collaboration extends HTMLElement {
     );
     patchCollabElementSplice(binding);
     const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
-    const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding);
+    const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
 
     // Remote cursors/selections are rendered by @lexical/yjs (syncCursorPositions)
     // into a positioned overlay it manages via `binding.cursorsContainer`.
@@ -294,21 +301,48 @@ function patchCollabElementSplice(binding) {
   proto.__yrbySplicePatched = true;
 }
 
-// Once the provider reports its first sync, seed a brand-new (empty) document
-// with an initial paragraph -- the equivalent of @lexical/react's
-// CollaborationPlugin bootstrap. Doing it post-sync (not at bind time) means an
-// existing document is loaded by the Yjs->Lexical observer first, so we never
-// push a stray paragraph onto a doc that already has content.
+// True when an editor state holds no user content: no children, or a single
+// childless paragraph (Lexical's resting state). An attachment-only body has a
+// decorator child, so it counts as content.
+function emptyEditorState(state) {
+  return state.read(() => {
+    const root = $getRoot();
+    if (root.getChildrenSize() === 0) return true;
+    const only = root.getChildrenSize() === 1 && root.getFirstChild();
+    return !!only && only.getType() === 'paragraph' && only.getChildrenSize() === 0;
+  });
+}
+
+// Once the provider reports its first sync, seed a brand-new (empty) document:
+// with the editor's captured initial content when there was any (an existing
+// Action Text body becomes the collaborative document), otherwise with a fresh
+// paragraph -- the equivalent of @lexical/react's CollaborationPlugin
+// bootstrap with initialEditorState. Doing it post-sync (not at bind time)
+// means an existing document is loaded by the Yjs->Lexical observer first, so
+// we never push stray content onto a doc that already has some.
+//
+// Two clients joining a still-empty document at the same instant can both
+// seed, duplicating the initial content -- the same first-writer race the
+// official CollaborationPlugin bootstrap has. It is confined to the first-ever
+// collaborative open of a document.
+//
 // Returns a canceller: the poll interval otherwise runs forever if the element
 // is torn down (or the provider never syncs) before the first sync, since `seed`
 // only clears it on success.
-function bootstrapWhenSynced(editor, provider, binding) {
+function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
   let done = false;
   const seed = () => {
     if (done || !provider.synced) return;
     done = true;
     clearInterval(timer);
     if (binding.root.getSharedType().length === 0) {
+      if (initialEditorState && !emptyEditorState(initialEditorState)) {
+        // Restore the captured content. The binding diffs against the cleared
+        // (empty) state, so every restored node registers as new and flows
+        // into the collab tree -- seeding the document.
+        editor.setEditorState(initialEditorState, { tag: HISTORY_MERGE_TAG });
+        return;
+      }
       // New (empty) document. Lexical won't keep the root empty, so the
       // paragraph Lexxy seeded shares the same node key in prev/next and the
       // binding never treats it as "new". Replace it with a fresh-keyed
