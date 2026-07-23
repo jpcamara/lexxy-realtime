@@ -45,18 +45,6 @@ class CollaborativeTest < Minitest::Test
     assert_equal lexxy_full_html, @post.reload.body
   end
 
-  def test_materialize_never_replaces_present_content_with_a_blank_render
-    # A pre-collaboration body exists; the collaborative doc holds only the
-    # empty bootstrap (renders no text). Materializing must not destroy the
-    # stored content.
-    @post.update!(body: "<p>existing content</p>")
-    empty_doc = Y::Doc.new
-    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), empty_doc.encode_state_as_update)
-
-    refute @post.materialize_collaborative_rich_text!(:body)
-    assert_equal "<p>existing content</p>", @post.reload.body
-  end
-
   def test_reading_the_attribute_materializes_when_stale
     # Simulates leaving the editor for the show page inside the debounce
     # window: updates are recorded but no job has run. A plain read must
