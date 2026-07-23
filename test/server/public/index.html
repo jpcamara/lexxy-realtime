@@ -17,7 +17,17 @@
       addEventListener("unhandledrejection", (e) => window.__err.push("unhandledrejection: " + String((e.reason && e.reason.stack) || e.reason)));
     </script>
     <h1>lexxy-realtime · yrby</h1>
-    <lexxy-editor id="editor" name="editor"></lexxy-editor>
+    <script>
+      // Simulates a server-rendered existing Action Text body: Lexxy reads its
+      // initial HTML from the value attribute. Written into the markup before
+      // the editor element is parsed and upgraded.
+      const seedHtml = new URLSearchParams(location.search).get("seedHtml");
+      if (seedHtml) {
+        document.write(`<lexxy-editor id="editor" name="editor" value="${seedHtml.replace(/"/g, "&quot;")}"></lexxy-editor>`);
+      } else {
+        document.write('<lexxy-editor id="editor" name="editor"></lexxy-editor>');
+      }
+    </script>
     <script type="module" src="/app.js"></script>
   </body>
 </html>
