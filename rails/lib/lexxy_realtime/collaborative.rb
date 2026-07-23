@@ -98,6 +98,12 @@ module LexxyRealtime
       return false if materialized_at && materialized_at > latest
 
       materialize_collaborative_rich_text!(name)
+    rescue ActiveRecord::LockWaitTimeout, ActiveRecord::Deadlocked, ActiveRecord::StatementTimeout
+      # Freshness on read is best-effort under write contention: while peers
+      # are actively typing, the per-record lock (or SQLite's single writer)
+      # can be busy. Serve the current value rather than fail the page — the
+      # debounced job converges moments later.
+      false
     end
 
     private
