@@ -30,7 +30,7 @@ module LexxyRealtime
         # still runs, so most reads find the value already fresh and skip this.
         staleness_check = Module.new do
           define_method(name) do
-            materialize_collaborative_rich_text_if_stale!(name)
+            materialize_collaborative_rich_text_if_stale!(name) unless @materializing_collaborative_rich_text
             super()
           end
         end
@@ -66,6 +66,11 @@ module LexxyRealtime
         raise ArgumentError, "#{name.inspect} is not a collaborative rich text on #{self.class.name}"
       end
 
+      # Action Text's attribute WRITER reads the attribute (to get-or-build
+      # the rich text record), and the reader materializes when stale — so an
+      # unguarded materialize would recurse through its own assignment. Flag
+      # the window; the reader wrap checks it.
+      @materializing_collaborative_rich_text = true
       with_lock do
         state = LexxyRealtime.store.load(collaborative_document_key(name))
         break false if state.nil?
@@ -79,6 +84,8 @@ module LexxyRealtime
         save!
         true
       end
+    ensure
+      @materializing_collaborative_rich_text = false
     end
 
     # Materialize only when the update log is newer than the materialized
