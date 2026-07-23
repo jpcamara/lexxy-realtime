@@ -22,6 +22,19 @@ module LexxyRealtime
       def has_collaborative_rich_text(name) # rubocop:disable Naming/PredicatePrefix
         has_rich_text(name) if respond_to?(:has_rich_text)
         self.collaborative_rich_text_names = (collaborative_rich_text_names + [name.to_sym]).freeze
+
+        # Reading the attribute always returns the latest collaborative state:
+        # if the update log is newer than the materialized value, it's rendered
+        # inline before the read returns (read-your-own-writes — leaving the
+        # editor for the show page never shows a stale body). The debounced job
+        # still runs, so most reads find the value already fresh and skip this.
+        staleness_check = Module.new do
+          define_method(name) do
+            materialize_collaborative_rich_text_if_stale!(name) unless @materializing_collaborative_rich_text
+            super()
+          end
+        end
+        prepend staleness_check
       end
     end
 
@@ -53,6 +66,11 @@ module LexxyRealtime
         raise ArgumentError, "#{name.inspect} is not a collaborative rich text on #{self.class.name}"
       end
 
+      # The blank-render guard below reads the attribute, whose reader triggers
+      # the staleness check — flag the window so materialization never recurses
+      # into itself. (Per record, not per name: materializing one attribute
+      # skips another's check for the duration, a harmless simplification.)
+      @materializing_collaborative_rich_text = true
       with_lock do
         state = LexxyRealtime.store.load(collaborative_document_key(name))
         break false if state.nil?
@@ -73,9 +91,42 @@ module LexxyRealtime
         save!
         true
       end
+    ensure
+      @materializing_collaborative_rich_text = false
+    end
+
+    # Materialize only when the update log is newer than the materialized
+    # value. Nil-safe on every edge: unpersisted records, stores without
+    # latest_change_at (custom stores; staleness then rides the job alone),
+    # and documents that were never edited.
+    def materialize_collaborative_rich_text_if_stale!(name)
+      return false unless persisted?
+
+      store = LexxyRealtime.store
+      return false unless store.respond_to?(:latest_change_at)
+
+      latest = store.latest_change_at(collaborative_document_key(name))
+      return false if latest.nil?
+
+      materialized_at = collaborative_rich_text_materialized_at(name)
+      return false if materialized_at && materialized_at > latest
+
+      materialize_collaborative_rich_text!(name)
     end
 
     private
+
+    # When the attribute was last materialized: the rich-text record's own
+    # timestamp under Action Text, falling back to the record's updated_at
+    # (coarser — any save counts as fresh — but only reachable without
+    # Action Text loaded).
+    def collaborative_rich_text_materialized_at(name)
+      if respond_to?("rich_text_#{name}")
+        public_send("rich_text_#{name}")&.updated_at
+      else
+        updated_at
+      end
+    end
 
     def blank_rendered_html?(html)
       LexxyRealtime.blank_rendered_html?(html)
