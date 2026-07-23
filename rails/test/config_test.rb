@@ -10,7 +10,7 @@ class ConfigTest < Minitest::Test
   end
 
   FakeView = Struct.new(:current_user)
-  FakeUser = Struct.new(:name, :email_address) do
+  FakeUser = Struct.new(:name, :username, :email_address) do
     def try(attribute) = respond_to?(attribute) ? public_send(attribute) : nil
   end
 
@@ -32,19 +32,21 @@ class ConfigTest < Minitest::Test
   end
 
   def test_default_identity_reads_current_user
-    view = FakeView.new(FakeUser.new("Ada", "ada@example.com"))
+    view = FakeView.new(FakeUser.new("Ada", nil, "ada@example.com"))
 
     assert_equal({ name: "Ada", color: nil }, LexxyRealtime.identity.call(view))
   end
 
-  def test_default_identity_falls_back_through_attributes_then_anonymous
-    view = FakeView.new(FakeUser.new(nil, "ada@example.com"))
+  def test_default_identity_never_exposes_an_email_on_a_cursor
+    view = FakeView.new(FakeUser.new(nil, "ada42", "ada@example.com"))
 
-    assert_equal "ada@example.com", LexxyRealtime.identity.call(view)[:name]
+    assert_equal "ada42", LexxyRealtime.identity.call(view)[:name], "name-ish attributes are used"
 
-    no_user = Object.new # no current_user at all
+    email_only = FakeView.new(FakeUser.new(nil, nil, "ada@example.com"))
 
-    assert_equal "Anonymous", LexxyRealtime.identity.call(no_user)[:name]
+    assert_equal "Anonymous", LexxyRealtime.identity.call(email_only)[:name],
+                 "an email is a poor cursor label; Anonymous instead"
+    assert_equal "Anonymous", LexxyRealtime.identity.call(Object.new)[:name]
   end
 
   def test_identity_is_overridable

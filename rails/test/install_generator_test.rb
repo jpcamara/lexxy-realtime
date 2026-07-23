@@ -40,12 +40,13 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     end
   end
 
-  def test_appends_the_javascript_import
+  def test_appends_the_javascript_import_idempotently
     with_js_entrypoint
     run_generator
+    run_generator # a second run must not duplicate the import
 
     assert_file "app/javascript/application.js" do |entry|
-      assert_match 'import "lexxy-realtime"', entry
+      assert_equal 1, entry.scan('import "lexxy-realtime"').length
     end
   end
 

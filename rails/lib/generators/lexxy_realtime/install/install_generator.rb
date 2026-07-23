@@ -33,10 +33,11 @@ module LexxyRealtime
       end
 
       def add_javascript_import
-        if Pathname(destination_root).join("app/javascript/application.js").exist?
-          append_to_file "app/javascript/application.js", %(import "lexxy-realtime"\n)
-        else
+        entrypoint = Pathname(destination_root).join("app/javascript/application.js")
+        if !entrypoint.exist?
           say 'Add `import "lexxy-realtime"` to your JavaScript entrypoint (app/javascript/application.js not found).'
+        elsif !entrypoint.read.include?('import "lexxy-realtime"') # idempotent on re-run
+          append_to_file "app/javascript/application.js", %(import "lexxy-realtime"\n)
         end
       end
 
@@ -46,7 +47,7 @@ module LexxyRealtime
           lexxy-realtime is wired up:
 
             1. bin/rails db:migrate
-            2. npm install lexxy-realtime
+            2. Install the lexxy-realtime npm package (npm/yarn/bun/pnpm)
             3. Declare `has_collaborative_rich_text :body` on a model and
                render it with `<%= form.collaborative_rich_textarea :body %>`.
 

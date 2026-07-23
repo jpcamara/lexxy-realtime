@@ -41,6 +41,10 @@ class Post < ActiveRecord::Base
   include GlobalID::Identification
   include LexxyRealtime::Collaborative
 
+  # Action Text isn't booted here (the engine-boot test covers that); the
+  # macro calls has_rich_text unconditionally, so give it the same shape.
+  def self.has_rich_text(name, **); end
+
   has_collaborative_rich_text :body
 
   # Fidelity with Action Text: its attribute writer READS the attribute (to

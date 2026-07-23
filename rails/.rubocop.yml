@@ -46,6 +46,15 @@ Metrics/BlockLength:
 Minitest/MultipleAssertions:
   Enabled: false
 
+Metrics/ClassLength:
+  Exclude:
+    - "test/**/*"
+
+# Test doubles mirroring Action Text's has_rich_text must keep its name.
+Naming/PredicatePrefix:
+  Exclude:
+    - "test/**/*"
+
 # materialize_collaborative_rich_text! is an action that reports whether there
 # was anything to materialize; it is not a predicate.
 Naming/PredicateMethod:
