@@ -1634,6 +1634,7 @@ var Collaboration = class extends HTMLElement {
 		const awareness = provider.awareness;
 		const docMap = /* @__PURE__ */ new Map();
 		docMap.set(id, doc);
+		const initialEditorState = this.editor.getEditorState();
 		this.editor.update(() => $getRoot().clear(), {
 			tag: HISTORY_MERGE_TAG,
 			discrete: true
@@ -1641,7 +1642,7 @@ var Collaboration = class extends HTMLElement {
 		const binding = bindWithLexxyNodeGuard(this.editor, () => createBinding(this.editor, provider, id, doc, docMap));
 		patchCollabElementSplice(binding);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
-		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding);
+		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
 		const cursorsContainer = this.#createCursorsContainer();
 		binding.cursorsContainer = cursorsContainer;
 		initLocalState(provider, name, color, true, {
@@ -1760,17 +1761,31 @@ function patchCollabElementSplice(binding) {
 	};
 	proto.__yrbySplicePatched = true;
 }
-function bootstrapWhenSynced(editor, provider, binding) {
+function emptyEditorState(state) {
+	return state.read(() => {
+		const root = $getRoot();
+		if (root.getChildrenSize() === 0) return true;
+		const only = root.getChildrenSize() === 1 && root.getFirstChild();
+		return !!only && only.getType() === "paragraph" && only.getChildrenSize() === 0;
+	});
+}
+function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
 	let done = false;
 	const seed = () => {
 		if (done || !provider.synced) return;
 		done = true;
 		clearInterval(timer);
-		if (binding.root.getSharedType().length === 0) editor.update(() => {
-			const root = $getRoot();
-			root.clear();
-			root.append($createParagraphNode());
-		}, { tag: HISTORY_MERGE_TAG });
+		if (binding.root.getSharedType().length === 0) {
+			if (initialEditorState && !emptyEditorState(initialEditorState)) {
+				editor.setEditorState(initialEditorState, { tag: HISTORY_MERGE_TAG });
+				return;
+			}
+			editor.update(() => {
+				const root = $getRoot();
+				root.clear();
+				root.append($createParagraphNode());
+			}, { tag: HISTORY_MERGE_TAG });
+		}
 	};
 	const timer = setInterval(seed, 50);
 	if (typeof timer?.unref === "function") timer.unref();
