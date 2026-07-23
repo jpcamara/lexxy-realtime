@@ -7,7 +7,7 @@
 </p>
 
 <%= form_with model: @post do |form| %>
-  <%= collaborative_rich_text_area form, :body %>
+  <%= form.collaborative_rich_textarea :body %>
 <% end %>
 
 <p><%= link_to "View saved post", post_path(@post) %></p>

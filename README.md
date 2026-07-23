@@ -31,7 +31,7 @@ class Post < ApplicationRecord
 end
 ```
 ```erb
-<%= collaborative_rich_text_area form, :body %>
+<%= form.collaborative_rich_textarea :body %>
 ```
 ```js
 // app/javascript/application.js
