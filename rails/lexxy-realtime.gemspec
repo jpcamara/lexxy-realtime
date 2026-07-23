@@ -28,5 +28,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "lexxy"
   spec.add_dependency "rails", ">= 7.1"
   spec.add_dependency "yrby", ">= 0.6.0"
-  spec.add_dependency "yrby-actioncable", ">= 0.3.1"
+  # First release containing Y::UpdateLog and the include-Y::ActionCable
+  # forwarding (jpcamara/yrby#52); 0.3.1 has neither.
+  spec.add_dependency "yrby-actioncable", ">= 0.4"
 end

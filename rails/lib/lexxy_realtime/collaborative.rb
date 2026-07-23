@@ -105,6 +105,11 @@ module LexxyRealtime
     # scheduled the job that converges the projection.
     def materialize_collaborative_rich_text_if_stale!(name)
       return false unless persisted?
+      # Never materialize through a dirty instance: with_lock raises on
+      # unpersisted changes, and the save would piggyback-commit whatever the
+      # form assigned. A failed-validation re-render reading the attribute
+      # serves the current value; the scheduled job converges on a clean load.
+      return false if has_changes_to_save?
 
       store = LexxyRealtime.store
       return false unless store.respond_to?(:latest_change_at)
@@ -123,8 +128,6 @@ module LexxyRealtime
       # debounced job converges moments later.
       false
     end
-
-    private
 
     # When the attribute was last materialized: the rich-text record's own
     # timestamp under Action Text, falling back to the record's updated_at
