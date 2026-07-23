@@ -42,6 +42,15 @@ class Post < ActiveRecord::Base
   include LexxyRealtime::Collaborative
 
   has_collaborative_rich_text :body
+
+  # Fidelity with Action Text: its attribute writer READS the attribute (to
+  # get-or-build the rich text record). Without this, the suite can't catch
+  # materialize-through-writer recursion (it once shipped as a stack overflow
+  # that only a real Action Text app exposed).
+  def body=(value)
+    body
+    super
+  end
 end
 
 # A store double implementing the load/append contract, for the
