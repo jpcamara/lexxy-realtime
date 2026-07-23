@@ -81,7 +81,11 @@ module LexxyRealtime
         break false if html.nil?
 
         public_send("#{name}=", html)
-        save!
+        # validate: false — this is a system-written projection of content the
+        # collaboration flow already accepted; an unrelated model validation
+        # must not 500 a read or wedge the job. User-initiated saves validate
+        # as usual.
+        save!(validate: false)
         true
       end
     ensure

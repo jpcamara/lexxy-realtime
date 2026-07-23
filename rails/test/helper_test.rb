@@ -91,6 +91,20 @@ class HelperTest < Minitest::Test
     assert_match(/\Ahsl\(\d+, 70%, 45%\)\z/, default["color"])
   end
 
+  def test_form_builder_method_delegates_to_the_helper
+    ActionView::Helpers::FormBuilder.prepend(LexxyRealtime::FormBuilder) # as the engine does
+    builder = ActionView::Helpers::FormBuilder.new("post", @post, @view, {})
+    builder.define_singleton_method(:lexxy_rich_textarea) do |method, _options = {}, &block|
+      %(<lexxy-editor name="post[#{method}]">#{block.call}</lexxy-editor>)
+    end
+
+    html = builder.collaborative_rich_textarea(:body)
+
+    assert_match(/<lexxy-collaboration/, html)
+    assert_equal @post.collaborative_document_key(:body), element_attributes(html)["doc-id"]
+    assert_equal html, builder.collaborative_rich_text_area(:body), "underscore alias"
+  end
+
   def test_rejects_non_collaborative_and_unpersisted_records
     assert_raises(ArgumentError) { @view.collaborative_rich_text_area(@form, :title) }
 

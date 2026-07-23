@@ -100,6 +100,23 @@ class CollaborativeTest < Minitest::Test
     assert_equal before, @post.reload.updated_at
   end
 
+  def test_materialize_saves_past_unrelated_model_validations
+    # The projection is system-written content the collaboration flow already
+    # accepted; an unrelated validation (here: one this record currently
+    # fails) must not block it — nor 500 a read that triggers it.
+    invalid = Class.new(Post) do
+      def self.name = "Post"
+      validates :title, absence: true
+    end
+    record = invalid.find(@post.id)
+
+    refute_predicate record, :valid?
+    LexxyRealtime::Update.append(record.collaborative_document_key(:body), lexxy_full_state)
+
+    assert record.materialize_collaborative_rich_text!(:body)
+    assert_equal lexxy_full_html, record.reload.body
+  end
+
   def test_materialize_is_idempotent
     LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
     @post.materialize_collaborative_rich_text!(:body)

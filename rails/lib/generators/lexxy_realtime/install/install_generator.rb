@@ -62,7 +62,7 @@ module LexxyRealtime
                    has_collaborative_rich_text :body
                  end
 
-                 <%= collaborative_rich_text_area form, :body %>
+                 <%= form.collaborative_rich_textarea :body %>
 
             4. Optional: tighten `authorized?` in
                app/channels/document_channel.rb, and set who shows up on
