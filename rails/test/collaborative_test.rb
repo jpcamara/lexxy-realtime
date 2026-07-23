@@ -57,6 +57,47 @@ class CollaborativeTest < Minitest::Test
     assert_equal "<p>existing content</p>", @post.reload.body
   end
 
+  def test_reading_the_attribute_materializes_when_stale
+    # Simulates leaving the editor for the show page inside the debounce
+    # window: updates are recorded but no job has run. A plain read must
+    # return the collaborative state, not the stale column.
+    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+
+    assert_equal lexxy_full_html, @post.body, "a plain read returned the latest state"
+  end
+
+  def test_reading_when_fresh_does_not_rematerialize
+    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    @post.body # first read materializes
+    materialized_at = @post.reload.updated_at
+
+    @post.body
+
+    assert_equal materialized_at, @post.reload.updated_at,
+                 "a fresh read performs no render and no save"
+  end
+
+  def test_reading_after_a_new_update_refreshes_again
+    key = @post.collaborative_document_key(:body)
+    LexxyRealtime::Update.append(key, lexxy_full_state)
+    @post.body
+    first_at = @post.reload.updated_at
+
+    LexxyRealtime::Update.append(key, lexxy_full_state) # redelivery: newer log row
+
+    @post.body
+
+    assert_operator @post.reload.updated_at, :>=, first_at, "the newer log row triggered a refresh"
+  end
+
+  def test_reading_with_no_document_reads_the_column_untouched
+    @post.update!(body: "<p>manual</p>")
+    before = @post.reload.updated_at
+
+    assert_equal "<p>manual</p>", @post.body
+    assert_equal before, @post.reload.updated_at
+  end
+
   def test_materialize_is_idempotent
     LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
     @post.materialize_collaborative_rich_text!(:body)
