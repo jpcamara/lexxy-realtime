@@ -23,7 +23,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_file "app/channels/document_channel.rb" do |channel|
       assert_match "include Y::ActionCable", channel
       assert_match "GlobalID::Locator.locate_signed", channel
-      assert_match "LexxyRealtime.sgid_purpose", channel
+      assert_match "LexxyRealtime::SGID_PURPOSE", channel
       assert_match "collaborative_rich_text?", channel, "the field must be a declared collaborative attribute"
       assert_match "LexxyRealtime::MaterializeJob", channel
       assert_match "LexxyRealtime.store.append", channel

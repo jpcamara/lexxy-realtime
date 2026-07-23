@@ -5,81 +5,41 @@ require "lexxy_realtime/collaborative"
 require "lexxy_realtime/form_builder"
 require "lexxy_realtime/engine" if defined?(Rails::Engine)
 
-# Rails integration for collaborative Lexxy editing over yrby.
-#
-# The pieces:
-#   - `has_collaborative_rich_text :body` (model macro) — a regular Action Text
-#     attribute whose live edits sync through Yjs and are materialized back
-#     into the stored rich text on the server.
-#   - `collaborative_rich_text_area form, :body` (view helper) — renders the
-#     Lexxy editor with a `<lexxy-collaboration>` element wired to the record.
-#   - `rails g lexxy_realtime:install` — the channel, store, and migration.
-#   - `LexxyRealtime::MaterializeJob` — renders the collaborative document to
-#     HTML server-side (Y::Lexxy, no Node) and saves it as the Action Text
-#     body.
+# Collaborative Lexxy editing for Rails: a model macro, a form helper, an
+# install generator, and server-side materialization back into Action Text,
+# built on yrby (Yjs CRDTs in Ruby, no Node).
 module LexxyRealtime
+  # Stamped into and verified against the signed GlobalIDs the form helper
+  # mints, so a signed id from another feature can't join a document.
+  SGID_PURPOSE = :lexxy_realtime
+
+  # The channel the installer generates and the form helper points elements at.
+  CHANNEL_NAME = "DocumentChannel"
+
   class << self
-    # The Action Cable channel class name the view helper points the element
-    # at. The install generator creates this channel.
-    attr_writer :channel_name
-
-    def channel_name
-      @channel_name ||= "DocumentChannel"
-    end
-
-    # The durable update store, resolved by name on use so the app's generated
-    # class (or a custom one) is picked up after boot and reloads cleanly in
-    # development. Must respond to `load(key) -> bytes | nil` and
-    # `append(key, update)`.
+    # The update store: any class implementing load/append (plus
+    # latest_change_at for read freshness). Resolved by name so code
+    # reloading stays clean.
     attr_writer :store_name
 
-    def store_name
-      @store_name ||= "LexxyRealtime::Update"
-    end
+    def store_name = @store_name ||= "LexxyRealtime::Update"
+    def store = store_name.constantize
 
-    def store
-      store_name.constantize
-    end
-
-    # The purpose stamped into the signed GlobalIDs the helper renders and the
-    # channel verifies, so a signed id minted for another feature can't be
-    # replayed to join a document.
-    def sgid_purpose
-      :lexxy_realtime
-    end
-
-    # How long after the last recorded change the materializer runs. Each
-    # change (re)enqueues the job with this delay; the job itself is
-    # idempotent, so overlapping enqueues settle on the latest state.
+    # Delay between a recorded change and its materialization job.
     attr_writer :materialize_after
 
-    def materialize_after
-      @materialize_after ||= 5
-    end
+    def materialize_after = @materialize_after ||= 5
 
-    # Resolves the collaborator identity shown on cursors, in the view's
-    # context. Override with any callable returning { name:, color: } (color
-    # may be nil — the helper derives a stable one from the name):
-    #
-    #   LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil } }
+    # Cursor identity, called with the view context; returns { name:, color: }
+    # (a nil color gets a stable one derived from the name).
     attr_writer :identity
 
     def identity
       @identity ||= lambda do |view|
         user = view.respond_to?(:current_user) ? view.current_user : nil
-        name = nil
-        if user
-          %i[name username handle email_address email].each do |attribute|
-            value = user.try(attribute)
-            break name = value if value.present?
-          end
-        end
+        name = user && %i[name username handle email_address email].lazy.filter_map { |a| user.try(a).presence }.first
         { name: name || "Anonymous", color: nil }
       end
-    end
-
-    def resolve_identity(view)
-      identity.call(view)
     end
   end
 end

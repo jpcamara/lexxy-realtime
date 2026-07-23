@@ -1,13 +1,9 @@
 # frozen_string_literal: true
 
 module LexxyRealtime
-  # The durable update log for collaborative documents. All the behavior —
-  # load/append, inline compaction (`compact_every`), and the pending-gap
-  # compaction guard — comes from yrby's Y::UpdateLog; this class
-  # just binds it to the lexxy_realtime_updates table.
-  #
-  # This is the default store; point `LexxyRealtime.store_name` at any class
-  # with the same `load`/`append` contract to replace it.
+  # The update log, bound to lexxy_realtime_updates. All behavior (load and
+  # append, compaction, the pending-gap guard, latest_change_at) is yrby's
+  # Y::UpdateLog; swap the whole store via LexxyRealtime.store_name.
   class Update < ActiveRecord::Base
     self.table_name = "lexxy_realtime_updates"
 
