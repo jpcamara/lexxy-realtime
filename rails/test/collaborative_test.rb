@@ -2,6 +2,27 @@
 
 require "test_helper"
 
+# A store that sneaks one extra update in between materialize's load and
+# save — the exact convergence race: without the watermark the projection
+# would be stamped newer than the sneaked update and everything would skip.
+class SneakyStore
+  class << self
+    attr_accessor :sneak, :sneaked_update
+
+    def latest_change_at(key) = LexxyRealtime::Update.latest_change_at(key)
+    def append(key, update) = LexxyRealtime::Update.append(key, update)
+
+    def load(key)
+      LexxyRealtime::Update.load(key).tap do
+        if sneak
+          self.sneak = false
+          LexxyRealtime::Update.append(key, sneaked_update)
+        end
+      end
+    end
+  end
+end
+
 class CollaborativeTest < Minitest::Test
   def setup
     LexxyRealtime::Update.delete_all
@@ -103,6 +124,20 @@ class CollaborativeTest < Minitest::Test
     @post.body
 
     assert_operator @post.reload.updated_at, :>=, first_at, "the newer log row triggered a refresh"
+  end
+
+  def test_an_update_landing_mid_materialization_still_converges
+    key = @post.collaborative_document_key(:body)
+    LexxyRealtime::Update.append(key, lexxy_full_state)
+    LexxyRealtime.store_name = "SneakyStore"
+    SneakyStore.sneaked_update = lexxy_full_state
+    SneakyStore.sneak = true
+
+    assert @post.materialize_collaborative_rich_text!(:body)
+    assert_equal :stale, @post.collaborative_rich_text_freshness(:body),
+                 "the mid-render update must read as newer than the projection"
+    assert @post.materialize_collaborative_rich_text!(:body), "the sneaked update's own job converges"
+    assert_equal :fresh, @post.collaborative_rich_text_freshness(:body)
   end
 
   def test_reading_under_write_contention_serves_the_current_value

@@ -60,7 +60,7 @@ module LexxyRealtime
         return :unknown if latest.nil?
 
         done_at = respond_to?("rich_text_#{name}") ? public_send("rich_text_#{name}")&.updated_at : updated_at
-        done_at && done_at > latest ? :fresh : :stale
+        done_at && done_at >= latest ? :fresh : :stale
       end
 
       # Render the document server-side (Y::Lexxy — the editor's own markup)
@@ -75,7 +75,15 @@ module LexxyRealtime
         # materialize when stale — flag the window or the assignment recurses.
         @materializing_collaborative_rich_text = true
         with_lock do
-          state = LexxyRealtime.store.load(collaborative_document_key(name))
+          store = LexxyRealtime.store
+          key = collaborative_document_key(name)
+          # The watermark: the newest log row visible before the load. The
+          # projection is stamped with THIS time, not the save time — an
+          # update landing mid-render is then newer than the projection, so
+          # its scheduled job (and any read) re-renders instead of skipping,
+          # and the projection always converges once writes quiesce.
+          as_of = store.respond_to?(:latest_change_at) ? store.latest_change_at(key) : nil
+          state = store.load(key)
           break false if state.nil?
 
           doc = Y::Doc.new
@@ -85,6 +93,10 @@ module LexxyRealtime
 
           public_send("#{name}=", html)
           save!(validate: false) # a system-written projection; validations belong to user saves
+          if as_of
+            stamped = respond_to?("rich_text_#{name}") ? public_send("rich_text_#{name}") : self
+            stamped&.update_column(:updated_at, as_of)
+          end
           true
         end
       ensure
