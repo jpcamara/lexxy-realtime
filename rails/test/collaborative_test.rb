@@ -92,6 +92,16 @@ class CollaborativeTest < Minitest::Test
     assert_equal lexxy_full_html, @post.body
   end
 
+  def test_reading_through_a_dirty_instance_serves_the_current_value
+    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    @post.body # materialize a first value
+    @post.title = "edited but unsaved" # a form assignment in flight
+
+    assert_equal lexxy_full_html, @post.body, "read works on a dirty instance"
+    assert_equal "edited but unsaved", @post.title, "the dirty change was not committed"
+    refute_equal "edited but unsaved", @post.reload.title
+  end
+
   def test_reading_with_no_document_reads_the_column_untouched
     @post.update!(body: "<p>manual</p>")
     before = @post.reload.updated_at

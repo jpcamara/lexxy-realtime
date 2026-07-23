@@ -33,6 +33,11 @@ Metrics/MethodLength:
 Metrics/AbcSize:
   Max: 30
 
+# materialize_collaborative_rich_text_if_stale! is a guard chain; each branch
+# is one documented edge, not nesting.
+Metrics/CyclomaticComplexity:
+  Max: 8
+
 Metrics/BlockLength:
   Exclude:
     - "test/**/*"
