@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
+require "rails/engine"
+require "action_dispatch" # Engine::Configuration references it at subclass definition
+
 # Lexxy and the yrby runtime are this gem's dependencies, not the app's, so
-# Bundler doesn't auto-require them; Lexxy's engine assumes Rails is loaded.
+# Bundler doesn't auto-require them; Lexxy's engine registers here so its own
+# initializers run at boot.
 require "lexxy"
 require "y"
 require "y/action_cable"

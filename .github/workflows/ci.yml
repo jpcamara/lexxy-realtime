@@ -16,6 +16,41 @@ jobs:
       - run: bun run build
       - run: bun run build:test
 
+  rails-gem:
+    name: Rails gem (Ruby ${{ matrix.ruby }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.4"]
+    steps:
+      # Checked out as siblings so the gem's path-pinned yrby gems resolve.
+      - uses: actions/checkout@v5
+        with:
+          path: lexxy-realtime
+      - uses: actions/checkout@v5
+        with:
+          repository: jpcamara/yrby
+          path: yrby
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Compile yrby native extension
+        working-directory: yrby
+        run: |
+          bundle install
+          bundle exec rake compile
+
+      - name: Rails gem tests (unit + engine boot)
+        working-directory: lexxy-realtime/rails
+        run: |
+          bundle install
+          bundle exec rake test
+          bundle exec rubocop
+
   headless:
     name: Headless durability (Ruby ${{ matrix.ruby }})
     runs-on: ubuntu-latest

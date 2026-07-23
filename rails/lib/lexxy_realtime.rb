@@ -3,7 +3,7 @@
 require "lexxy_realtime/version"
 require "lexxy_realtime/collaborative"
 require "lexxy_realtime/form_builder"
-require "lexxy_realtime/engine" if defined?(Rails::Engine)
+require "lexxy_realtime/engine"
 
 # Collaborative Lexxy editing for Rails: a model macro, a form helper, an
 # install generator, and server-side materialization back into Action Text,
