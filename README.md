@@ -71,11 +71,15 @@ Node anywhere — and saves it through the normal Action Text writer. So
 `post.body` always reflects the collaborative state, and everything downstream
 (rendering, search, mailers) is plain Action Text.
 
-Materialization runs through Active Job, and it is scheduled at edit time:
-every recorded change enqueues the (idempotent, per-record-serialized) job with
-a short delay, so a closed browser, a killed tab, or a dropped connection
-changes nothing — the last edit's job is already queued. Nothing depends on a
-session ending cleanly. In development Active Job's built-in async adapter runs
+Reads are always fresh: the attribute reader checks whether the update log is
+newer than the materialized value and, if so, materializes inline before
+returning — leaving the editor for the show page never shows a stale body,
+with no app code involved. Most reads find the value already fresh and pay one
+indexed query, because materialization also runs through Active Job, scheduled
+at edit time: every recorded change enqueues the (idempotent,
+per-record-serialized) job with a short delay, so a closed browser, a killed
+tab, or a dropped connection changes nothing — the last edit's job is already
+queued. Nothing depends on a session ending cleanly. In development Active Job's built-in async adapter runs
 it with zero setup; a stock Rails 8 app runs it on Solid Queue in production,
 also with zero setup. Any Active Job backend works.
 
