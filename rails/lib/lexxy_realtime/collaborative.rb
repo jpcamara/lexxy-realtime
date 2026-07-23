@@ -96,6 +96,13 @@ module LexxyRealtime
     # value. Nil-safe on every edge: unpersisted records, stores without
     # latest_change_at (custom stores; staleness then rides the job alone),
     # and documents that were never edited.
+    #
+    # Freshness is exact once writes quiesce and best-effort during them: an
+    # update appended mid-materialization lands before the projection's
+    # timestamp, so the projection reads as fresh without it (same as the
+    # lock-contention rescue below serving the current value). Both windows
+    # are bounded by the debounce — every appended update has already
+    # scheduled the job that converges the projection.
     def materialize_collaborative_rich_text_if_stale!(name)
       return false unless persisted?
 
