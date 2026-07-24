@@ -1,0 +1,104 @@
+# frozen_string_literal: true
+
+require "minitest/autorun"
+require "active_record"
+require "active_job"
+require "global_id"
+require "y"
+require "y/action_cable"
+require "lexxy_realtime"
+# yrby's engine-owned models, from the path-pinned sibling checkout (the
+# engine loads them in a real app; here they're required directly).
+require File.expand_path("../../../yrby/app/models/y/document", __dir__)
+require File.expand_path("../../../yrby/app/models/y/document_update", __dir__)
+
+# The suite runs against real ActiveRecord (in-memory SQLite), real yrby
+# rendering (a captured Lexxy editor session fixture), and a real signed
+# GlobalID setup — without booting a Rails app. Action Text itself isn't
+# loaded here (the demo app covers that integration); the collaborative
+# attribute writes through the regular attribute writer either way.
+ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
+ActiveRecord::Schema.verbose = false
+ActiveRecord::Schema.define do
+  create_table :posts, force: true do |t|
+    t.string :title
+    t.text :body
+    t.timestamps
+  end
+
+  create_table :yrby_documents, force: true do |t|
+    t.string :key, null: false, index: { unique: true }
+    t.references :record, polymorphic: true, null: true
+    t.string :name
+    t.datetime :materialized_at
+    t.timestamps
+    t.index %i[record_type record_id name], unique: true
+  end
+
+  create_table :yrby_document_updates, force: true do |t|
+    t.references :document, null: false
+    t.binary :payload, null: false
+    t.datetime :created_at, null: false
+  end
+end
+
+GlobalID.app = "lexxy-realtime-test"
+SignedGlobalID.app = "lexxy-realtime-test"
+SignedGlobalID.verifier = GlobalID::Verifier.new("lexxy-realtime-test-secret")
+
+ActiveJob::Base.queue_adapter = :test
+ActiveJob::Base.logger = Logger.new(File::NULL)
+
+class Post < ActiveRecord::Base
+  include GlobalID::Identification
+  include LexxyRealtime::Collaborative
+
+  # Action Text isn't booted here (the engine-boot test covers that); this
+  # stub exercises the Action-Text-present macro path.
+  def self.has_rich_text(name, **); end
+
+  has_collaborative_rich_text :body
+
+  # Fidelity with Action Text: its attribute writer READS the attribute (to
+  # get-or-build the rich text record). Without this, the suite can't catch
+  # materialize-through-writer recursion (it once shipped as a stack overflow
+  # that only a real Action Text app exposed).
+  def body=(value)
+    body
+    super
+  end
+end
+
+# The Action-Text-free path: same table, no has_rich_text — the macro
+# detects the absence and materializes into the plain attribute.
+class PlainPost < ActiveRecord::Base
+  self.table_name = "posts"
+  include LexxyRealtime::Collaborative
+
+  has_collaborative_rich_text :body
+end
+
+# A store double implementing the load/append contract, for the
+# store-swap config test. Everything else runs against the real
+# Y::DocumentUpdate model.
+class TestStore
+  class << self
+    def documents = @documents ||= Hash.new { |h, k| h[k] = [] }
+    def reset! = @documents = nil
+    def append(key, update) = documents[key] << update
+
+    def load(key)
+      updates = documents[key]
+      return nil if updates.empty?
+
+      doc = Y::Doc.new
+      updates.each { |u| doc.apply_update(u) }
+      doc.encode_state_as_update
+    end
+  end
+end
+
+FIXTURES = File.expand_path("fixtures", __dir__)
+
+def lexxy_full_state = File.binread(File.join(FIXTURES, "lexxy_full.bin"))
+def lexxy_full_html = File.read(File.join(FIXTURES, "lexxy_full.html")).chomp

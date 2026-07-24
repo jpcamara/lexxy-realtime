@@ -5,3 +5,13 @@ node_modules
 package-lock.json
 test/server/data
 package-lock.json
+
+# Demo-app dev artifacts. Ignored at the root because demo/.gitignore is a
+# tracked file on the demo branch and vanishes from the worktree on others.
+demo/log/
+demo/storage/
+demo/app/assets/builds/
+demo/node_modules/
+demo/tmp/
+demo/config/master.key
+demo/config/credentials.yml.enc

@@ -1,0 +1,61 @@
+inherit_mode:
+  merge:
+    - Exclude
+
+plugins:
+  - rubocop-minitest
+  - rubocop-rake
+
+AllCops:
+  TargetRubyVersion: 3.4
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - "tmp/**/*"
+    - "vendor/**/*"
+    # ERB migration template; not parseable as plain Ruby.
+    - "lib/generators/lexxy_realtime/install/templates/create_lexxy_realtime_tables.rb"
+
+# The conventional dashed-gem-name require shim.
+Naming/FileName:
+  Exclude:
+    - "lib/lexxy-realtime.rb"
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/Documentation:
+  Enabled: false
+
+Metrics/MethodLength:
+  Max: 30
+
+Metrics/AbcSize:
+  Max: 30
+
+# materialize_collaborative_rich_text_if_stale! is a guard chain; each branch
+# is one documented edge, not nesting.
+Metrics/CyclomaticComplexity:
+  Max: 8
+
+Metrics/BlockLength:
+  Exclude:
+    - "test/**/*"
+    - "*.gemspec"
+
+Minitest/MultipleAssertions:
+  Enabled: false
+
+Metrics/ClassLength:
+  Exclude:
+    - "test/**/*"
+
+# Test doubles mirroring Action Text's has_rich_text must keep its name.
+Naming/PredicatePrefix:
+  Exclude:
+    - "test/**/*"
+
+# materialize_collaborative_rich_text! is an action that reports whether there
+# was anything to materialize; it is not a predicate.
+Naming/PredicateMethod:
+  Enabled: false
