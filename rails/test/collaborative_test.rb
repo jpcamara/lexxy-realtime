@@ -9,14 +9,14 @@ class SneakyStore
   class << self
     attr_accessor :sneak, :sneaked_update
 
-    def latest_change_at(key) = LexxyRealtime::Update.latest_change_at(key)
-    def append(key, update) = LexxyRealtime::Update.append(key, update)
+    def latest_change_at(key) = Y::DocumentUpdate.latest_change_at(key)
+    def append(key, update) = Y::DocumentUpdate.append(key, update)
 
     def load(key)
-      LexxyRealtime::Update.load(key).tap do
+      Y::DocumentUpdate.load(key).tap do
         if sneak
           self.sneak = false
-          LexxyRealtime::Update.append(key, sneaked_update)
+          Y::DocumentUpdate.append(key, sneaked_update)
         end
       end
     end
@@ -25,8 +25,8 @@ end
 
 class CollaborativeTest < Minitest::Test
   def setup
-    LexxyRealtime::Update.delete_all
-    LexxyRealtime::Document.delete_all
+    Y::DocumentUpdate.delete_all
+    Y::Document.delete_all
     LexxyRealtime.store_name = nil
     @post = Post.create!(title: "Doc")
     @document = @post.collaborative_document!(:body)
@@ -34,7 +34,7 @@ class CollaborativeTest < Minitest::Test
 
   def append(state, record = nil)
     doc = record ? record.collaborative_document!(:body) : @document
-    LexxyRealtime::Update.append(doc.id, state)
+    Y::DocumentUpdate.append(doc.id, state)
   end
 
   def test_models_without_the_macro_get_no_instance_api
@@ -104,13 +104,13 @@ class CollaborativeTest < Minitest::Test
     append(lexxy_full_state)
     @post.destroy!
 
-    assert_equal 0, LexxyRealtime::Document.count
-    assert_equal 0, LexxyRealtime::Update.count, "the log follows the record's lifecycle"
+    assert_equal 0, Y::Document.count
+    assert_equal 0, Y::DocumentUpdate.count, "the log follows the record's lifecycle"
   end
 
   def test_plain_model_without_action_text_materializes_into_the_attribute
     plain = PlainPost.find(@post.id)
-    LexxyRealtime::Update.append(plain.collaborative_document!(:body).id, lexxy_full_state)
+    Y::DocumentUpdate.append(plain.collaborative_document!(:body).id, lexxy_full_state)
 
     assert_equal lexxy_full_html, plain.body, "read materializes into the plain column"
   end
@@ -222,7 +222,7 @@ class CollaborativeTest < Minitest::Test
     record = invalid.find(@post.id)
 
     refute_predicate record, :valid?
-    LexxyRealtime::Update.append(record.collaborative_document!(:body).id, lexxy_full_state)
+    Y::DocumentUpdate.append(record.collaborative_document!(:body).id, lexxy_full_state)
 
     assert record.materialize_collaborative_rich_text!(:body)
     assert_equal lexxy_full_html, record.reload.body

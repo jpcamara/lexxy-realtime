@@ -34,13 +34,12 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_no_file "app/models/yrby_document_update.rb"
     assert_file "app/channels/application_cable/channel.rb"
     assert_file "app/channels/application_cable/connection.rb"
-    assert_migration "db/migrate/create_lexxy_realtime_tables.rb" do |migration|
-      assert_match ":lexxy_realtime_documents", migration
+    # Storage migration comes from yrby's tables generator.
+    assert_migration "db/migrate/create_yrby_tables.rb" do |migration|
+      assert_match ":yrby_documents", migration
       assert_match "t.references :record, polymorphic: true", migration
       assert_match "materialized_at", migration
-      assert_match ":lexxy_realtime_updates", migration
-      assert_match "t.references :document", migration
-      assert_match "t.binary :payload", migration
+      assert_match ":yrby_document_updates", migration
     end
   end
 

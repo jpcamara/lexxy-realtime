@@ -7,7 +7,7 @@ gemspec
 # Local development against the sibling yrby checkout; CI and consumers use
 # the released gems.
 gem "yrby", path: "../../yrby"
-gem "yrby-actioncable", path: "../../yrby"
+gem "yrby-rails", path: "../../yrby"
 
 group :development, :test do
   gem "minitest"

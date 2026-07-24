@@ -7,8 +7,10 @@ require "global_id"
 require "y"
 require "y/action_cable"
 require "lexxy_realtime"
-require_relative "../app/models/lexxy_realtime/document"
-require_relative "../app/models/lexxy_realtime/update"
+# yrby's engine-owned models, from the path-pinned sibling checkout (the
+# engine loads them in a real app; here they're required directly).
+require File.expand_path("../../../yrby/app/models/y/document", __dir__)
+require File.expand_path("../../../yrby/app/models/y/document_update", __dir__)
 
 # The suite runs against real ActiveRecord (in-memory SQLite), real yrby
 # rendering (a captured Lexxy editor session fixture), and a real signed
@@ -24,15 +26,16 @@ ActiveRecord::Schema.define do
     t.timestamps
   end
 
-  create_table :lexxy_realtime_documents, force: true do |t|
-    t.references :record, polymorphic: true, null: false
-    t.string :name, null: false
+  create_table :yrby_documents, force: true do |t|
+    t.string :key, null: false, index: { unique: true }
+    t.references :record, polymorphic: true, null: true
+    t.string :name
     t.datetime :materialized_at
     t.timestamps
     t.index %i[record_type record_id name], unique: true
   end
 
-  create_table :lexxy_realtime_updates, force: true do |t|
+  create_table :yrby_document_updates, force: true do |t|
     t.references :document, null: false
     t.binary :payload, null: false
     t.datetime :created_at, null: false
@@ -77,7 +80,7 @@ end
 
 # A store double implementing the load/append contract, for the
 # store-swap config test. Everything else runs against the real
-# LexxyRealtime::Update model.
+# Y::DocumentUpdate model.
 class TestStore
   class << self
     def documents = @documents ||= Hash.new { |h, k| h[k] = [] }

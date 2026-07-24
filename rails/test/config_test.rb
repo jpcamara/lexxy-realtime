@@ -25,7 +25,7 @@ class ConfigTest < Minitest::Test
   def test_store_defaults_to_the_engine_model_and_is_swappable
     LexxyRealtime.store_name = nil
 
-    assert_equal LexxyRealtime::Update, LexxyRealtime.store
+    assert_equal Y::DocumentUpdate, LexxyRealtime.store
     LexxyRealtime.store_name = "TestStore"
 
     assert_equal TestStore, LexxyRealtime.store
