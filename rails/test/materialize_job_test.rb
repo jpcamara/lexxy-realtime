@@ -7,12 +7,14 @@ require_relative "../app/jobs/lexxy_realtime/materialize_job"
 class MaterializeJobTest < Minitest::Test
   def setup
     LexxyRealtime::Update.delete_all
+    LexxyRealtime::Document.delete_all
     LexxyRealtime.store_name = nil
     @post = Post.create!(title: "Doc")
+    @document = @post.collaborative_document!(:body)
   end
 
   def test_perform_materializes_the_field
-    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    LexxyRealtime::Update.append(@document.id, lexxy_full_state)
 
     LexxyRealtime::MaterializeJob.perform_now(@post, "body")
 
@@ -20,14 +22,13 @@ class MaterializeJobTest < Minitest::Test
   end
 
   def test_perform_skips_the_render_when_already_fresh
-    key = @post.collaborative_document_key(:body)
-    LexxyRealtime::Update.append(key, lexxy_full_state)
+    LexxyRealtime::Update.append(@document.id, lexxy_full_state)
     LexxyRealtime::MaterializeJob.perform_now(@post, "body")
-    done_at = @post.reload.updated_at
+    done_at = @document.reload.materialized_at
 
     LexxyRealtime::MaterializeJob.perform_now(@post, "body")
 
-    assert_equal done_at, @post.reload.updated_at, "no render, no save on the redundant job"
+    assert_equal done_at, @document.reload.materialized_at, "no render, no stamp on the redundant job"
   end
 
   def test_perform_with_no_document_is_a_no_op

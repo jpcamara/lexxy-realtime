@@ -21,13 +21,13 @@ class DocumentChannel < ApplicationCable::Channel
     reject and return unless record&.collaborative_rich_text?(field)
     reject and return unless authorized?
 
-    sync_subscribed(record.collaborative_document_key(field))
+    sync_subscribed(record.collaborative_document!(field).id)
   end
 
   def receive(data)
     return unless record
 
-    sync_receive(data, record.collaborative_document_key(field))
+    sync_receive(data, record.collaborative_document!(field).id)
   end
 
   private

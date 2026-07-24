@@ -25,6 +25,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match "GlobalID::Locator.locate_signed", channel
       assert_match "LexxyRealtime::SGID_PURPOSE", channel
       assert_match "collaborative_rich_text?", channel, "the field must be a declared collaborative attribute"
+      assert_match "collaborative_document!", channel
       assert_match "LexxyRealtime::MaterializeJob", channel
       assert_match "LexxyRealtime.store.append", channel
       assert_match "def authorized?", channel
@@ -33,10 +34,13 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_no_file "app/models/yrby_document_update.rb"
     assert_file "app/channels/application_cable/channel.rb"
     assert_file "app/channels/application_cable/connection.rb"
-    assert_migration "db/migrate/create_lexxy_realtime_updates.rb" do |migration|
-      assert_match "t.binary :payload", migration
-      assert_match "document_key", migration
+    assert_migration "db/migrate/create_lexxy_realtime_tables.rb" do |migration|
+      assert_match ":lexxy_realtime_documents", migration
+      assert_match "t.references :record, polymorphic: true", migration
+      assert_match "materialized_at", migration
       assert_match ":lexxy_realtime_updates", migration
+      assert_match "t.references :document", migration
+      assert_match "t.binary :payload", migration
     end
   end
 

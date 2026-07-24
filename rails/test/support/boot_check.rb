@@ -39,6 +39,7 @@ unless ActionView::Helpers::FormBuilder.method_defined?(:collaborative_rich_text
   abort "FormBuilder method not prepended"
 end
 abort "engine model not autoloaded" unless LexxyRealtime::Update.table_name == "lexxy_realtime_updates"
+abort "document model not autoloaded" unless LexxyRealtime::Document.table_name == "lexxy_realtime_documents"
 abort "engine job not autoloaded" unless LexxyRealtime::MaterializeJob <= ActiveJob::Base
 
 # The real Action Text path: the macro must create the rich_text association.
@@ -50,7 +51,8 @@ class BootPost < ActiveRecord::Base
 end
 
 abort "rich_text association missing" unless BootPost.reflect_on_association(:rich_text_body)
-abort "instance API missing on declaring model" unless BootPost.method_defined?(:collaborative_document_key)
-abort "instance API leaked to plain models" if ActiveRecord::Base.method_defined?(:collaborative_document_key)
+abort "document association missing" unless BootPost.reflect_on_association(:collaborative_document_body)
+abort "instance API missing on declaring model" unless BootPost.method_defined?(:collaborative_document!)
+abort "instance API leaked to plain models" if ActiveRecord::Base.method_defined?(:collaborative_document!)
 
 puts "ENGINE BOOT OK"

@@ -18,8 +18,11 @@ module LexxyRealtime
       identity = LexxyRealtime.identity.call(@template)
       collaborator = name || identity[:name]
       lexxy_rich_textarea(method, options) do
+        # The doc-id is the client-side Yjs binding key (any string shared by
+        # peers of this attribute); the server derives its own storage key
+        # from the signed GlobalID, so this is presentational.
         @template.content_tag("lexxy-collaboration", "",
-                              "doc-id" => record.collaborative_document_key(method),
+                              "doc-id" => "#{record.model_name.param_key}-#{record.id}-#{method}",
                               "name" => collaborator,
                               "color" => color || identity[:color] || LexxyRealtime.collaborator_color(collaborator),
                               "channel-name" => LexxyRealtime::CHANNEL_NAME,

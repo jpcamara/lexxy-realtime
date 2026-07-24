@@ -26,8 +26,15 @@ end
 class CollaborativeTest < Minitest::Test
   def setup
     LexxyRealtime::Update.delete_all
+    LexxyRealtime::Document.delete_all
     LexxyRealtime.store_name = nil
     @post = Post.create!(title: "Doc")
+    @document = @post.collaborative_document!(:body)
+  end
+
+  def append(state, record = nil)
+    doc = record ? record.collaborative_document!(:body) : @document
+    LexxyRealtime::Update.append(doc.id, state)
   end
 
   def test_models_without_the_macro_get_no_instance_api
@@ -37,7 +44,7 @@ class CollaborativeTest < Minitest::Test
     end
 
     assert_respond_to bare, :has_collaborative_rich_text, "the macro is available"
-    refute bare.method_defined?(:collaborative_document_key), "instance API arrives only with a declaration"
+    refute bare.method_defined?(:collaborative_document!), "instance API arrives only with a declaration"
     refute bare.method_defined?(:materialize_collaborative_rich_text!)
   end
 
@@ -64,15 +71,48 @@ class CollaborativeTest < Minitest::Test
     refute @post.collaborative_rich_text?(:title)
   end
 
-  def test_document_key_is_stable_and_namespace_safe
-    assert_equal "post/#{@post.id}/body", @post.collaborative_document_key(:body)
-    # Namespaced classes must not collapse to the same key as each other or
-    # as a top-level class with the same demodulized name.
-    namespaced = Class.new(Post) do
+  def test_document_is_the_action_text_shape
+    assert_equal @post, @document.record
+    assert_equal "body", @document.name
+    assert_equal @document, @post.collaborative_document_body, "has_one, like rich_text_body"
+    assert_equal @document, @post.collaborative_document!(:body), "created once, found after"
+  end
+
+  def test_distinct_classes_get_distinct_documents_and_sti_shares
+    # A genuinely different class over the same table: its own record_type,
+    # its own document — the isolation string keys used to hand-encode.
+    other_class = Class.new(ActiveRecord::Base) do
+      self.table_name = "posts"
+      include LexxyRealtime::Collaborative
+
       def self.name = "Blog::Post"
+      def self.has_rich_text(name, **); end
+      has_collaborative_rich_text :body
     end
 
-    assert_equal "blog_post/#{@post.id}/body", namespaced.find(@post.id).collaborative_document_key(:body)
+    refute_equal @document, other_class.find(@post.id).collaborative_document!(:body)
+
+    # An STI subclass shares the base class record_type — and therefore the
+    # document — which is the correct Rails semantics (the old string keys
+    # wrongly split one record's document by subclass name).
+    sti = Class.new(Post) { def self.name = "FeaturedPost" }
+
+    assert_equal @document, sti.find(@post.id).collaborative_document!(:body)
+  end
+
+  def test_destroying_the_record_sweeps_document_and_log
+    append(lexxy_full_state)
+    @post.destroy!
+
+    assert_equal 0, LexxyRealtime::Document.count
+    assert_equal 0, LexxyRealtime::Update.count, "the log follows the record's lifecycle"
+  end
+
+  def test_plain_model_without_action_text_materializes_into_the_attribute
+    plain = PlainPost.find(@post.id)
+    LexxyRealtime::Update.append(plain.collaborative_document!(:body).id, lexxy_full_state)
+
+    assert_equal lexxy_full_html, plain.body, "read materializes into the plain column"
   end
 
   def test_materialize_raises_for_a_non_collaborative_attribute
@@ -85,7 +125,7 @@ class CollaborativeTest < Minitest::Test
   end
 
   def test_materialize_renders_the_document_to_html_and_saves
-    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    append(lexxy_full_state)
 
     assert @post.materialize_collaborative_rich_text!(:body)
     # Byte-identical to the Lexxy editor's own serialization of the same
@@ -97,13 +137,13 @@ class CollaborativeTest < Minitest::Test
     # Simulates leaving the editor for the show page inside the debounce
     # window: updates are recorded but no job has run. A plain read must
     # return the collaborative state, not the stale column.
-    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    append(lexxy_full_state)
 
     assert_equal lexxy_full_html, @post.body, "a plain read returned the latest state"
   end
 
   def test_reading_when_fresh_does_not_rematerialize
-    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    append(lexxy_full_state)
     @post.body # first read materializes
     materialized_at = @post.reload.updated_at
 
@@ -114,26 +154,25 @@ class CollaborativeTest < Minitest::Test
   end
 
   def test_reading_after_a_new_update_refreshes_again
-    key = @post.collaborative_document_key(:body)
-    LexxyRealtime::Update.append(key, lexxy_full_state)
+    append(lexxy_full_state)
     @post.body
-    first_at = @post.reload.updated_at
+    first_at = @document.reload.materialized_at
 
-    LexxyRealtime::Update.append(key, lexxy_full_state) # redelivery: newer log row
+    append(lexxy_full_state) # redelivery: newer log row
 
     @post.body
 
-    assert_operator @post.reload.updated_at, :>=, first_at, "the newer log row triggered a refresh"
+    assert_operator @document.reload.materialized_at, :>=, first_at, "the newer log row triggered a refresh"
   end
 
   def test_an_update_landing_mid_materialization_still_converges
-    key = @post.collaborative_document_key(:body)
-    LexxyRealtime::Update.append(key, lexxy_full_state)
+    append(lexxy_full_state)
     LexxyRealtime.store_name = "SneakyStore"
     SneakyStore.sneaked_update = lexxy_full_state
     SneakyStore.sneak = true
 
     assert @post.materialize_collaborative_rich_text!(:body)
+    refute_nil @document.reload.materialized_at, "the watermark lives on our document"
     assert_equal :stale, @post.collaborative_rich_text_freshness(:body),
                  "the mid-render update must read as newer than the projection"
     assert @post.materialize_collaborative_rich_text!(:body), "the sneaked update's own job converges"
@@ -141,9 +180,9 @@ class CollaborativeTest < Minitest::Test
   end
 
   def test_reading_under_write_contention_serves_the_current_value
-    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    append(lexxy_full_state)
     @post.body # materialize once so a stale-but-present value exists
-    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    append(lexxy_full_state)
 
     # The lock is busy (peers typing): the read must not raise, and must
     # return the last materialized value instead of failing the page.
@@ -155,7 +194,7 @@ class CollaborativeTest < Minitest::Test
   end
 
   def test_reading_through_a_dirty_instance_serves_the_current_value
-    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    append(lexxy_full_state)
     @post.body # materialize a first value
     @post.title = "edited but unsaved" # a form assignment in flight
 
@@ -183,14 +222,14 @@ class CollaborativeTest < Minitest::Test
     record = invalid.find(@post.id)
 
     refute_predicate record, :valid?
-    LexxyRealtime::Update.append(record.collaborative_document_key(:body), lexxy_full_state)
+    LexxyRealtime::Update.append(record.collaborative_document!(:body).id, lexxy_full_state)
 
     assert record.materialize_collaborative_rich_text!(:body)
     assert_equal lexxy_full_html, record.reload.body
   end
 
   def test_materialize_is_idempotent
-    LexxyRealtime::Update.append(@post.collaborative_document_key(:body), lexxy_full_state)
+    append(lexxy_full_state)
     @post.materialize_collaborative_rich_text!(:body)
     first = @post.reload.body
 
