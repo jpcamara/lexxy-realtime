@@ -43,15 +43,18 @@ this lives in [`demo/`](demo/).
 
 ### What the generator created, and why
 
-**A migration** — for `lexxy_realtime_updates`, an append-only log of CRDT
-deltas, one row per recorded edit, scoped by `document_key`. The model that
-owns it, `LexxyRealtime::Update`, ships in the gem (the way
-`ActionText::RichText` does) and runs yrby's `Y::UpdateLog`:
-`load` merges a document's rows, `append` adds one, and every 500 rows
-(`compact_every`) a document's log is compacted into a single snapshot row so
-loads stay fast. This log is the collaboration
-transport's source of truth while people edit; your Action Text table remains
-the artifact everything else reads (next section). Swap the whole store with
+**A migration** — for two gem-owned tables (the models ship in the gem, the
+way `ActionText::RichText` does). `lexxy_realtime_documents` is the
+structural twin of Action Text's `rich_texts`: one row per collaborative
+attribute, addressed by polymorphic `record` + `name`, holding
+`materialized_at`. Your model gets a real association
+(`collaborative_document_body`), and destroying a record sweeps its document
+and log. `lexxy_realtime_updates` is the append-only CRDT log belonging to
+the document, running yrby's `Y::UpdateLog`: `load` merges rows, `append`
+adds one, and every 500 rows (`compact_every`) the log compacts into one
+snapshot row so loads stay fast. The log is the transport's source of truth
+while people edit; your Action Text table remains the artifact everything
+else reads (next section). Swap the whole store with
 `LexxyRealtime.store_name` (any class implementing `load`/`append`).
 
 **A channel** — `DocumentChannel` speaks the Yjs sync protocol over Action
