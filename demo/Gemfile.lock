@@ -13,7 +13,7 @@ PATH
   remote: ../rails
   specs:
     lexxy-realtime (0.1.0)
-      lexxy
+      lexxy (>= 0.9)
       rails (>= 7.1)
       yrby (>= 0.6.0)
       yrby-actioncable (>= 0.4)
