@@ -42,4 +42,4 @@ end
 # The monorepo gem under review, plus the local yrby checkout it builds on.
 gem "lexxy-realtime", path: "../rails"
 gem "yrby", path: "../../yrby"
-gem "yrby-actioncable", path: "../../yrby"
+gem "yrby-rails", path: "../../yrby"

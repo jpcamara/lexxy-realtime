@@ -3,10 +3,12 @@ PATH
   specs:
     yrby (0.6.0)
       rb_sys (~> 0.9)
-    yrby-actioncable (0.4.0)
+    yrby-rails (0.4.0)
       actioncable (>= 7.0)
+      activerecord (>= 7.1)
       activesupport (>= 7.0)
       base64 (~> 0.2)
+      railties (>= 7.1)
       yrby (>= 0.3.1)
 
 PATH
@@ -16,7 +18,7 @@ PATH
       lexxy (>= 0.9)
       rails (>= 7.1)
       yrby (>= 0.6.0)
-      yrby-actioncable (>= 0.4)
+      yrby-rails (>= 0.4)
 
 GEM
   remote: https://rubygems.org/
@@ -306,7 +308,7 @@ DEPENDENCIES
   tzinfo-data
   web-console
   yrby!
-  yrby-actioncable!
+  yrby-rails!
 
 CHECKSUMS
   action_text-trix (2.1.19) sha256=7012f59421009cf284aa651294896414d653a61a2417c9b8714c8476d2f74009
@@ -413,7 +415,7 @@ CHECKSUMS
   websocket-driver (0.8.2) sha256=97c556b019bf3410b4961002ac501621e9322d3f8a7bc02161a09301cc4c4146
   websocket-extensions (0.1.5) sha256=1c6ba63092cda343eb53fc657110c71c754c56484aad42578495227d717a8241
   yrby (0.6.0)
-  yrby-actioncable (0.4.0)
+  yrby-rails (0.4.0)
   zeitwerk (2.8.2) sha256=7212a61311083c604184b1ea2574b9aa05cd14f855a0841c06985cabe9181d12
 
 BUNDLED WITH

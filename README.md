@@ -43,16 +43,17 @@ this lives in [`demo/`](demo/).
 
 ### What the generator created, and why
 
-**A migration** — for two gem-owned tables (the models ship in the gem, the
-way `ActionText::RichText` does). `lexxy_realtime_documents` is the
+**A migration** — for yrby's two tables (the models — `Y::Document` and
+`Y::DocumentUpdate` — ship in the yrby-rails gem, the way
+`ActionText::RichText` ships in Action Text). `yrby_documents` is the
 structural twin of Action Text's `rich_texts`: one row per collaborative
-attribute, addressed by polymorphic `record` + `name`, holding
-`materialized_at`. Your model gets a real association
-(`collaborative_document_body`), and destroying a record sweeps its document
-and log. `lexxy_realtime_updates` is the append-only CRDT log belonging to
-the document, running yrby's `Y::UpdateLog`: `load` merges rows, `append`
-adds one, and every 500 rows (`compact_every`) the log compacts into one
-snapshot row so loads stay fast. The log is the transport's source of truth
+document, addressed by a unique transport `key` and, when bound to a model,
+by polymorphic `record` + `name`, holding `materialized_at`. Your model gets
+a real association (`collaborative_document_body`), and destroying a record
+sweeps its document and log. `yrby_document_updates` is the append-only CRDT
+log belonging to the document, running yrby's `Y::UpdateLog`: `load` merges
+rows, `append` adds one, and every 500 rows (`compact_every`) the log
+compacts into one snapshot row so loads stay fast. The log is the transport's source of truth
 while people edit; your Action Text table remains the artifact everything
 else reads (next section). Swap the whole store with
 `LexxyRealtime.store_name` (any class implementing `load`/`append`).
