@@ -7,6 +7,7 @@ require "global_id"
 require "y"
 require "y/action_cable"
 require "lexxy_realtime"
+require_relative "../app/models/lexxy_realtime/document"
 require_relative "../app/models/lexxy_realtime/update"
 
 # The suite runs against real ActiveRecord (in-memory SQLite), real yrby
@@ -23,9 +24,17 @@ ActiveRecord::Schema.define do
     t.timestamps
   end
 
+  create_table :lexxy_realtime_documents, force: true do |t|
+    t.references :record, polymorphic: true, null: false
+    t.string :name, null: false
+    t.datetime :materialized_at
+    t.timestamps
+    t.index %i[record_type record_id name], unique: true
+  end
+
   create_table :lexxy_realtime_updates, force: true do |t|
+    t.references :document, null: false
     t.binary :payload, null: false
-    t.string :document_key, null: false, index: true
     t.datetime :created_at, null: false
   end
 end
@@ -41,8 +50,8 @@ class Post < ActiveRecord::Base
   include GlobalID::Identification
   include LexxyRealtime::Collaborative
 
-  # Action Text isn't booted here (the engine-boot test covers that); the
-  # macro calls has_rich_text unconditionally, so give it the same shape.
+  # Action Text isn't booted here (the engine-boot test covers that); this
+  # stub exercises the Action-Text-present macro path.
   def self.has_rich_text(name, **); end
 
   has_collaborative_rich_text :body
@@ -55,6 +64,15 @@ class Post < ActiveRecord::Base
     body
     super
   end
+end
+
+# The Action-Text-free path: same table, no has_rich_text — the macro
+# detects the absence and materializes into the plain attribute.
+class PlainPost < ActiveRecord::Base
+  self.table_name = "posts"
+  include LexxyRealtime::Collaborative
+
+  has_collaborative_rich_text :body
 end
 
 # A store double implementing the load/append contract, for the

@@ -27,9 +27,11 @@ module LexxyRealtime
         template "document_channel.rb", "app/channels/document_channel.rb"
       end
 
+      # The models (LexxyRealtime::Document and Update) ship in the gem, like
+      # ActionText::RichText — only their tables are created here.
       def create_migration_file
-        migration_template "create_lexxy_realtime_updates.rb",
-                           File.join(db_migrate_path, "create_lexxy_realtime_updates.rb")
+        migration_template "create_lexxy_realtime_tables.rb",
+                           File.join(db_migrate_path, "create_lexxy_realtime_tables.rb")
       end
 
       def add_javascript_import

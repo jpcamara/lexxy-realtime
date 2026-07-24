@@ -50,7 +50,7 @@ class HelperTest < Minitest::Test
   def test_wires_the_element_to_the_record
     attrs = element_attributes(@form.collaborative_rich_textarea(:body))
 
-    assert_equal @post.collaborative_document_key(:body), attrs["doc-id"]
+    assert_equal "post-#{@post.id}-body", attrs["doc-id"]
     assert_equal "Ada", attrs["name"]
     assert_equal LexxyRealtime::CHANNEL_NAME, attrs["channel-name"]
 
