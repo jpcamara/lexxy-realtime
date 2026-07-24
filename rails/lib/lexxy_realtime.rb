@@ -22,7 +22,7 @@ module LexxyRealtime
     # reloading stays clean.
     attr_writer :store_name
 
-    def store_name = @store_name ||= "LexxyRealtime::Update"
+    def store_name = @store_name ||= "Y::DocumentUpdate"
     def store = store_name.constantize
 
     # Delay between a recorded change and its materialization job.

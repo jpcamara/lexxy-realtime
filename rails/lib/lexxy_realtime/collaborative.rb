@@ -28,7 +28,7 @@ module LexxyRealtime
         self.collaborative_rich_text_names = (collaborative_rich_text_names + [name.to_sym]).freeze
 
         has_one :"collaborative_document_#{name}", -> { where(name: name) },
-                class_name: "LexxyRealtime::Document", as: :record, inverse_of: :record, dependent: :destroy
+                class_name: "Y::Document", as: :record, inverse_of: :record, dependent: :destroy
 
         # One stable, inspectable module per model for the generated readers.
         unless const_defined?(:CollaborativeRichTextMethods, false)
@@ -62,7 +62,11 @@ module LexxyRealtime
       # association target is then repaired, since the miss was cached.
       def collaborative_document!(name)
         collaborative_document(name) || begin
-          document = LexxyRealtime::Document.create_or_find_by!(record: self, name: name.to_s)
+          document = Y::Document.create_or_find_by!(record: self, name: name.to_s) do |doc|
+            # The transport key (deterministic, so concurrent joins agree);
+            # base_class matches the polymorphic record_type under STI.
+            doc.key = "#{self.class.base_class.name.underscore.tr('/', '_')}/#{id}/#{name}"
+          end
           association(:"collaborative_document_#{name}").target = document
           document
         end

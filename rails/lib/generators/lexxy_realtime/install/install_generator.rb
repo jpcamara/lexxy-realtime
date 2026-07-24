@@ -1,15 +1,13 @@
 # frozen_string_literal: true
 
 require "rails/generators"
-require "rails/generators/active_record"
+require "generators/yrby/tables/tables_generator"
 
 module LexxyRealtime
   module Generators
     # `bin/rails generate lexxy_realtime:install`: the document channel, the
     # update-log migration (the model ships in the gem), and the JS import.
     class InstallGenerator < Rails::Generators::Base
-      include ActiveRecord::Generators::Migration
-
       source_root File.expand_path("templates", __dir__)
 
       # Apps generated with certain rails-new skips lack the Action Cable
@@ -27,11 +25,10 @@ module LexxyRealtime
         template "document_channel.rb", "app/channels/document_channel.rb"
       end
 
-      # The models (LexxyRealtime::Document and Update) ship in the gem, like
-      # ActionText::RichText — only their tables are created here.
-      def create_migration_file
-        migration_template "create_lexxy_realtime_tables.rb",
-                           File.join(db_migrate_path, "create_lexxy_realtime_tables.rb")
+      # Storage is yrby's (Y::Document + Y::DocumentUpdate, engine-owned);
+      # its generator owns the migration.
+      def create_tables
+        invoke "yrby:tables"
       end
 
       def add_javascript_import
@@ -56,12 +53,6 @@ module LexxyRealtime
           Optional: tighten `authorized?` in app/channels/document_channel.rb;
           set cursor names with `LexxyRealtime.identity`.
         NEXT
-      end
-
-      private
-
-      def migration_version
-        "[#{ActiveRecord::VERSION::MAJOR}.#{ActiveRecord::VERSION::MINOR}]"
       end
     end
   end

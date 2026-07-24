@@ -8,7 +8,7 @@ require "action_dispatch" # Engine::Configuration references it at subclass defi
 # initializers run at boot.
 require "lexxy"
 require "y"
-require "y/action_cable"
+require "yrby-rails" # the sync concern, Y::Document storage, and yrby's engine
 
 module LexxyRealtime
   class Engine < ::Rails::Engine
