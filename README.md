@@ -267,10 +267,10 @@ Hocuspocus, and y-webrtc all satisfy this.
 Collaboration needs a server that records and relays Yjs updates. The Rails
 gem's installer generates this channel for you (see [Rails](#rails)); this
 section is the manual wiring for apps using yrby directly, via the
-[`yrby-actioncable`](https://rubygems.org/gems/yrby-actioncable) concern:
+[`yrby-rails`](https://rubygems.org/gems/yrby-rails) concern:
 
 ```ruby
-# Gemfile: gem "yrby-actioncable"
+# Gemfile: gem "yrby-rails"
 
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
