@@ -54,12 +54,12 @@ regular Action Text, kept current two ways:
 - Every recorded change schedules a re-render
   (`materialize_collaborative_rich_text_later`, visible in the generated
   channel; delay `LexxyRealtime.materialize_after`, default 5s) that renders
-  the document to HTML server-side via yrby's `Y::Lexxy`. Zero setup: Active Job's async
-  adapter in development, Solid Queue on stock Rails 8 in production.
-- **Reading the attribute materializes first when the log is newer** — a
-  read can lock and save. That is deliberate (leaving the editor for a show
-  page never shows stale content) and worth knowing: freshness is exact once
-  writes quiesce, best-effort while peers are actively typing.
+  the document to HTML server-side via yrby's `Y::Lexxy`. Active Job's async
+  adapter runs it in development; Solid Queue on stock Rails 8 in production.
+- **Reading the attribute materializes first when the log is newer**, so a
+  read can lock and save. Leaving the editor for a show page never shows
+  stale content. Freshness is exact once writes quiesce, best-effort while
+  peers are actively typing.
 
 ## Access control
 

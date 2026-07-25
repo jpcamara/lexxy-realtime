@@ -2,11 +2,10 @@
 
 # Live edits sync through this channel into the record's collaborative
 # document (a Y::Document and its update log, from yrby). The regular
-# attribute — Action Text when the model has it — is a PROJECTION of that
-# log: re-rendered shortly after each recorded change (on_change below) and
-# on any stale read, so `post.body` always catches up with what
-# collaborators typed. Clients join with a signed GlobalID minted by the
-# form helper — they never name documents.
+# attribute — Action Text when the model has it — is a projection of that
+# log, re-rendered shortly after each recorded change (on_change below) and
+# on any stale read. Clients join with a signed GlobalID minted by the form
+# helper; they never name documents.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
