@@ -81,13 +81,22 @@ module LexxyRealtime
         document.materialized_at && document.materialized_at >= latest ? :fresh : :stale
       end
 
+      # Schedule materialization of a just-recorded change, after
+      # LexxyRealtime.materialize_after. Raises when the job can't be
+      # enqueued so a caller about to record the change can decline instead —
+      # better to make the client retransmit than to accept an edit that
+      # would never render.
+      def materialize_collaborative_rich_text_later(name)
+        ensure_collaborative!(name)
+        LexxyRealtime::MaterializeJob.set(wait: LexxyRealtime.materialize_after)
+                                     .perform_later(self, name.to_s) || raise("materialize enqueue failed")
+      end
+
       # Render the document server-side (Y::Lexxy — the editor's own markup)
       # and save it as the attribute. Locked per record, state loaded inside
       # the lock, so concurrent runs converge; false when nothing is recorded.
       def materialize_collaborative_rich_text!(name)
-        unless collaborative_rich_text?(name)
-          raise ArgumentError, "#{name.inspect} is not collaborative on #{self.class.name}"
-        end
+        ensure_collaborative!(name)
 
         document = collaborative_document(name)
         return false unless document
@@ -130,6 +139,14 @@ module LexxyRealtime
         materialize_collaborative_rich_text!(name)
       rescue ActiveRecord::LockWaitTimeout, ActiveRecord::Deadlocked, ActiveRecord::StatementTimeout
         false
+      end
+
+      private
+
+      def ensure_collaborative!(name)
+        return if collaborative_rich_text?(name)
+
+        raise ArgumentError, "#{name.inspect} is not collaborative on #{self.class.name}"
       end
     end
   end

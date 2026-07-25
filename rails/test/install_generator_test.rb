@@ -26,7 +26,8 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match "LexxyRealtime::SGID_PURPOSE", channel
       assert_match "collaborative_rich_text?", channel, "the field must be a declared collaborative attribute"
       assert_match "collaborative_document!", channel
-      assert_match "LexxyRealtime::MaterializeJob", channel
+      assert_match "materialize_collaborative_rich_text_later", channel,
+                   "the channel names the Action Text linkage, not job plumbing"
       assert_match "LexxyRealtime.store.append", channel
       assert_match "def authorized?", channel
     end
