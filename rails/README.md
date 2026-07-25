@@ -46,9 +46,10 @@ first collaborative open seeds the document from it.
 Live edits are CRDT deltas recorded to the update log. `post.body` remains
 regular Action Text, kept current two ways:
 
-- A `MaterializeJob` is enqueued for every recorded change (delay:
-  `LexxyRealtime.materialize_after`, default 5s) and renders the document to
-  HTML server-side via yrby's `Y::Lexxy`. Zero setup: Active Job's async
+- Every recorded change schedules a re-render
+  (`materialize_collaborative_rich_text_later`, visible in the generated
+  channel; delay `LexxyRealtime.materialize_after`, default 5s) that renders
+  the document to HTML server-side via yrby's `Y::Lexxy`. Zero setup: Active Job's async
   adapter in development, Solid Queue on stock Rails 8 in production.
 - **Reading the attribute materializes first when the log is newer** — a
   read can lock and save. That is deliberate (leaving the editor for a show

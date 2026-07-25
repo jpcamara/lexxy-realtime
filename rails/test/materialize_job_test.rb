@@ -36,4 +36,22 @@ class MaterializeJobTest < Minitest::Test
 
     assert_nil @post.reload.body
   end
+
+  def test_later_schedules_the_delayed_job
+    previous_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :test
+
+    @post.materialize_collaborative_rich_text_later(:body)
+
+    job = ActiveJob::Base.queue_adapter.enqueued_jobs.first
+
+    assert_equal LexxyRealtime::MaterializeJob, job[:job]
+    assert job[:at], "scheduled with the materialize_after delay, not immediate"
+  ensure
+    ActiveJob::Base.queue_adapter = previous_adapter
+  end
+
+  def test_later_rejects_a_non_collaborative_attribute
+    assert_raises(ArgumentError) { @post.materialize_collaborative_rich_text_later(:title) }
+  end
 end
