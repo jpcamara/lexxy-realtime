@@ -32,7 +32,16 @@ module LexxyRealtime
       end
 
       def add_javascript_import
-        entrypoint = Pathname(destination_root).join("app/javascript/application.js")
+        root = Pathname(destination_root)
+        if root.join("config/importmap.rb").exist? && !root.join("package.json").exist?
+          # An unpinnable import would fail silently in the browser; say so now.
+          say "Importmap-only app detected: lexxy-realtime currently requires a JS bundler " \
+              "(esbuild/vite/webpack) — its lexical/yjs dependencies aren't pinnable yet. " \
+              "Skipping the JS import.", :yellow
+          return
+        end
+
+        entrypoint = root.join("app/javascript/application.js")
         if !entrypoint.exist?
           say 'Add `import "lexxy-realtime"` to your JavaScript entrypoint (app/javascript/application.js not found).'
         elsif !entrypoint.read.include?('import "lexxy-realtime"') # idempotent on re-run
@@ -43,7 +52,8 @@ module LexxyRealtime
       def show_next_steps
         say <<~NEXT
 
-          lexxy-realtime is wired up:
+          lexxy-realtime is wired up (it layers on Lexxy — the lexxy gem and
+          its editor JS must already be installed and working):
 
             1. bin/rails db:migrate
             2. Install the lexxy-realtime npm package (npm/yarn/bun/pnpm)

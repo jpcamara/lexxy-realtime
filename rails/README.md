@@ -6,6 +6,11 @@ in Ruby, no Node anywhere.
 
 ## Install
 
+Prerequisites: a working [Lexxy](https://github.com/basecamp/lexxy) setup
+(the gem and its editor JS), and a JS bundler (esbuild/vite/webpack —
+importmap-only apps aren't supported yet; the lexical/yjs dependencies
+aren't pinnable until Lexxy exports them).
+
 ```ruby
 # Gemfile
 gem "lexxy-realtime"
