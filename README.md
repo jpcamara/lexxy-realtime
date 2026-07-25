@@ -75,17 +75,15 @@ Node anywhere — and saves it through the normal Action Text writer. So
 `post.body` always reflects the collaborative state, and everything downstream
 (rendering, search, mailers) is plain Action Text.
 
-Reads are always fresh: the attribute reader checks whether the update log is
-newer than the materialized value and, if so, materializes inline before
-returning — leaving the editor for the show page never shows a stale body,
-with no app code involved. Most reads find the value already fresh and pay one
-indexed query, because materialization also runs through Active Job, scheduled
-at edit time: every recorded change enqueues the (idempotent,
-per-record-serialized) job with a short delay, so a closed browser, a killed
-tab, or a dropped connection changes nothing — the last edit's job is already
-queued. Nothing depends on a session ending cleanly. In development Active Job's built-in async adapter runs
-it with zero setup; a stock Rails 8 app runs it on Solid Queue in production,
-also with zero setup. Any Active Job backend works.
+Reads are fresh: when the update log is newer than the stored value, the
+attribute reader materializes inline before returning, so leaving the editor
+for the show page never shows a stale body. Most reads find the value already
+fresh and pay one indexed query, because every recorded change also enqueues
+an idempotent materialization job with a short delay. The job is scheduled at
+edit time, so it does not depend on a clean disconnect — a closed browser or
+killed tab leaves the last edit's job already queued. In development Active
+Job's async adapter runs it; a stock Rails 8 app runs it on Solid Queue. Any
+Active Job backend works.
 
 Records with an existing Action Text body work: on the first collaborative
 open of a document, the element seeds it from the editor's server-rendered
@@ -96,7 +94,7 @@ same instant can both seed it, duplicating the initial content — the same
 first-writer race as Lexical's own CollaborationPlugin bootstrap, confined to
 a document's first-ever open.
 
-### Who shows up on cursors
+### Cursor identity
 
 The helper resolves the collaborator's name from `current_user` (name,
 username, handle, or email — first present wins) and derives a stable cursor
@@ -154,7 +152,7 @@ inside your `<lexxy-editor>` using one of these wirings.
 #### Element-managed
 
 Render (or create) the element with attributes inside the editor and import the
-package once — nothing else. The element waits for the editor, creates a shared
+package once. The element waits for the editor, creates a shared
 Action Cable consumer (from the standard `action-cable-url` meta tag, falling
 back to `/cable`), builds the doc and provider, connects, and disconnects on
 removal:
@@ -305,8 +303,8 @@ provider.awareness;        // the Yjs Awareness instance (presence/cursors)
 provider.hasPending;       // unacknowledged local edits in flight?
 ```
 
-It owns presence — it creates its own `Awareness`. Read `provider.awareness` if
-you need it (e.g. to show who's here); don't pass one in.
+The element creates and owns its own `Awareness`. Read `provider.awareness`
+if you need it (e.g. to show who's here); don't pass one in.
 
 ## Persisting to ActionText (manual)
 
@@ -348,8 +346,8 @@ Two things matter under Turbo Drive:
 
 Lexxy and lexxy-realtime both leave `lexical` (and lexxy-realtime leaves `yjs` /
 `@lexical/yjs`) as external peers, so your bundler can resolve them to one shared
-instance. They **must** be a single copy: Lexical keys node behavior to class
-identity and Yjs to constructor identity, so two copies break syncing. With
+instance. They must resolve to a single installed copy: Lexical keys node behavior to
+class identity and Yjs to constructor identity, so two copies break syncing. With
 matching versions (`lexical ^0.44`, `yjs ^13.6`) bundlers dedupe automatically;
 if yours pulls duplicates, dedupe them (e.g. esbuild
 `--alias:yjs=./node_modules/yjs`).
@@ -363,8 +361,8 @@ setup). Open `/docs/demo/lexxy` in two windows and type.
 ## Notes
 
 lexxy-realtime applies two small compatibility shims to `@lexical/yjs` and
-`@37signals/lexxy` **at runtime, from inside its own bind path** — no
-`patch-package`, no vendored patches, install the peers and go. They're temporary
+`@37signals/lexxy` at runtime, from inside its own bind path — no
+`patch-package`, no vendored patches. They're temporary
 pending upstream fixes; the details and tracking PRs are in
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
 

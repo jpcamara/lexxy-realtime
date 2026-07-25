@@ -37,8 +37,8 @@ module LexxyRealtime
     def identity
       @identity ||= lambda do |view|
         user = view.respond_to?(:current_user) ? view.current_user : nil
-        # Deliberately no email fallback: an email is a poor thing to print on
-        # a cursor label. Set LexxyRealtime.identity to choose.
+        # No email fallback: an email is a poor cursor label. Set
+        # LexxyRealtime.identity to choose.
         name = user && %i[name username handle].lazy.filter_map { |a| user.try(a).presence }.first
         { name: name || "Anonymous", color: nil }
       end

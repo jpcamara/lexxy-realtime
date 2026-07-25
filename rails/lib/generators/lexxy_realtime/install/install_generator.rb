@@ -10,8 +10,8 @@ module LexxyRealtime
     class InstallGenerator < Rails::Generators::Base
       source_root File.expand_path("templates", __dir__)
 
-      # Apps generated with certain rails-new skips lack the Action Cable
-      # boilerplate the channel inherits from; add whichever files are missing.
+      # Apps generated without Action Cable lack the base classes the channel
+      # inherits from; add whichever files are missing.
       def create_application_cable
         %w[connection channel].each do |file|
           destination = "app/channels/application_cable/#{file}.rb"
@@ -34,9 +34,9 @@ module LexxyRealtime
       def add_javascript_import
         root = Pathname(destination_root)
         if root.join("config/importmap.rb").exist? && !root.join("package.json").exist?
-          # An unpinnable import would fail silently in the browser; say so now.
-          say "Importmap-only app detected: lexxy-realtime currently requires a JS bundler " \
-              "(esbuild/vite/webpack) — its lexical/yjs dependencies aren't pinnable yet. " \
+          # An unpinnable import fails silently in the browser; warn instead.
+          say "Importmap-only app detected: lexxy-realtime requires a JS bundler " \
+              "(esbuild/vite/webpack); its lexical/yjs dependencies aren't pinnable yet. " \
               "Skipping the JS import.", :yellow
           return
         end
@@ -52,8 +52,8 @@ module LexxyRealtime
       def show_next_steps
         say <<~NEXT
 
-          lexxy-realtime is wired up (it layers on Lexxy — the lexxy gem and
-          its editor JS must already be installed and working):
+          lexxy-realtime is installed. Lexxy itself (the gem and its editor
+          JS) must already be installed and working. Next steps:
 
             1. bin/rails db:migrate
             2. Install the lexxy-realtime npm package (npm/yarn/bun/pnpm)

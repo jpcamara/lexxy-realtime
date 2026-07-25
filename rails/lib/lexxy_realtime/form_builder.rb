@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module LexxyRealtime
-  # `form.collaborative_rich_textarea :body` — the FormBuilder method, the way
-  # Action Text gives `form.rich_textarea` and Lexxy `form.lexxy_rich_textarea`.
+  # `form.collaborative_rich_textarea :body` — the FormBuilder method, like
+  # Action Text's `form.rich_textarea` and Lexxy's `form.lexxy_rich_textarea`.
   # Renders the Lexxy editor with a wired <lexxy-collaboration> child; the
   # record travels as a purpose-scoped signed GlobalID, and identity comes
   # from LexxyRealtime.identity (current_user by default).

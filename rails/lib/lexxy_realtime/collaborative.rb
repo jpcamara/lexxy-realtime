@@ -9,21 +9,21 @@ module LexxyRealtime
   # it, it materializes into a plain attribute. Reads are fresh — the reader
   # materializes first whenever the update log is newer than the stored value.
   #
-  # Only the macro is installed globally (the way Action Text works); the
-  # instance API below is included when a model declares an attribute.
+  # Only the macro is installed globally; the instance API below is
+  # included when a model declares an attribute.
   module Collaborative
     extend ActiveSupport::Concern
 
     class_methods do
       def has_collaborative_rich_text(name, **options) # rubocop:disable Naming/PredicatePrefix
-        # The update log stores plaintext CRDT rows, so an encrypted rich text
-        # would promise a confidentiality the store doesn't provide.
+        # The update log stores plaintext CRDT rows, so encrypted rich text
+        # is unsupported.
         raise ArgumentError, "encrypted: is not supported (the update log is plaintext)" if options.key?(:encrypted)
 
         include Model unless include?(Model)
-        # Capability detection, deliberately: Action Text integration is
-        # first-class when the model has it, and a plain attribute works
-        # without it (the document and log are ours either way).
+        # Action Text is optional: has_rich_text when the model has it, a
+        # plain attribute otherwise. The document and log work the same
+        # either way.
         has_rich_text(name, **options) if respond_to?(:has_rich_text)
         self.collaborative_rich_text_names = (collaborative_rich_text_names + [name.to_sym]).freeze
 
@@ -83,9 +83,8 @@ module LexxyRealtime
 
       # Schedule materialization of a just-recorded change, after
       # LexxyRealtime.materialize_after. Raises when the job can't be
-      # enqueued so a caller about to record the change can decline instead —
-      # better to make the client retransmit than to accept an edit that
-      # would never render.
+      # enqueued, so the channel can reject the change and the client
+      # retransmits.
       def materialize_collaborative_rich_text_later(name)
         ensure_collaborative!(name)
         LexxyRealtime::MaterializeJob.set(wait: LexxyRealtime.materialize_after)
@@ -105,15 +104,15 @@ module LexxyRealtime
         document = collaborative_document(name)
         return false unless document
 
-        # Action Text's WRITER reads the attribute (get-or-build), and reads
+        # Action Text's writer reads the attribute (get-or-build), and reads
         # materialize when stale — flag the window or the assignment recurses.
         @materializing_collaborative_rich_text = true
         with_lock do
           store = LexxyRealtime.store
           # The watermark: the newest log row visible before the load. The
-          # document is stamped with THIS time, so an update landing
-          # mid-render reads as newer and its scheduled job re-renders — the
-          # projection always converges once writes quiesce.
+          # document is stamped with this time, so an update landing
+          # mid-render reads as newer and its scheduled job re-renders. The
+          # projection converges once writes quiesce.
           as_of = store.respond_to?(:latest_change_at) ? store.latest_change_at(document.id) : nil
           state = store.load(document.id)
           break false if state.nil?
