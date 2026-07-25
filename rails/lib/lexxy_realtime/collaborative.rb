@@ -57,16 +57,11 @@ module LexxyRealtime
 
       # The document, created on first use — the channel calls this when a
       # client joins, so creation happens server-side, already authorized.
-      # create_or_find_by! (not the association's create_..., which raises on
-      # the unique index) tolerates two clients joining at once; the
-      # association target is then repaired, since the miss was cached.
+      # Y::Document.for tolerates two clients joining at once; the association
+      # target is then repaired, since the miss was cached.
       def collaborative_document!(name)
         collaborative_document(name) || begin
-          document = Y::Document.create_or_find_by!(record: self, name: name.to_s) do |doc|
-            # The transport key (deterministic, so concurrent joins agree);
-            # base_class matches the polymorphic record_type under STI.
-            doc.key = "#{self.class.base_class.name.underscore.tr('/', '_')}/#{id}/#{name}"
-          end
+          document = Y::Document.for(self, name)
           association(:"collaborative_document_#{name}").target = document
           document
         end
