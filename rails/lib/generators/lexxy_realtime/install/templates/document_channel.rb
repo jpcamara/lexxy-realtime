@@ -34,8 +34,10 @@ class DocumentChannel < ApplicationCable::Channel
   private
 
   # The signed GlobalID proves your app rendered this user the editor for
-  # this record; tighten here when page access isn't the whole story
-  # (e.g. record.account_id == current_user.account_id).
+  # this record; tighten here when page access isn't the whole story —
+  # e.g. `record.editable_by?(current_user)`, with current_user coming from
+  # `identified_by :current_user` in ApplicationCable::Connection. Runs at
+  # subscribe, so it also catches access revoked after the page rendered.
   def authorized?
     true
   end
