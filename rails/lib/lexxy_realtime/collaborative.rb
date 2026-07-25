@@ -90,6 +90,10 @@ module LexxyRealtime
         ensure_collaborative!(name)
         LexxyRealtime::MaterializeJob.set(wait: LexxyRealtime.materialize_after)
                                      .perform_later(self, name.to_s) || raise("materialize enqueue failed")
+      rescue NotImplementedError
+        # The inline adapter can enqueue but not schedule (enqueue_at raises).
+        # Render now instead of rejecting every edit.
+        LexxyRealtime::MaterializeJob.perform_later(self, name.to_s) || raise("materialize enqueue failed")
       end
 
       # Render the document server-side (Y::Lexxy — the editor's own markup)

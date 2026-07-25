@@ -60,4 +60,29 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_file "app/channels/document_channel.rb"
     assert_no_file "app/javascript/application.js"
   end
+
+  def test_importmap_only_app_gets_a_warning_not_a_broken_import
+    with_js_entrypoint
+    FileUtils.mkdir_p(File.join(destination_root, "config"))
+    File.write(File.join(destination_root, "config/importmap.rb"), "pin \"application\"\n")
+
+    run_generator
+
+    assert_file "app/javascript/application.js" do |entry|
+      refute_includes entry, "lexxy-realtime", "an unpinnable import would fail silently in the browser"
+    end
+  end
+
+  def test_importmap_with_a_bundler_still_gets_the_import
+    with_js_entrypoint
+    FileUtils.mkdir_p(File.join(destination_root, "config"))
+    File.write(File.join(destination_root, "config/importmap.rb"), "pin \"application\"\n")
+    File.write(File.join(destination_root, "package.json"), "{}\n")
+
+    run_generator
+
+    assert_file "app/javascript/application.js" do |entry|
+      assert_includes entry, 'import "lexxy-realtime"'
+    end
+  end
 end

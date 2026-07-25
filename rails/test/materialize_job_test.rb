@@ -54,4 +54,15 @@ class MaterializeJobTest < Minitest::Test
   def test_later_rejects_a_non_collaborative_attribute
     assert_raises(ArgumentError) { @post.materialize_collaborative_rich_text_later(:title) }
   end
+
+  def test_later_falls_back_when_the_adapter_cannot_schedule
+    previous_adapter = ActiveJob::Base.queue_adapter
+    ActiveJob::Base.queue_adapter = :inline # enqueue_at raises NotImplementedError
+
+    @post.materialize_collaborative_rich_text_later(:body)
+
+    assert_nil @post.reload.body, "ran inline against an empty log; the point is it didn't raise"
+  ensure
+    ActiveJob::Base.queue_adapter = previous_adapter
+  end
 end
