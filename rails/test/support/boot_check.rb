@@ -38,8 +38,8 @@ abort "macro missing on ActiveRecord::Base" unless ActiveRecord::Base.respond_to
 unless ActionView::Helpers::FormBuilder.method_defined?(:collaborative_rich_textarea)
   abort "FormBuilder method not prepended"
 end
-abort "yrby engine model not autoloaded" unless Y::DocumentUpdate.table_name == "yrby_document_updates"
-abort "yrby document model not autoloaded" unless Y::Document.table_name == "yrby_documents"
+abort "yrby engine model not autoloaded" unless Y::DocumentUpdate.table_name == "y_document_updates"
+abort "yrby document model not autoloaded" unless Y::Document.table_name == "y_documents"
 abort "engine job not autoloaded" unless LexxyRealtime::MaterializeJob <= ActiveJob::Base
 
 # The real Action Text path: the macro must create the rich_text association.
