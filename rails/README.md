@@ -23,7 +23,7 @@ npm install lexxy-realtime   # or yarn/bun/pnpm — the JS half of this package
 ```
 
 The generator creates `app/channels/document_channel.rb`, the migration for
-yrby's tables (`yrby_documents` + `yrby_document_updates`; the models ship
+yrby's tables (`y_documents` + `y_document_updates`; the models ship
 in the yrby-rails gem as `Y::Document` and `Y::DocumentUpdate`), the Action
 Cable boilerplate if your app
 lacks it, and appends `import "lexxy-realtime"` to your JavaScript entrypoint.

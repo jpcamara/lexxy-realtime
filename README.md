@@ -45,12 +45,12 @@ this lives in [`demo/`](demo/).
 
 **A migration** — for yrby's two tables (the models — `Y::Document` and
 `Y::DocumentUpdate` — ship in the yrby-rails gem, the way
-`ActionText::RichText` ships in Action Text). `yrby_documents` is the
+`ActionText::RichText` ships in Action Text). `y_documents` is the
 structural twin of Action Text's `rich_texts`: one row per collaborative
 document, addressed by a unique transport `key` and, when bound to a model,
 by polymorphic `record` + `name`, holding `materialized_at`. Your model gets
 a real association (`collaborative_document_body`), and destroying a record
-sweeps its document and log. `yrby_document_updates` is the append-only CRDT
+sweeps its document and log. `y_document_updates` is the append-only CRDT
 log belonging to the document, running yrby's `Y::UpdateLog`: `load` merges
 rows, `append` adds one, and every 500 rows (`compact_every`) the log
 compacts into one snapshot row so loads stay fast. The log is the transport's source of truth

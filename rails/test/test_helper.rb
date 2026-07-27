@@ -26,7 +26,7 @@ ActiveRecord::Schema.define do
     t.timestamps
   end
 
-  create_table :yrby_documents, force: true do |t|
+  create_table :y_documents, force: true do |t|
     t.string :key, null: false, index: { unique: true }
     t.references :record, polymorphic: true, null: true
     t.string :name
@@ -35,7 +35,7 @@ ActiveRecord::Schema.define do
     t.index %i[record_type record_id name], unique: true
   end
 
-  create_table :yrby_document_updates, force: true do |t|
+  create_table :y_document_updates, force: true do |t|
     t.references :document, null: false
     t.binary :payload, null: false
     t.datetime :created_at, null: false

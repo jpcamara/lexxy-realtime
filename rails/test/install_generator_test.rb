@@ -36,11 +36,11 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_file "app/channels/application_cable/channel.rb"
     assert_file "app/channels/application_cable/connection.rb"
     # Storage migration comes from yrby's tables generator.
-    assert_migration "db/migrate/create_yrby_tables.rb" do |migration|
-      assert_match ":yrby_documents", migration
+    assert_migration "db/migrate/create_y_tables.rb" do |migration|
+      assert_match ":y_documents", migration
       assert_match "t.references :record, polymorphic: true", migration
       assert_match "materialized_at", migration
-      assert_match ":yrby_document_updates", migration
+      assert_match ":y_document_updates", migration
     end
   end
 
