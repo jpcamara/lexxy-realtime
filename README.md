@@ -53,9 +53,9 @@ a real association (`collaborative_document_body`), and destroying a record
 sweeps its document and log. `y_document_updates` is the append-only CRDT
 log belonging to the document, running yrby's `Y::UpdateLog`: `load` merges
 rows, `append` adds one, and every 500 rows (`compact_every`) the log
-compacts into one snapshot row so loads stay fast. The log is the transport's source of truth
-while people edit; your Action Text table remains the artifact everything
-else reads (next section). Swap the whole store with
+compacts into one snapshot row so loads stay fast. While people edit, the log holds the real
+document; `post.body` is re-rendered from it for everything else to read
+(next section). Swap the whole store with
 `LexxyRealtime.store_name` (any class implementing `load`/`append`).
 
 **A channel** — `DocumentChannel` speaks the Yjs sync protocol over Action
