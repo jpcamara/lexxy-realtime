@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_24_035557) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_27_053757) do
   create_table "action_text_rich_texts", force: :cascade do |t|
     t.text "body"
     t.datetime "created_at", null: false
@@ -55,14 +55,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_24_035557) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "yrby_document_updates", force: :cascade do |t|
+  create_table "y_document_updates", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "document_id", null: false
-    t.binary "payload", limit: 16777215, null: false
-    t.index ["document_id"], name: "index_yrby_document_updates_on_document_id"
+    t.binary "payload", limit: 4294967295, null: false
+    t.index ["document_id"], name: "index_y_document_updates_on_document_id"
   end
 
-  create_table "yrby_documents", force: :cascade do |t|
+  create_table "y_documents", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
     t.datetime "materialized_at"
@@ -70,11 +70,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_24_035557) do
     t.integer "record_id"
     t.string "record_type"
     t.datetime "updated_at", null: false
-    t.index ["key"], name: "index_yrby_documents_on_key", unique: true
-    t.index ["record_type", "record_id", "name"], name: "index_yrby_documents_on_record_and_name", unique: true, where: "record_type IS NOT NULL"
+    t.index ["key"], name: "index_y_documents_on_key", unique: true
+    t.index ["record_type", "record_id", "name"], name: "index_y_documents_on_record_and_name", unique: true, where: "record_type IS NOT NULL"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "yrby_document_updates", "yrby_documents", column: "document_id"
+  add_foreign_key "y_document_updates", "y_documents", column: "document_id"
 end
