@@ -149,7 +149,25 @@ check(
   /\btrue\b/.test(ab("carol", "eval", "window.__test.editorInvalidWhileUploading()"))
 );
 
+// A dying page removes its own in-flight upload placeholders (pagehide
+// fires the cleanup; the DirectUpload dies with the page, so the node can
+// never complete). The re-bind upload node above is still pending on
+// carol; after her pagehide, a fresh client must load the document
+// without it.
+ab("carol", "eval", 'window.dispatchEvent(new Event("pagehide")); "fired"');
+check(
+  "pagehide removed the local pending upload node",
+  await waitEval("carol", '!window.__test.docRoot().includes("rebind-probe.png")', "upload node removed locally")
+);
 ab("carol", "close");
+
+open("dave", "Dave");
+check("Dave synced", await ready("dave"));
+check(
+  "abandoned upload placeholder is gone for a fresh client",
+  /\btrue\b/.test(ab("dave", "eval", '!window.__test.docRoot().includes("rebind-probe.png")'))
+);
+ab("dave", "close");
 
 console.log("");
 if (failures > 0) {

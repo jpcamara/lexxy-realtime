@@ -1,5 +1,5 @@
 import { createBinding, initLocalState, setLocalStateFocus, syncCursorPositions, syncLexicalUpdateToYjs, syncYjsChangesToLexical } from "@lexical/yjs";
-import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG } from "lexical";
+import { $createParagraphNode, $getRoot, $nodesOfType, HISTORY_MERGE_TAG } from "lexical";
 import * as Y from "yjs";
 import { Doc, applyUpdate, mergeUpdates } from "yjs";
 //#region node_modules/yrby-client/dist/reliable_sync.js
@@ -1544,6 +1544,11 @@ var Collaboration = class extends HTMLElement {
 			name,
 			color
 		});
+		const removeOwnPendingUploads = (event) => {
+			if (event?.persisted) return;
+			removePendingUploadNodes(this.editor);
+		};
+		window.addEventListener("pagehide", removeOwnPendingUploads);
 		const renderCursors = () => syncCursorPositions(binding, provider);
 		awareness.on("update", renderCursors);
 		const unsubscribeCursorRender = this.editor.registerUpdateListener(renderCursors);
@@ -1553,6 +1558,7 @@ var Collaboration = class extends HTMLElement {
 		this.binding = binding;
 		this.#teardown = () => {
 			this.#teardown = null;
+			window.removeEventListener("pagehide", removeOwnPendingUploads);
 			awareness.off("update", renderCursors);
 			unsubscribeCursorRender();
 			unsubscribeListeners();
@@ -1595,6 +1601,17 @@ function patchCollabElementSplice(binding) {
 		return original.call(this, b, index, delCount, collabNode);
 	};
 	proto.__yrbySplicePatched = true;
+}
+function removePendingUploadNodes(editor) {
+	const uploadType = "action_text_attachment_upload";
+	const info = editor?._nodes?.get?.(uploadType);
+	if (!info) return;
+	editor.update(() => {
+		for (const node of $nodesOfType(info.klass)) if (node.getType() === uploadType && node.file) node.remove();
+	}, {
+		discrete: true,
+		tag: HISTORY_MERGE_TAG
+	});
 }
 function attachmentExclusions(editor) {
 	const excludedProperties = /* @__PURE__ */ new Map();

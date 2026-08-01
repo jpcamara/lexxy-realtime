@@ -6,7 +6,7 @@ import {
   setLocalStateFocus,
   initLocalState,
 } from '@lexical/yjs';
-import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG } from 'lexical';
+import { $getRoot, $createParagraphNode, $nodesOfType, HISTORY_MERGE_TAG } from 'lexical';
 import { Doc } from 'yjs';
 import { YrbyProvider } from './yrby_provider';
 
@@ -120,6 +120,19 @@ export class Collaboration extends HTMLElement {
     initLocalState(provider, name, color, true, { name, color });
     setLocalStateFocus(provider, name, color, true, { name, color });
 
+    // When this page dies mid-upload, its in-flight upload placeholders die
+    // with it: the DirectUpload runs only in this browser, so no client
+    // exists to finish or remove them, and peers would keep a dead
+    // placeholder forever. pagehide (not teardown -- a DOM move fires
+    // teardown while the upload survives) removes our own upload nodes; the
+    // send is best-effort, like the provider's presence removal. persisted
+    // means bfcache -- the page may come back and the upload with it.
+    const removeOwnPendingUploads = (event) => {
+      if (event?.persisted) return;
+      removePendingUploadNodes(this.editor);
+    };
+    window.addEventListener('pagehide', removeOwnPendingUploads);
+
     // Re-render remote cursors when presence changes or the document reflows.
     const renderCursors = () => syncCursorPositions(binding, provider);
     awareness.on('update', renderCursors);
@@ -131,6 +144,7 @@ export class Collaboration extends HTMLElement {
     this.binding = binding;
     this.#teardown = () => {
       this.#teardown = null;
+      window.removeEventListener('pagehide', removeOwnPendingUploads);
       awareness.off('update', renderCursors);
       unsubscribeCursorRender();
       unsubscribeListeners();
@@ -209,6 +223,24 @@ function patchCollabElementSplice(binding) {
     return original.call(this, b, index, delCount, collabNode);
   };
   proto.__yrbySplicePatched = true;
+}
+
+// Remove this client's own in-flight upload nodes -- the ones still holding
+// a local File. Remote copies have `file` excluded from sync, so a
+// file-bearing node is always ours.
+function removePendingUploadNodes(editor) {
+  const uploadType = 'action_text_attachment_upload';
+  const info = editor?._nodes?.get?.(uploadType);
+  if (!info) return;
+
+  editor.update(
+    () => {
+      for (const node of $nodesOfType(info.klass)) {
+        if (node.getType() === uploadType && node.file) node.remove();
+      }
+    },
+    { discrete: true, tag: HISTORY_MERGE_TAG }
+  );
 }
 
 function attachmentExclusions(editor) {
