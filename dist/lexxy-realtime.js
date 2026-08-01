@@ -1640,6 +1640,7 @@ var Collaboration = class extends HTMLElement {
 		});
 		const excludedProperties = attachmentExclusions(this.editor);
 		const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
+		patchCollabElementSplice(binding);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
 		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding);
 		const cursorsContainer = this.#createCursorsContainer();
@@ -1694,6 +1695,16 @@ const LEXXY_ATTACHMENT_NODE_TYPES = new Set([
 	"action_text_attachment_upload",
 	"custom_action_text_attachment"
 ]);
+function patchCollabElementSplice(binding) {
+	const proto = binding?.root?.constructor?.prototype;
+	if (!proto || typeof proto.splice !== "function" || proto.__yrbySplicePatched) return;
+	const original = proto.splice;
+	proto.splice = function(b, index, delCount, collabNode) {
+		if (this._children[index] === void 0 && collabNode === void 0) return;
+		return original.call(this, b, index, delCount, collabNode);
+	};
+	proto.__yrbySplicePatched = true;
+}
 function attachmentExclusions(editor) {
 	const excludedProperties = /* @__PURE__ */ new Map();
 	const nodes = editor?._nodes;

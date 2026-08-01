@@ -44,6 +44,18 @@ jobs:
         working-directory: lexxy-realtime
         run: bun install --frozen-lockfile
 
+      # Lexxy's no-arg constructor fix (basecamp/lexxy#1196) is merged but not
+      # yet in a release. Build its dist from the merge commit and lay it over
+      # the installed package; when a release ships it, bump the
+      # @37signals/lexxy dev dependency and delete this step.
+      - name: Overlay Lexxy dist from the merged constructor fix
+        working-directory: lexxy-realtime
+        run: |
+          git clone https://github.com/basecamp/lexxy.git /tmp/lexxy-fix
+          git -C /tmp/lexxy-fix checkout 41f776eef24cc7dfd73a3f794e258b658cabf737
+          cd /tmp/lexxy-fix && bun install && bun run build:npm
+          cp -R /tmp/lexxy-fix/dist/. "$GITHUB_WORKSPACE/lexxy-realtime/node_modules/@37signals/lexxy/dist/"
+
       # Build the yrby native extension in place, then install the test
       # server's bundle (which depends on it via path).
       - name: Compile yrby native extension
@@ -83,6 +95,18 @@ jobs:
       - name: Install JS deps
         working-directory: lexxy-realtime
         run: bun install --frozen-lockfile
+
+      # Lexxy's no-arg constructor fix (basecamp/lexxy#1196) is merged but not
+      # yet in a release. Build its dist from the merge commit and lay it over
+      # the installed package; when a release ships it, bump the
+      # @37signals/lexxy dev dependency and delete this step.
+      - name: Overlay Lexxy dist from the merged constructor fix
+        working-directory: lexxy-realtime
+        run: |
+          git clone https://github.com/basecamp/lexxy.git /tmp/lexxy-fix
+          git -C /tmp/lexxy-fix checkout 41f776eef24cc7dfd73a3f794e258b658cabf737
+          cd /tmp/lexxy-fix && bun install && bun run build:npm
+          cp -R /tmp/lexxy-fix/dist/. "$GITHUB_WORKSPACE/lexxy-realtime/node_modules/@37signals/lexxy/dist/"
 
       - name: Compile yrby native extension
         working-directory: yrby

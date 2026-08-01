@@ -95,6 +95,7 @@ export class Collaboration extends HTMLElement {
 
     const excludedProperties = attachmentExclusions(this.editor);
     const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
+    patchCollabElementSplice(binding);
     const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
     const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding);
 
@@ -188,6 +189,30 @@ const LEXXY_ATTACHMENT_NODE_TYPES = new Set([
 
 // The excluded-properties map for createBinding: every registered
 // attachment type keeps its client-local properties out of the shared doc.
+// @lexical/yjs's CollabElementNode.splice throws (dev) / appends `undefined`
+// (prod) when asked to insert at an index that has no existing child and no
+// collab node to insert -- which is exactly what the empty-collab-tree bootstrap
+// does. Make that one case a no-op so an empty document can bind. createBinding
+// builds binding.root without triggering this case, so patching the (unexported)
+// CollabElementNode prototype through the live binding root -- right after the
+// bind, before bootstrap/sync runs -- is in time. Guarded by a per-prototype
+// flag.
+//
+// Blast radius: this mutates the SHARED CollabElementNode prototype once, for
+// the whole page, and is never reverted -- every @lexical/yjs consumer on the
+// page sees the patched splice. It only narrows the one undefined-at-empty-index
+// no-op case, so it is safe, but it is a page-global side effect by design.
+function patchCollabElementSplice(binding) {
+  const proto = binding?.root?.constructor?.prototype;
+  if (!proto || typeof proto.splice !== 'function' || proto.__yrbySplicePatched) return;
+  const original = proto.splice;
+  proto.splice = function (b, index, delCount, collabNode) {
+    if (this._children[index] === undefined && collabNode === undefined) return;
+    return original.call(this, b, index, delCount, collabNode);
+  };
+  proto.__yrbySplicePatched = true;
+}
+
 function attachmentExclusions(editor) {
   const excludedProperties = new Map();
   const nodes = editor?._nodes;
