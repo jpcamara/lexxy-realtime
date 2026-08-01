@@ -6,18 +6,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- The attachment property exclusions now key off the node type instead of
-  which classes fail the no-arg constructor probe. On a future Lexxy that
-  defaults its constructor parameters (proposed upstream), the probe finds
-  nothing, and the old wiring silently stopped applying exclusions — the
-  raw `File` aborted the Lexical-to-Yjs sync again and the `editor`
-  reference leaked into the shared doc. Verified both ways in the browser
-  suite: against today's Lexxy, and against a locally patched copy with
-  the upstream constructor fix applied.
+- Attachments work under collaboration: an attachment created by one
+  collaborator materializes for every peer and for late joiners. Uploads
+  sync live (progress bar and error state; a finished upload no longer
+  leaves a zombie placeholder), server-generated previews (PDFs) render
+  their poll-until-ready placeholder, remote placeholders drop the
+  "NaN undefined" size caption, and re-binding the element keeps the
+  exclusions. The browser e2e covers the scenarios.
 
-## [0.3.0] - 2026-07-12
+### Changed
+
+- The runtime constructor shims are gone. Lexxy constructs attachment
+  nodes bare (basecamp/lexxy#1196), which retires the no-arg constructor
+  probe, the guarded subclass swap, the constructor lookup patch, and the
+  mutation-listener re-key. What remains: the unsyncable-property
+  exclusions (`file`, `editor`, `previewSrc`, `uploadUrl`,
+  `blobUrlTemplate`), keyed by node type and passed to `createBinding`,
+  and the `CollabElementNode.splice` patch — a separate `@lexical/yjs`
+  empty-bootstrap issue. Needs a Lexxy release containing the fix; CI
+  overlays a dist built from the merge commit until one ships.
+
+## [0.3.0] - 2026-07-13
 
 ### Fixed
 
@@ -31,75 +42,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - TypeScript declarations, covering the `<lexxy-collaboration>` element
   (both wirings, all attributes), the provider surface the element
-  requires, and the `YrbyProvider` re-export typed via `yrby-client`.
+  requires, and the `YrbyProvider` re-export.
 - The browser e2e suite runs in CI (real Chrome). It is the only suite
   that exercises the actual editor binding and the runtime shims; before,
   CI ran only the build and the headless protocol tests.
-- README sections for attachments under collaboration, persisting to
-  ActionText with server-side rendering (`Y::Lexxy`), and Turbo Drive.
+- README sections for persisting to ActionText with server-side rendering
+  (`Y::Lexxy`) and Turbo Drive, plus a typing GIF and a live presence GIF
+  captured from real browsers.
 
 ### Changed
 
+- The README leads with the provider contract: lexxy-realtime works with
+  any Yjs provider, assumes yrby only when you don't supply one, and never
+  requires yrby-client on the bring-your-own-provider path.
 - Bundles `yrby-client` 0.5.0 from the registry (adds
   `provider.whenSynced`); the vendored-tarball workaround is gone.
 - `package.json` declares `sideEffects` (the custom-element registration
   must survive tree shaking), ships `types`, and adds keywords.
-
-## [0.2.2] - 2026-07-12
-
-### Fixed
-
-- Remote attachments now render. @lexical/yjs constructs node classes with
-  no arguments when it materializes a node from a remote update, and
-  Lexxy's attachment constructors destructure their first parameter, so
-  every attachment coming from a peer threw ("Cannot destructure property
-  'tagName' of 'undefined'") and silently never appeared — the peer's Yjs
-  doc had the node, the editor didn't. The existing constructor guard only
-  covered the bind-time snapshot and reverted itself afterwards; it is now
-  permanent, memoized per class, and keeps Lexical's class-identity
-  assertion satisfied for locally-created nodes too. The browser e2e now
-  inserts an attachment and asserts both the live peer and a late joiner
-  materialize it.
-- Finished uploads no longer leave a zombie upload placeholder on peers.
-  The provisional upload node carries a raw `File` object as a plain
-  property; yjs cannot encode it as an attribute value and threw
-  "Unexpected content type" mid-sync, which aborted the Lexical-to-Yjs
-  update — so when Lexxy swapped the provisional node for the finished
-  attachment, the removal never reached the shared doc. Peers and late
-  joiners rendered a broken upload placeholder ("NaN undefined", stuck
-  progress bar) next to the real attachment, forever. The attachment
-  classes now exclude their unsyncable properties from collaboration:
-  `file`, `editor` (a live reference that synced as "[object Object]"),
-  `previewSrc` (a client-local object URL), `uploadUrl` and
-  `blobUrlTemplate` (host config; an absent uploadUrl is also what stops a
-  peer from starting a duplicate upload), and `pendingPreview`. `progress`
-  and `uploadError` still sync on purpose, so peers watching an upload in
-  progress see a live progress bar and the error state rather than a
-  frozen placeholder, and `pendingPreview` syncs so peers render the
-  poll-until-ready placeholder for server-generated previews (PDFs) instead
-  of requesting a preview that doesn't exist yet and giving up. The guarded
-  classes also scrub the "NaN undefined" size caption Lexxy renders on
-  peers during the upload window (it formats `file.size`, and the File
-  never leaves the uploader's browser).
-- The class-identity handling answers per editor. Lexical asserts
-  `registeredNode.klass === node.constructor`; a collaborative editor
-  registers the guarded subclass while a plain Lexxy editor on the same
-  page registers the original class, so `constructor` now resolves against
-  whatever the active editor registered instead of being reassigned
-  globally (which broke attachment creation in non-collaborative editors
-  sharing the page).
-- Re-binding (unmounting and remounting the collaboration element) keeps
-  the excluded properties. The already-guarded classes no longer trip the
-  no-arg probe, so their exclusions are carried over explicitly; before,
-  a re-bound editor's next upload node aborted mid-sync on its raw File —
-  partially writing the node's attributes into the shared doc.
-- Lexxy's uploads-in-progress tracking survives the class swap. Lexical
-  buckets mutations by the currently registered class, but Lexxy's upload
-  mutation listener resolved its key to the original class before the
-  swap, so it never fired again — the uploads count stayed at zero and a
-  form could submit while files were still uploading. The swap now re-keys
-  pre-existing mutation listeners to the guarded class; the browser e2e
-  asserts the editor reports invalid while an upload node is pending.
 
 ## [0.2.1] - 2026-06-29
 
@@ -207,7 +166,11 @@ so the upstream packages are never modified on disk.
 
 - Standardized on a single lockfile (`bun.lock`); dropped `package-lock.json`.
 
-[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/jpcamara/lexxy-realtime/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.3...v0.2.0
+[0.1.3]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jpcamara/lexxy-realtime/releases/tag/v0.1.0

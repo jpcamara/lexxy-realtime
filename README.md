@@ -9,25 +9,30 @@ inside your `<lexxy-editor>` and people editing the same document see each other
 
 Each side sees the other's cursor and selection:
 
-![Two browsers side by side, each showing the other's selection and caret](docs/images/presence.png)
+![Two browsers side by side, each showing the other's selection and caret live](docs/images/presence.gif)
 
-It works with **any Yjs provider**. [`yrby`](https://github.com/jpcamara/yrby)
-is the recommended one — a reliable, Rails-native provider over Action Cable /
-AnyCable with ack-tracked delivery (an acknowledged edit isn't silently lost on a
-flaky connection, and a reconnecting client catches up from the server). But you
-can just as well point it at a Node `y-websocket` server, Hocuspocus, y-webrtc,
-and so on.
+## How it fits together
 
-> Pre-1.0, and tracks pre-1.0 peers (`@37signals/lexxy` `^0.9`, `lexical` /
-> `@lexical/yjs` `^0.44`). See [`CHANGELOG.md`](CHANGELOG.md).
+`<lexxy-collaboration>` works with any Yjs provider (`y-websocket`, Hocuspocus,
+y-webrtc, ...). There are two setup paths:
+
+- **Default yrby path:** leave the provider unset and give the element an Action
+  Cable or AnyCable consumer. It builds the `Y.Doc` and
+  [`YrbyProvider`](https://github.com/jpcamara/yrby) from the consumer and the
+  element's attributes. The yrby client is bundled.
+- **Bring your own provider:** create a `Y.Doc` and provider, then assign both to
+  the element. The provider can use any backend that satisfies its requirements;
+  yrby is not involved in this path.
+
+lexxy-realtime is tested extensively against the yrby stack. Other providers
+plug into the small contract documented below.
 
 ## Requirements
 
 - A **Lexxy editor** on the page (`@37signals/lexxy`) — see
   [Lexxy's docs](https://basecamp.github.io/lexxy).
-- A **Yjs provider** and its backend. With `yrby` that's a Rails channel (see
-  [Server](#server-yrby)); with another provider it's whatever that provider
-  connects to.
+- A backend for your **Yjs provider**; see [Server](#server-yrby) for the yrby
+  setup.
 - A **JS bundler** (jsbundling-rails / esbuild, or any app that bundles its
   JavaScript). Collaboration relies on one shared copy of `lexical` and `yjs`
   across Lexxy and lexxy-realtime; a bundler dedupes them for you (see
@@ -39,21 +44,22 @@ and so on.
 npm install lexxy-realtime @lexical/yjs yjs y-protocols
 ```
 
-You also need a Lexxy editor and `lexical` (`^0.44`), which your app already has,
-**plus a provider**: for `yrby`, a cable consumer (`@rails/actioncable` or
-`@anycable/web`); otherwise the provider of your choice (e.g. `y-websocket`).
+You also need a Lexxy editor and `lexical` (`^0.44`), which your app already has.
+Install the client transport for your setup: `@rails/actioncable` or
+`@anycable/web` for yrby, or the package for your chosen Yjs provider (for
+example, `y-websocket`).
 
 ## Client
 
-`lexxy-realtime` registers a `<lexxy-collaboration>` custom element. Create a Yjs
-doc and a provider, mount the element inside your `<lexxy-editor>`, and go. The
-element is the same regardless of provider — only how you build the provider
-differs.
+`lexxy-realtime` registers the `<lexxy-collaboration>` custom element. Mount it
+inside your `<lexxy-editor>` using one of these wirings.
 
-### Element-managed (simplest)
+### Default yrby path
 
-Give the element a cable consumer and attributes; it builds the `Y.Doc` and
-`YrbyProvider` itself, connects, and disconnects on removal:
+#### Element-managed
+
+Give the element a cable consumer and attributes. It connects the provider and
+disconnects it on removal:
 
 ```js
 import "@37signals/lexxy";
@@ -76,10 +82,10 @@ if (editor.editor) startCollaborating();
 else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
 ```
 
-Manage the provider yourself instead when you need its lifecycle — status
-UI, `whenSynced`, sharing one doc across components:
+#### Host-managed
 
-### With yrby (host-managed provider)
+Create and manage the yrby provider yourself when you need its lifecycle for
+status UI, `whenSynced`, or sharing one document across components:
 
 ```js
 import "@37signals/lexxy";                          // registers <lexxy-editor>
@@ -113,9 +119,10 @@ if (editor.editor) {
 }
 ```
 
-### With any other Yjs provider
+### Bring your own Yjs provider
 
-Same element — bring your own provider. For example, a Node `y-websocket` server:
+Create the document and provider, then assign both to the element. This example
+uses a Node `y-websocket` server:
 
 ```js
 import "@37signals/lexxy";
@@ -141,8 +148,11 @@ if (editor.editor) startCollaborating();
 else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
 ```
 
-**What the element needs from a provider.** Any provider with the standard Yjs
-surface works:
+Point the provider at its own backend. Nothing else in the client wiring changes.
+
+#### Provider contract
+
+Any provider with the standard Yjs surface works:
 
 - `provider.awareness` — a [`y-protocols`](https://github.com/yjs/y-protocols)
   `Awareness` instance (used for remote cursors/selections).
@@ -156,8 +166,8 @@ Hocuspocus, and y-webrtc all satisfy this.
 
 ## Server (yrby)
 
-The recommended path. Collaboration needs a server that records and relays Yjs
-updates; with `yrby` that's one Action Cable channel including the
+Collaboration needs a server that records and relays Yjs updates. On the yrby
+path that's one Action Cable channel including the
 [`yrby-actioncable`](https://rubygems.org/gems/yrby-actioncable) concern:
 
 ```ruby
@@ -177,10 +187,7 @@ end
 ```
 
 See [`yrby`](https://github.com/jpcamara/yrby) for durable-store options
-and the full protocol (reliable delivery, causal-gap handling). Using a different
-provider instead? Point it at that provider's own backend (e.g. a `y-websocket`
-Node server) — nothing on the client above changes except how you build the
-provider.
+and the full protocol (reliable delivery, causal-gap handling).
 
 ## Provider API (yrby)
 
@@ -204,7 +211,7 @@ you need it (e.g. to show who's here); don't pass one in.
 
 ## Attachments
 
-File and image uploads work under collaboration (v0.2.2+). The uploader's
+File and image uploads work under collaboration. The uploader's
 browser does the ActiveStorage direct upload as usual; the attachment node
 syncs through Yjs, and peers render the finished image from its URL. While
 an upload is in flight, peers see a placeholder with the filename and a

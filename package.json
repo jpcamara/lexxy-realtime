@@ -42,33 +42,13 @@
   },
   "peerDependencies": {
     "@37signals/lexxy": "^0.9",
-    "@anycable/web": "*",
     "@lexical/yjs": "^0.44",
     "lexical": "^0.44",
     "y-protocols": "^1.0",
     "yjs": "^13.6"
   },
-  "peerDependenciesMeta": {
-    "@anycable/web": {
-      "optional": true
-    }
-  },
   "devDependencies": {
-    "@37signals/lexxy": "0.9.28",
-    "@anycable/web": "*",
-    "@lexical/clipboard": "^0.44.0",
-    "@lexical/code": "^0.44.0",
-    "@lexical/extension": "^0.44.0",
-    "@lexical/history": "^0.44.0",
-    "@lexical/html": "^0.44.0",
-    "@lexical/link": "^0.44.0",
-    "@lexical/list": "^0.44.0",
-    "@lexical/markdown": "^0.44.0",
-    "@lexical/plain-text": "^0.44.0",
-    "@lexical/rich-text": "^0.44.0",
-    "@lexical/selection": "^0.44.0",
-    "@lexical/table": "^0.44.0",
-    "@lexical/utils": "^0.44.0",
+"@37signals/lexxy": "0.9.28",
     "@lexical/yjs": "^0.44.0",
     "@rails/actioncable": "^8.1.300",
     "@rollup/plugin-terser": "^0.4.4",
