@@ -1,8 +1,7 @@
 import { createBinding, initLocalState, setLocalStateFocus, syncCursorPositions, syncLexicalUpdateToYjs, syncYjsChangesToLexical } from "@lexical/yjs";
-import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG, createEditor } from "lexical";
+import { $createParagraphNode, $getRoot, HISTORY_MERGE_TAG } from "lexical";
 import * as Y from "yjs";
 import { Doc, applyUpdate, mergeUpdates } from "yjs";
-
 //#region node_modules/@rails/actioncable/app/assets/javascripts/actioncable.esm.js
 var adapters = {
 	logger: typeof console !== "undefined" ? console : void 0,
@@ -352,7 +351,7 @@ var Subscriptions = class {
 		let subscriptions;
 		if (typeof subscription === "string") subscriptions = this.findAll(subscription);
 		else subscriptions = [subscription];
-		return subscriptions.map(((subscription$1) => typeof subscription$1[callbackName] === "function" ? subscription$1[callbackName](...args) : void 0));
+		return subscriptions.map(((subscription) => typeof subscription[callbackName] === "function" ? subscription[callbackName](...args) : void 0));
 	}
 	subscribe(subscription) {
 		if (this.sendCommand(subscription, "subscribe")) this.guarantor.guarantee(subscription);
@@ -412,7 +411,6 @@ function getConfig(name) {
 	const element = document.head.querySelector(`meta[name='action-cable-${name}']`);
 	if (element) return element.getAttribute("content");
 }
-
 //#endregion
 //#region node_modules/yrby-client/dist/reliable_sync.js
 const DEFAULTS = { resendInterval: 1e3 };
@@ -524,7 +522,6 @@ var ReliableSync = class {
 		this.#timer = void 0;
 	}
 };
-
 //#endregion
 //#region node_modules/lib0/math.js
 /**
@@ -547,50 +544,7 @@ const min = (a, b) => a < b ? a : b;
 * @return {number} The bigger element of a and b
 */
 const max = (a, b) => a > b ? a : b;
-const isNaN$1 = Number.isNaN;
-
-//#endregion
-//#region node_modules/lib0/binary.js
-const BIT8 = 128;
-const BIT18 = 1 << 17;
-const BIT19 = 1 << 18;
-const BIT20 = 1 << 19;
-const BIT21 = 1 << 20;
-const BIT22 = 1 << 21;
-const BIT23 = 1 << 22;
-const BIT24 = 1 << 23;
-const BIT25 = 1 << 24;
-const BIT26 = 1 << 25;
-const BIT27 = 1 << 26;
-const BIT28 = 1 << 27;
-const BIT29 = 1 << 28;
-const BIT30 = 1 << 29;
-const BIT31 = 1 << 30;
-const BIT32 = 1 << 31;
-const BITS7 = 127;
-const BITS17 = BIT18 - 1;
-const BITS18 = BIT19 - 1;
-const BITS19 = BIT20 - 1;
-const BITS20 = BIT21 - 1;
-const BITS21 = BIT22 - 1;
-const BITS22 = BIT23 - 1;
-const BITS23 = BIT24 - 1;
-const BITS24 = BIT25 - 1;
-const BITS25 = BIT26 - 1;
-const BITS26 = BIT27 - 1;
-const BITS27 = BIT28 - 1;
-const BITS28 = BIT29 - 1;
-const BITS29 = BIT30 - 1;
-const BITS30 = BIT31 - 1;
-/**
-* @type {number}
-*/
-const BITS31 = 2147483647;
-/**
-* @type {number}
-*/
-const BITS32 = 4294967295;
-
+Number.isNaN;
 //#endregion
 //#region node_modules/lib0/number.js
 /**
@@ -599,15 +553,10 @@ const BITS32 = 4294967295;
 * @module number
 */
 const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
-const MIN_SAFE_INTEGER = Number.MIN_SAFE_INTEGER;
-const LOWEST_INT32 = 1 << 31;
-const HIGHEST_INT32 = BITS31;
-const HIGHEST_UINT32 = BITS32;
-/* c8 ignore next */
-const isInteger = Number.isInteger || ((num) => typeof num === "number" && isFinite(num) && floor(num) === num);
-const isNaN = Number.isNaN;
-const parseInt = Number.parseInt;
-
+Number.MIN_SAFE_INTEGER;
+Number.isInteger;
+Number.isNaN;
+Number.parseInt;
 //#endregion
 //#region node_modules/lib0/set.js
 /**
@@ -616,7 +565,6 @@ const parseInt = Number.parseInt;
 * @module set
 */
 const create$2 = () => /* @__PURE__ */ new Set();
-
 //#endregion
 //#region node_modules/lib0/array.js
 /**
@@ -628,8 +576,7 @@ const create$2 = () => /* @__PURE__ */ new Set();
 * @return {T}
 */
 const from = Array.from;
-const isArray$1 = Array.isArray;
-
+Array.isArray;
 //#endregion
 //#region node_modules/lib0/string.js
 /**
@@ -638,12 +585,8 @@ const isArray$1 = Array.isArray;
 * @module string
 */
 const fromCharCode = String.fromCharCode;
-const fromCodePoint = String.fromCodePoint;
-/**
-* The largest utf16 character.
-* Corresponds to Uint8Array([255, 255]) or charcodeof(2x2^8)
-*/
-const MAX_UTF16_CHARACTER = fromCharCode(65535);
+String.fromCodePoint;
+fromCharCode(65535);
 /**
 * @param {string} str
 * @return {Uint8Array<ArrayBuffer>}
@@ -674,10 +617,9 @@ let utf8TextDecoder = typeof TextDecoder === "undefined" ? null : new TextDecode
 	ignoreBOM: true
 });
 /* c8 ignore start */
-if (utf8TextDecoder && utf8TextDecoder.decode(new Uint8Array()).length === 1)
+if (utf8TextDecoder && utf8TextDecoder.decode(/* @__PURE__ */ new Uint8Array()).length === 1)
  /* c8 ignore next */
 utf8TextDecoder = null;
-
 //#endregion
 //#region node_modules/lib0/encoding.js
 /**
@@ -713,7 +655,7 @@ utf8TextDecoder = null;
 var Encoder = class {
 	constructor() {
 		this.cpos = 0;
-		this.cbuf = new Uint8Array(100);
+		this.cbuf = /* @__PURE__ */ new Uint8Array(100);
 		/**
 		* @type {Array<Uint8Array>}
 		*/
@@ -779,16 +721,16 @@ const write = (encoder, num) => {
 * @param {number} num The number that is to be encoded.
 */
 const writeVarUint = (encoder, num) => {
-	while (num > BITS7) {
-		write(encoder, BIT8 | BITS7 & num);
+	while (num > 127) {
+		write(encoder, 128 | 127 & num);
 		num = floor(num / 128);
 	}
-	write(encoder, BITS7 & num);
+	write(encoder, 127 & num);
 };
 /**
 * A cache to store strings temporarily
 */
-const _strBuffer = new Uint8Array(3e4);
+const _strBuffer = /* @__PURE__ */ new Uint8Array(3e4);
 const _maxStrBSize = _strBuffer.length / 3;
 /**
 * Write a variable length string.
@@ -859,7 +801,6 @@ const writeVarUint8Array = (encoder, uint8Array) => {
 	writeVarUint(encoder, uint8Array.byteLength);
 	writeUint8Array(encoder, uint8Array);
 };
-
 //#endregion
 //#region node_modules/lib0/error.js
 /**
@@ -873,7 +814,6 @@ const writeVarUint8Array = (encoder, uint8Array) => {
 */
 /* c8 ignore next */
 const create$1 = (s) => new Error(s);
-
 //#endregion
 //#region node_modules/lib0/decoding.js
 /**
@@ -993,9 +933,9 @@ const readVarUint = (decoder) => {
 	const len = decoder.arr.length;
 	while (decoder.pos < len) {
 		const r = decoder.arr[decoder.pos++];
-		num = num + (r & BITS7) * mult;
+		num = num + (r & 127) * mult;
 		mult *= 128;
-		if (r < BIT8) return num;
+		if (r < 128) return num;
 		/* c8 ignore start */
 		if (num > MAX_SAFE_INTEGER) throw errorIntegerOutOfRange;
 	}
@@ -1049,42 +989,6 @@ const _readVarStringNative = (decoder) => utf8TextDecoder.decode(readVarUint8Arr
 */
 /* c8 ignore next */
 const readVarString = utf8TextDecoder ? _readVarStringNative : _readVarStringPolyfill;
-
-//#endregion
-//#region node_modules/y-protocols/sync.js
-/**
-* @module sync-protocol
-*/
-/**
-* @typedef {Map<number, number>} StateMap
-*/
-/**
-* Core Yjs defines two message types:
-* • YjsSyncStep1: Includes the State Set of the sending client. When received, the client should reply with YjsSyncStep2.
-* • YjsSyncStep2: Includes all missing structs and the complete delete set. When received, the client is assured that it
-*   received all information from the remote client.
-*
-* In a peer-to-peer network, you may want to introduce a SyncDone message type. Both parties should initiate the connection
-* with SyncStep1. When a client received SyncStep2, it should reply with SyncDone. When the local client received both
-* SyncStep2 and SyncDone, it is assured that it is synced to the remote client.
-*
-* In a client-server model, you want to handle this differently: The client should initiate the connection with SyncStep1.
-* When the server receives SyncStep1, it should reply with SyncStep2 immediately followed by SyncStep1. The client replies
-* with SyncStep2 when it receives SyncStep1. Optionally the server may send a SyncDone after it received SyncStep2, so the
-* client knows that the sync is finished.  There are two reasons for this more elaborated sync model: 1. This protocol can
-* easily be implemented on top of http and websockets. 2. The server should only reply to requests, and not initiate them.
-* Therefore it is necessary that the client initiates the sync.
-*
-* Construction of a message:
-* [messageType : varUint, message definition..]
-*
-* Note: A message does not include information about the room name. This must to be handled by the upper layer protocol!
-*
-* stringify[messageType] stringifies a message definition (messageType is already read from the bufffer)
-*/
-const messageYjsSyncStep1 = 0;
-const messageYjsSyncStep2 = 1;
-const messageYjsUpdate = 2;
 /**
 * Create a sync step 1 message based on the state of the current shared document.
 *
@@ -1092,7 +996,7 @@ const messageYjsUpdate = 2;
 * @param {Y.Doc} doc
 */
 const writeSyncStep1 = (encoder, doc) => {
-	writeVarUint(encoder, messageYjsSyncStep1);
+	writeVarUint(encoder, 0);
 	const sv = Y.encodeStateVector(doc);
 	writeVarUint8Array(encoder, sv);
 };
@@ -1102,7 +1006,7 @@ const writeSyncStep1 = (encoder, doc) => {
 * @param {Uint8Array} [encodedStateVector]
 */
 const writeSyncStep2 = (encoder, doc, encodedStateVector) => {
-	writeVarUint(encoder, messageYjsSyncStep2);
+	writeVarUint(encoder, 1);
 	writeVarUint8Array(encoder, Y.encodeStateAsUpdate(doc, encodedStateVector));
 };
 /**
@@ -1119,11 +1023,13 @@ const readSyncStep1 = (decoder, encoder, doc) => writeSyncStep2(encoder, doc, re
 * @param {decoding.Decoder} decoder
 * @param {Y.Doc} doc
 * @param {any} transactionOrigin
+* @param {(error:Error)=>any} [errorHandler]
 */
-const readSyncStep2 = (decoder, doc, transactionOrigin) => {
+const readSyncStep2 = (decoder, doc, transactionOrigin, errorHandler) => {
 	try {
 		Y.applyUpdate(doc, readVarUint8Array(decoder), transactionOrigin);
 	} catch (error) {
+		if (errorHandler != null) errorHandler(error);
 		console.error("Caught error while handling a Yjs update", error);
 	}
 };
@@ -1132,7 +1038,7 @@ const readSyncStep2 = (decoder, doc, transactionOrigin) => {
 * @param {Uint8Array} update
 */
 const writeUpdate = (encoder, update) => {
-	writeVarUint(encoder, messageYjsUpdate);
+	writeVarUint(encoder, 2);
 	writeVarUint8Array(encoder, update);
 };
 /**
@@ -1141,6 +1047,7 @@ const writeUpdate = (encoder, update) => {
 * @param {decoding.Decoder} decoder
 * @param {Y.Doc} doc
 * @param {any} transactionOrigin
+* @param {(error:Error)=>any} [errorHandler]
 */
 const readUpdate = readSyncStep2;
 /**
@@ -1148,24 +1055,24 @@ const readUpdate = readSyncStep2;
 * @param {encoding.Encoder} encoder The reply message. Does not need to be sent if empty.
 * @param {Y.Doc} doc
 * @param {any} transactionOrigin
+* @param {(error:Error)=>any} [errorHandler] Optional error handler that catches errors when reading Yjs messages.
 */
-const readSyncMessage = (decoder, encoder, doc, transactionOrigin) => {
+const readSyncMessage = (decoder, encoder, doc, transactionOrigin, errorHandler) => {
 	const messageType = readVarUint(decoder);
 	switch (messageType) {
-		case messageYjsSyncStep1:
+		case 0:
 			readSyncStep1(decoder, encoder, doc);
 			break;
-		case messageYjsSyncStep2:
-			readSyncStep2(decoder, doc, transactionOrigin);
+		case 1:
+			readSyncStep2(decoder, doc, transactionOrigin, errorHandler);
 			break;
-		case messageYjsUpdate:
-			readUpdate(decoder, doc, transactionOrigin);
+		case 2:
+			readUpdate(decoder, doc, transactionOrigin, errorHandler);
 			break;
 		default: throw new Error("Unknown message type");
 	}
 	return messageType;
 };
-
 //#endregion
 //#region node_modules/lib0/time.js
 /**
@@ -1174,7 +1081,6 @@ const readSyncMessage = (decoder, encoder, doc, transactionOrigin) => {
 * @return {number}
 */
 const getUnixTime = Date.now;
-
 //#endregion
 //#region node_modules/lib0/map.js
 /**
@@ -1217,7 +1123,6 @@ const setIfUndefined = (map, key, createT) => {
 	if (set === void 0) map.set(key, set = createT());
 	return set;
 };
-
 //#endregion
 //#region node_modules/lib0/observable.js
 /**
@@ -1289,11 +1194,9 @@ var Observable = class {
 	}
 };
 /* c8 ignore end */
-
 //#endregion
 //#region node_modules/lib0/trait/equality.js
 const EqualityTraitSymbol = Symbol("Equality");
-
 //#endregion
 //#region node_modules/lib0/object.js
 /**
@@ -1313,14 +1216,8 @@ const size = (obj) => keys(obj).length;
 * @return {boolean}
 */
 const hasProperty = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-
 //#endregion
 //#region node_modules/lib0/function.js
-/**
-* Common functions and function call helpers.
-*
-* @module function
-*/
 /* c8 ignore start */
 /**
 * @param {any} a
@@ -1360,9 +1257,6 @@ const equalityDeep = (a, b) => {
 	}
 	return true;
 };
-/* c8 ignore stop */
-const isArray = isArray$1;
-
 //#endregion
 //#region node_modules/y-protocols/awareness.js
 /**
@@ -1413,14 +1307,14 @@ var Awareness = class extends Observable {
 		*/
 		this.meta = /* @__PURE__ */ new Map();
 		this._checkInterval = setInterval(() => {
-			const now$1 = getUnixTime();
-			if (this.getLocalState() !== null && outdatedTimeout / 2 <= now$1 - this.meta.get(this.clientID).lastUpdated) this.setLocalState(this.getLocalState());
+			const now = getUnixTime();
+			if (this.getLocalState() !== null && 3e4 / 2 <= now - this.meta.get(this.clientID).lastUpdated) this.setLocalState(this.getLocalState());
 			/**
 			* @type {Array<number>}
 			*/
 			const remove = [];
 			this.meta.forEach((meta, clientid) => {
-				if (clientid !== this.clientID && outdatedTimeout <= now$1 - meta.lastUpdated && this.states.has(clientid)) remove.push(clientid);
+				if (clientid !== this.clientID && 3e4 <= now - meta.lastUpdated && this.states.has(clientid)) remove.push(clientid);
 			});
 			if (remove.length > 0) removeAwarenessStates(this, remove, "timeout");
 		}, floor(outdatedTimeout / 10));
@@ -1598,7 +1492,6 @@ const applyAwarenessUpdate = (awareness, update, origin) => {
 		removed
 	}, origin]);
 };
-
 //#endregion
 //#region node_modules/yrby-client/dist/y_protocol_session.js
 const MessageType = {
@@ -1709,7 +1602,7 @@ var YProtocolSession = class {
 				case MessageType.Sync: {
 					writeVarUint(encoder, MessageType.Sync);
 					const syncType = readSyncMessage(decoder, encoder, this.doc, this);
-					if (!this.#synced && syncType === messageYjsSyncStep2) this.#synced = true;
+					if (!this.#synced && syncType === 1) this.#synced = true;
 					break;
 				}
 				case MessageType.Awareness:
@@ -1781,12 +1674,10 @@ var YProtocolSession = class {
 		return type;
 	}
 };
-
 //#endregion
 //#region node_modules/yrby-client/dist/base64.js
 const toBase64 = (bytes) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
 const fromBase64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
-
 //#endregion
 //#region node_modules/yrby-client/dist/actioncable_provider.js
 var ActionCableProvider = class {
@@ -2004,7 +1895,6 @@ var ActionCableProvider = class {
 		if (result instanceof Promise) result.catch((error) => this.#onError(error, "send"));
 	}
 };
-
 //#endregion
 //#region src/editor_collaboration.js
 let sharedConsumer;
@@ -2052,7 +1942,8 @@ var Collaboration = class extends HTMLElement {
 			tag: HISTORY_MERGE_TAG,
 			discrete: true
 		});
-		const binding = bindWithLexxyNodeGuard(this.editor, () => createBinding(this.editor, provider, id, doc, docMap));
+		const excludedProperties = attachmentExclusions(this.editor);
+		const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
 		patchCollabElementSplice(binding);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
 		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
@@ -2098,74 +1989,18 @@ var Collaboration = class extends HTMLElement {
 		return container;
 	}
 };
-const BUILTIN_NODE_TYPES = new Set([
-	"root",
-	"text",
-	"linebreak",
-	"tab",
-	"paragraph"
+const UNSYNCABLE_ATTACHMENT_PROPERTIES = /* @__PURE__ */ new Set([
+	"editor",
+	"file",
+	"previewSrc",
+	"uploadUrl",
+	"blobUrlTemplate"
 ]);
-function bindWithLexxyNodeGuard(editor, bind) {
-	const nodes = editor?._nodes;
-	if (!nodes || typeof nodes.forEach !== "function") return bind();
-	let throwers;
-	try {
-		throwers = detectNoArgThrowingNodes(nodes);
-	} catch {
-		return bind();
-	}
-	if (throwers.size === 0) return bind();
-	const restore = [];
-	for (const info of throwers) {
-		const Original = info.klass;
-		const Guarded = class extends Original {
-			constructor(...args) {
-				super(args.length === 0 || args[0] === void 0 ? {} : args[0], args[1]);
-			}
-		};
-		info.klass = Guarded;
-		restore.push(() => {
-			info.klass = Original;
-		});
-	}
-	try {
-		return bind();
-	} finally {
-		for (const undo of restore) undo();
-	}
-}
-function detectNoArgThrowingNodes(nodes) {
-	const throwers = /* @__PURE__ */ new Set();
-	const candidates = [];
-	nodes.forEach((info) => {
-		const klass = info?.klass;
-		if (typeof klass !== "function" || typeof klass.getType !== "function") return;
-		let type;
-		try {
-			type = klass.getType();
-		} catch {
-			return;
-		}
-		if (!type || BUILTIN_NODE_TYPES.has(type)) return;
-		candidates.push({
-			info,
-			klass
-		});
-	});
-	if (candidates.length === 0) return throwers;
-	createEditor({
-		namespace: "yrby-node-probe",
-		nodes: candidates.map((c) => c.klass),
-		onError: () => {}
-	}).update(() => {
-		for (const { info, klass } of candidates) try {
-			new klass();
-		} catch {
-			throwers.add(info);
-		}
-	}, { discrete: true });
-	return throwers;
-}
+const LEXXY_ATTACHMENT_NODE_TYPES = /* @__PURE__ */ new Set([
+	"action_text_attachment",
+	"action_text_attachment_upload",
+	"custom_action_text_attachment"
+]);
 function patchCollabElementSplice(binding) {
 	const proto = binding?.root?.constructor?.prototype;
 	if (!proto || typeof proto.splice !== "function" || proto.__yrbySplicePatched) return;
@@ -2175,6 +2010,15 @@ function patchCollabElementSplice(binding) {
 		return original.call(this, b, index, delCount, collabNode);
 	};
 	proto.__yrbySplicePatched = true;
+}
+function attachmentExclusions(editor) {
+	const excludedProperties = /* @__PURE__ */ new Map();
+	const nodes = editor?._nodes;
+	if (!nodes || typeof nodes.forEach !== "function") return excludedProperties;
+	nodes.forEach((info, type) => {
+		if (LEXXY_ATTACHMENT_NODE_TYPES.has(type)) excludedProperties.set(info.klass, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+	});
+	return excludedProperties;
 }
 function emptyEditorState(state) {
 	return state.read(() => {
@@ -2224,10 +2068,8 @@ function registerCollaborationListeners(editor, provider, binding) {
 		binding.root.getSharedType().unobserveDeep(observer);
 	};
 }
-
 //#endregion
 //#region src/index.js
 if (!customElements.get("lexxy-collaboration")) customElements.define("lexxy-collaboration", Collaboration);
-
 //#endregion
 export { Collaboration, ActionCableProvider as YrbyProvider };

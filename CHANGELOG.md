@@ -6,6 +6,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Attachments work under collaboration: an attachment created by one
+  collaborator materializes for every peer and for late joiners. Uploads
+  sync live (progress bar and error state; a finished upload no longer
+  leaves a zombie placeholder), server-generated previews (PDFs) render
+  their poll-until-ready placeholder, remote placeholders drop the
+  "NaN undefined" size caption, and re-binding the element keeps the
+  exclusions. The browser e2e covers the scenarios.
+
+### Changed
+
+- The runtime constructor shims are gone. Lexxy constructs attachment
+  nodes bare (basecamp/lexxy#1196), which retires the no-arg constructor
+  probe, the guarded subclass swap, the constructor lookup patch, and the
+  mutation-listener re-key. What remains: the unsyncable-property
+  exclusions (`file`, `editor`, `previewSrc`, `uploadUrl`,
+  `blobUrlTemplate`), keyed by node type and passed to `createBinding`,
+  and the `CollabElementNode.splice` patch — a separate `@lexical/yjs`
+  empty-bootstrap issue. Needs a Lexxy release containing the fix; CI
+  overlays a dist built from the merge commit until one ships, and the
+  `@37signals/lexxy` peer floor must rise to that release before this
+  publishes (`^0.9` admits versions that throw at bind).
+
 ## [0.3.0] - 2026-07-13
 
 ### Fixed
