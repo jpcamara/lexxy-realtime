@@ -119,7 +119,7 @@ jobs:
         run: bundle install
 
       # The browser suite is the only thing that exercises the real editor
-      # binding (and the runtime shims). It drives the runner's preinstalled
+      # binding (and the splice patch). It drives the runner's preinstalled
       # Chrome through agent-browser.
       - name: Browser e2e suite
         working-directory: lexxy-realtime

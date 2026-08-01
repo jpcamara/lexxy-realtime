@@ -72,8 +72,8 @@ ab("bob", "keyboard", "type", "BOB-EDIT");
 check("Alice received Bob's edit", await waitEval("alice", 'window.__test.text().includes("BOB-EDIT")', "alice sees BOB-EDIT"));
 
 // Attachments must materialize on the PEER. @lexical/yjs constructs node
-// classes with no arguments when applying a remote update; before the
-// permanent node guard, Lexxy's attachment constructor threw
+// classes with no arguments when applying a remote update; before Lexxy
+// defaulted its constructor parameters (basecamp/lexxy#1196), that threw
 // ("Cannot destructure property 'tagName' of 'undefined'") and the peer
 // silently never rendered the node, even though its Yjs doc had it.
 ab("alice", "eval", 'window.__test.insertAttachment("TEST-SGID-123")');
@@ -114,18 +114,16 @@ check(
 );
 
 // A plain (non-collaborative) editor on the same page still creates
-// attachments: the constructor patch answers per active editor, so the
-// collaborative editor's Guarded registration must not poison the plain
-// editor's class-identity assertion.
+// attachments: binding one editor for collaboration must not disturb
+// another editor's registered classes.
 check(
   "plain editor on the same page still creates attachments",
   /\bok\b/.test(ab("carol", "eval", "window.__test.plainEditorAttachment()"))
 );
 
 // A re-bind (unmount + remount of the collaboration element) must keep the
-// excluded properties: the already-guarded classes no longer trip the
-// thrower probe, so exclusions have to carry over — otherwise the next
-// upload node's raw File aborts the Lexical->Yjs sync all over again.
+// excluded properties — exclusions are recomputed per bind, and losing them
+// means the next upload node's raw File aborts the Lexical->Yjs sync.
 ab("carol", "eval", 'window.__test.remountCollab()');
 check("carol re-synced after remount", await waitEval("carol", "window.__test.synced()", "carol re-synced"));
 ab("carol", "eval", 'window.__test.insertUploadNode("rebind-probe.png")');

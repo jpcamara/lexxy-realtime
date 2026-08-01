@@ -61,8 +61,8 @@ function start() {
     errors: () => window.__errors,
     // Insert an attachment the way a finished upload does: a real
     // action_text_attachment node with an sgid, appended to the root. Uses
-    // the class registered on the editor so the test exercises whatever the
-    // guard registered.
+    // the class registered on the editor so the test exercises whatever
+    // class the editor actually holds.
     insertAttachment: (sgid) => {
       const lexical = editor.editor;
       let klass;

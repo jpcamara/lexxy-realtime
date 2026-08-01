@@ -269,11 +269,12 @@ setup). Open `/docs/demo/lexxy` in two windows and type.
 
 ## Notes
 
-lexxy-realtime applies two small compatibility shims to `@lexical/yjs` and
-`@37signals/lexxy` **at runtime, from inside its own bind path** — no
-`patch-package`, no vendored patches, install the peers and go. They're temporary
-pending upstream fixes; the details and tracking PRs are in
-[`CONTRIBUTING.md`](CONTRIBUTING.md).
+lexxy-realtime applies one small compatibility patch to `@lexical/yjs` at
+runtime, from inside its own bind path — no `patch-package`, no vendored
+patches. It's temporary pending an upstream fix; details in
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Lexxy itself needs the no-arg
+construction fix (basecamp/lexxy#1196), merged upstream and awaiting a
+release.
 
 ## License
 

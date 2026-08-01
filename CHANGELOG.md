@@ -26,7 +26,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `blobUrlTemplate`), keyed by node type and passed to `createBinding`,
   and the `CollabElementNode.splice` patch — a separate `@lexical/yjs`
   empty-bootstrap issue. Needs a Lexxy release containing the fix; CI
-  overlays a dist built from the merge commit until one ships.
+  overlays a dist built from the merge commit until one ships, and the
+  `@37signals/lexxy` peer floor must rise to that release before this
+  publishes (`^0.9` admits versions that throw at bind).
 
 ## [0.3.0] - 2026-07-13
 

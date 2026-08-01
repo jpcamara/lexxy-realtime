@@ -176,11 +176,9 @@ const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
   'blobUrlTemplate',
 ]);
 
-// The Lexxy node types that carry those properties. Exclusions key off the
-// node TYPE, not off which classes fail the no-arg constructor probe: a
-// future Lexxy that defaults its constructor parameters stops throwing —
-// the whole guard machinery below goes dormant — but a raw File still
-// can't cross the sync boundary.
+// The Lexxy node types that carry those properties. Keyed by node type:
+// construction is upstream's job now (basecamp/lexxy#1196), but a raw File
+// still can't cross the sync boundary.
 const LEXXY_ATTACHMENT_NODE_TYPES = new Set([
   'action_text_attachment',
   'action_text_attachment_upload',

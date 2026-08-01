@@ -43,63 +43,42 @@ app), runs the suites, and tears it down.
   agent-browser scheduling and can flake; rerun before treating one as a real
   regression.
 
-## The two runtime shims
+## The compatibility patch
 
-`@lexical/yjs` 0.44 and `@37signals/lexxy` 0.9 each have a rough edge that breaks
-binding an empty/collaborative document. We apply both fixes **at runtime, from
-inside `editor_collaboration.js`'s bind path**, so consumers don't have to patch
-their `node_modules`:
+One runtime patch remains, applied from inside `editor_collaboration.js`'s
+bind path so consumers don't have to touch their `node_modules`:
 
-1. **`@37signals/lexxy` attachment nodes.** @lexical/yjs constructs registered
-   node classes with no arguments in two places: `createBinding`'s bind-time
-   property snapshot, and again whenever a peer's node is materialized from a
-   remote update. Lexxy's three ActionText attachment nodes destructure their
-   first parameter and throw on no-arg construction. We detect the offending
-   classes on an isolated probe editor and permanently swap each into
-   `editor._nodes` for a subclass that defaults the missing argument to `{}`.
-   Lexical asserts `registeredNode.klass === node.constructor`, and which
-   class is right depends on the editor doing the asserting (a plain Lexxy
-   editor on the same page registers the original class), so `constructor`
-   is a getter that answers with whatever the active editor registered.
-   The same classes get excluded properties — a raw `File` on the upload
-   node makes yjs throw mid-sync, and `editor`/`previewSrc` are
-   client-local — and a small `createDOM` fixup that blanks the
-   "NaN undefined" size caption Lexxy renders for a File it doesn't have.
-   The swap also re-keys mutation listeners that were registered against
-   the original class (Lexxy's upload tracker, which holds form submission
-   while uploads are pending): Lexical buckets mutations by the currently
-   registered class, so a pre-swap listener would otherwise never fire
-   again.
-   The fix upstream is mostly trivial (default the constructor parameter to
-   `{}`; keep non-serializable state off enumerable instance properties;
-   guard the size formatter).
+**`@lexical/yjs` `CollabElementNode.splice`.** It throws (dev) / appends
+`undefined` (prod) when asked to splice at an index with no existing child and
+no node to insert — exactly what the empty-collab-tree bootstrap does. We
+reach the (unexported) prototype through the live binding root and make that
+one case a no-op.
 
-2. **`@lexical/yjs` `CollabElementNode.splice`.** It throws (dev) / appends
-   `undefined` (prod) when asked to splice at an index with no existing child and
-   no node to insert — exactly what the empty-collab-tree bootstrap does. We
-   reach the (unexported) prototype through the live binding root and make that
-   one case a no-op.
+The attachment-property exclusions (`attachmentExclusions`) are not a patch:
+they use `createBinding`'s supported `excludedProperties` parameter to keep
+client-local properties (a raw `File`, `editor`, `previewSrc`, upload config)
+out of the shared doc.
 
-Both are temporary. If you change either, **revalidate by reversing any local
-file patches and running `bun run test:browser`** — the browser suite is the only
-thing that exercises the real editor binding and these shims.
+The constructor shims are gone. Lexxy constructs attachment nodes bare as of
+[basecamp/lexxy#1196](https://github.com/basecamp/lexxy/pull/1196) — merged
+but not yet in an npm release, so CI builds Lexxy's dist from the merge
+commit and lays it over the installed package (see the workflow step).
+
+If you change the patch, revalidate with `bun run test:browser` — the browser
+suite is the only thing that exercises the real editor binding.
 
 ### Upstream tracking
 
-- `@37signals/lexxy`: default the attachment-node constructor parameters.
-- `@lexical/yjs`: make `CollabElementNode.splice` tolerate the empty case.
-
-When an upstream release lands, drop the corresponding shim and bump the peer
-range.
-
-Last checked: lexxy 0.9.23 (July 2026). The attachment constructors still
-destructure their first parameter with no default, and the upload node's size
-caption still formats `this.file?.size` unguarded, so both shims remain. The
-full browser suite passes against 0.9.23.
+- `@37signals/lexxy`: no-arg construction is fixed on main (basecamp/lexxy#1196).
+  When a release ships it: bump the `@37signals/lexxy` dev dependency AND the
+  peer floor (`^0.9` admits releases that throw at bind), and delete the CI
+  overlay step.
+- `@lexical/yjs`: `CollabElementNode.splice` still needs the empty case
+  tolerated — candidate for an upstream fix in facebook/lexical.
 
 ## Pull requests
 
-- Keep the bind path readable; both shims are commented with *why*, not just
+- Keep the bind path readable; the patch is commented with *why*, not just
   *what* — keep that.
 - Run `bun run test` before opening a PR.
 - Update `CHANGELOG.md` under **[Unreleased]**.
