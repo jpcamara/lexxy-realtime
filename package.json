@@ -48,7 +48,7 @@
     "yjs": "^13.6"
   },
   "devDependencies": {
-    "@37signals/lexxy": "0.9.18",
+"@37signals/lexxy": "0.9.28",
     "@lexical/yjs": "^0.44.0",
     "@rails/actioncable": "^8.1.300",
     "@rollup/plugin-terser": "^0.4.4",
