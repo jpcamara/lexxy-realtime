@@ -1604,7 +1604,7 @@ function patchCollabElementSplice(binding) {
 	};
 	proto.__yrbySplicePatched = true;
 }
-const ORPHAN_SWEEP_SETTLE_MS = 3e3;
+const ORPHAN_SWEEP_SETTLE_MS = 25e3;
 function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
 	let timer = null;
 	const alone = () => awareness.getStates().size <= 1;

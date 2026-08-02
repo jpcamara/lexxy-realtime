@@ -239,12 +239,15 @@ function patchCollabElementSplice(binding) {
 // doc syncs before peers' awareness states arrive, and acting in that
 // window could delete a connected uploader's node. The residual risk --
 // an uploader connected for longer than the settle window with no
-// awareness state -- does not happen with this provider, which sends
-// awareness in the subscribe handshake.
+// awareness state -- and a fresh joiner learns pre-existing PASSIVE peers
+// only when their awareness re-broadcasts, which y-protocols does on a
+// ~15s renewal cycle. The settle window must outlast that cycle, or the
+// last client into a quiet room believes it is alone and sweeps a live
+// upload. A garbage collector has no latency requirement; long is safe.
 //
 // Own in-flight nodes (file still present) are never touched: being alone
 // while uploading is normal.
-const ORPHAN_SWEEP_SETTLE_MS = 3000;
+const ORPHAN_SWEEP_SETTLE_MS = 25000;
 
 function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
   let timer = null;

@@ -92,7 +92,9 @@ function start() {
     // Insert a PROVISIONAL upload node carrying a real File — the
     // unsyncable property. No uploadUrl, so no DirectUpload starts; this
     // exists to prove the excluded properties survive a re-bind.
-    insertUploadNode: (name) => {
+    // opts.orphan inserts the node WITHOUT a local File — the post-crash
+    // shape: an upload placeholder no client can complete or claim.
+    insertUploadNode: (name, opts = {}) => {
       const lexical = editor.editor;
       let klass;
       lexical._nodes.forEach((info) => {
@@ -103,7 +105,7 @@ function start() {
       try {
         lexical.update(() => {
           const node = new klass({
-            file: new File([new Uint8Array(16)], name, { type: "image/png" }),
+            file: opts.orphan ? null : new File([new Uint8Array(16)], name, { type: "image/png" }),
             fileName: name,
             contentType: "image/png",
           });

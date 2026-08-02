@@ -169,26 +169,34 @@ check(
 );
 // dave stays open: he authors the next scenario's orphan.
 
-// The pagehide send can be lost (dying socket, no retransmit). Simulate
-// exactly that with witnesses already present: erin and frank join, then
-// dave inserts an upload node, his provider disconnects BEFORE the page
-// dies, and his local cleanup never reaches the server — a durable orphan.
+// The pagehide send can be lost (dying socket, no retransmit), leaving
+// the post-crash state: an upload placeholder with no local File
+// anywhere. Stage that state deterministically — dave authors the node
+// file-less, so his own pagehide cleanup provably skips it — with
+// witnesses already present.
 open("erin", "Erin");
 open("frank", "Frank");
 check("Erin synced", await ready("erin"));
 check("Frank synced", await ready("frank"));
 
-ab("dave", "eval", 'window.__test.insertUploadNode("orphan-probe.png")');
+ab("dave", "eval", 'window.__test.insertUploadNode("orphan-probe.png", { orphan: true })');
 check(
   "orphan reached a live peer",
   await waitEval("erin", 'window.__test.docRoot().includes("orphan-probe.png")', "orphan visible to erin")
 );
-ab("dave", "eval", 'window.__test.provider.disconnect(); "cut"');
 ab("dave", "close");
 
 // Erin and frank each see the other in awareness: neither is alone, so
 // neither may sweep — from their side, the other could be the uploader.
-await sleep(4200); // past the settle window, with company present
+check(
+  "erin sees company in awareness",
+  await waitEval("erin", "window.__test.provider.awareness.getStates().size >= 2", "erin has company")
+);
+check(
+  "frank sees company in awareness",
+  await waitEval("frank", "window.__test.provider.awareness.getStates().size >= 2", "frank has company", 20000)
+);
+await sleep(27000); // past the settle window, with company present
 check(
   "no sweep while another peer is present",
   /\btrue\b/.test(ab("erin", "eval", 'window.__test.docRoot().includes("orphan-probe.png")'))
