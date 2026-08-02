@@ -1549,6 +1549,7 @@ var Collaboration = class extends HTMLElement {
 			removePendingUploadNodes(this.editor);
 		};
 		window.addEventListener("pagehide", removeOwnPendingUploads);
+		const cancelOrphanSweep = removeOrphanedUploadsWhenAlone(this.editor, provider, awareness);
 		const renderCursors = () => syncCursorPositions(binding, provider);
 		awareness.on("update", renderCursors);
 		const unsubscribeCursorRender = this.editor.registerUpdateListener(renderCursors);
@@ -1559,6 +1560,7 @@ var Collaboration = class extends HTMLElement {
 		this.#teardown = () => {
 			this.#teardown = null;
 			window.removeEventListener("pagehide", removeOwnPendingUploads);
+			cancelOrphanSweep();
 			awareness.off("update", renderCursors);
 			unsubscribeCursorRender();
 			unsubscribeListeners();
@@ -1601,6 +1603,40 @@ function patchCollabElementSplice(binding) {
 		return original.call(this, b, index, delCount, collabNode);
 	};
 	proto.__yrbySplicePatched = true;
+}
+const ORPHAN_SWEEP_SETTLE_MS = 3e3;
+function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
+	let timer = null;
+	const alone = () => awareness.getStates().size <= 1;
+	const sweep = () => {
+		timer = null;
+		if (!provider.synced || !alone()) return;
+		const info = editor?._nodes?.get?.("action_text_attachment_upload");
+		if (!info) return;
+		editor.update(() => {
+			for (const node of $nodesOfType(info.klass)) if (node.getType() === "action_text_attachment_upload" && !node.file) node.remove();
+		}, {
+			discrete: true,
+			tag: HISTORY_MERGE_TAG
+		});
+	};
+	const schedule = () => {
+		if (!timer && alone()) timer = setTimeout(sweep, ORPHAN_SWEEP_SETTLE_MS);
+	};
+	const onAwarenessChange = () => {
+		if (alone()) schedule();
+		else if (timer) {
+			clearTimeout(timer);
+			timer = null;
+		}
+	};
+	awareness.on("change", onAwarenessChange);
+	provider.whenSynced?.then?.(schedule);
+	schedule();
+	return () => {
+		clearTimeout(timer);
+		awareness.off("change", onAwarenessChange);
+	};
 }
 function removePendingUploadNodes(editor) {
 	const uploadType = "action_text_attachment_upload";

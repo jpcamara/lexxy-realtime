@@ -133,6 +133,12 @@ export class Collaboration extends HTMLElement {
     };
     window.addEventListener('pagehide', removeOwnPendingUploads);
 
+    // The pagehide send can be lost (the page is dying; there is no
+    // retransmit), so a second, receiver-side layer guarantees eventual
+    // cleanup: a client that is provably alone deletes remote upload
+    // placeholders. See removeOrphanedUploadsWhenAlone.
+    const cancelOrphanSweep = removeOrphanedUploadsWhenAlone(this.editor, provider, awareness);
+
     // Re-render remote cursors when presence changes or the document reflows.
     const renderCursors = () => syncCursorPositions(binding, provider);
     awareness.on('update', renderCursors);
@@ -145,6 +151,7 @@ export class Collaboration extends HTMLElement {
     this.#teardown = () => {
       this.#teardown = null;
       window.removeEventListener('pagehide', removeOwnPendingUploads);
+      cancelOrphanSweep();
       awareness.off('update', renderCursors);
       unsubscribeCursorRender();
       unsubscribeListeners();
@@ -223,6 +230,63 @@ function patchCollabElementSplice(binding) {
     return original.call(this, b, index, delCount, collabNode);
   };
   proto.__yrbySplicePatched = true;
+}
+
+// A remote upload node (no local File) can only ever be completed by the
+// client that holds the File. If awareness says no one else is connected,
+// that client is not here -- the node is dead, and deleting it cannot kill
+// a live upload. Runs after a settle delay and rechecks: at join time the
+// doc syncs before peers' awareness states arrive, and acting in that
+// window could delete a connected uploader's node. The residual risk --
+// an uploader connected for longer than the settle window with no
+// awareness state -- does not happen with this provider, which sends
+// awareness in the subscribe handshake.
+//
+// Own in-flight nodes (file still present) are never touched: being alone
+// while uploading is normal.
+const ORPHAN_SWEEP_SETTLE_MS = 3000;
+
+function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
+  let timer = null;
+
+  const alone = () => awareness.getStates().size <= 1;
+
+  const sweep = () => {
+    timer = null;
+    if (!provider.synced || !alone()) return;
+    const info = editor?._nodes?.get?.('action_text_attachment_upload');
+    if (!info) return;
+
+    editor.update(
+      () => {
+        for (const node of $nodesOfType(info.klass)) {
+          if (node.getType() === 'action_text_attachment_upload' && !node.file) node.remove();
+        }
+      },
+      { discrete: true, tag: HISTORY_MERGE_TAG }
+    );
+  };
+
+  const schedule = () => {
+    if (!timer && alone()) timer = setTimeout(sweep, ORPHAN_SWEEP_SETTLE_MS);
+  };
+  const onAwarenessChange = () => {
+    if (alone()) {
+      schedule();
+    } else if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  awareness.on('change', onAwarenessChange);
+  provider.whenSynced?.then?.(schedule);
+  schedule();
+
+  return () => {
+    clearTimeout(timer);
+    awareness.off('change', onAwarenessChange);
+  };
 }
 
 // Remove this client's own in-flight upload nodes -- the ones still holding
