@@ -17,11 +17,6 @@ module LexxyRealtime
   CHANNEL_NAME = "DocumentChannel"
 
   class << self
-    # Delay between a recorded change and its materialization job.
-    attr_writer :materialize_after
-
-    def materialize_after = @materialize_after ||= 5
-
     # Cursor identity, called with the view context; returns { name:, color: }
     # (a nil color gets a stable one derived from the name).
     attr_writer :identity

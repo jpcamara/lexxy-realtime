@@ -56,10 +56,8 @@ regular Action Text, kept current two ways:
   channel; delay `LexxyRealtime.materialize_after`, default 5s) that renders
   the document to HTML server-side via yrby's `Y::Lexxy`. Active Job's async
   adapter runs it in development; Solid Queue on stock Rails 8 in production.
-- **Reading the attribute materializes first when the log is newer**, so a
-  read can lock and save. Leaving the editor for a show page never shows
-  stale content. Freshness is exact once writes quiesce, best-effort while
-  peers are actively typing.
+- **Reads are plain reads.** The stored value already tracks the
+  document; leaving the editor for a show page never shows stale content.
 
 ## Access control
 
@@ -70,7 +68,6 @@ Clients join with a signed, purpose-scoped GlobalID minted by the form helper
 ## Configuration
 
 ```ruby
-LexxyRealtime.materialize_after = 10       # seconds between an edit and its job
 LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil } }
 ```
 

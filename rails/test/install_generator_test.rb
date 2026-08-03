@@ -26,8 +26,8 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match "LexxyRealtime::SGID_PURPOSE", channel
       assert_match "collaborative_rich_text?", channel, "the field must be a declared collaborative attribute"
       assert_match "collaborative_document!", channel
-      assert_match "materialize_collaborative_rich_text_later", channel,
-                   "the channel names the Action Text linkage, not job plumbing"
+      assert_match "materialize_collaborative_rich_text!", channel,
+                   "the channel renders write-through, named in place"
       assert_match "Y::Document.append", channel
       assert_match "def authorized?", channel
     end
@@ -39,7 +39,6 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_migration "db/migrate/create_y_tables.rb" do |migration|
       assert_match ":y_documents", migration
       assert_match "t.references :record, polymorphic: true", migration
-      assert_match "materialized_at", migration
       assert_match ":y_document_updates", migration
     end
   end

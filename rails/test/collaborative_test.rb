@@ -30,11 +30,6 @@ class CollaborativeTest < Minitest::Test
     refute bare.method_defined?(:materialize_collaborative_rich_text!)
   end
 
-  def test_generated_reader_lives_in_a_named_module
-    assert Post.const_defined?(:CollaborativeRichTextMethods)
-    assert_includes Post.ancestors.map(&:name), "Post::CollaborativeRichTextMethods"
-  end
-
   def test_encrypted_option_is_rejected
     klass = Class.new(ActiveRecord::Base) do
       self.table_name = "posts"
@@ -94,7 +89,8 @@ class CollaborativeTest < Minitest::Test
     plain = PlainPost.find(@post.id)
     append(lexxy_full_state, plain)
 
-    assert_equal lexxy_full_html, plain.body, "read materializes into the plain column"
+    assert plain.materialize_collaborative_rich_text!(:body)
+    assert_equal lexxy_full_html, plain.reload.body, "rendered into the plain column"
   end
 
   def test_materialize_raises_for_a_non_collaborative_attribute
@@ -113,95 +109,6 @@ class CollaborativeTest < Minitest::Test
     # Byte-identical to the Lexxy editor's own serialization of the same
     # session (the fixture pair is captured from a real editor).
     assert_equal lexxy_full_html, @post.reload.body
-  end
-
-  def test_reading_the_attribute_materializes_when_stale
-    # Simulates leaving the editor for the show page inside the debounce
-    # window: updates are recorded but no job has run. A plain read must
-    # return the collaborative state, not the stale column.
-    append(lexxy_full_state)
-
-    assert_equal lexxy_full_html, @post.body, "a plain read returned the latest state"
-  end
-
-  def test_reading_when_fresh_does_not_rematerialize
-    append(lexxy_full_state)
-    @post.body # first read materializes
-    materialized_at = @post.reload.updated_at
-
-    @post.body
-
-    assert_equal materialized_at, @post.reload.updated_at,
-                 "a fresh read performs no render and no save"
-  end
-
-  def test_reading_after_a_new_update_refreshes_again
-    append(lexxy_full_state)
-    @post.body
-    first_at = @document.reload.materialized_at
-
-    append(lexxy_full_state) # redelivery: newer log row
-
-    @post.body
-
-    assert_operator @document.reload.materialized_at, :>=, first_at, "the newer log row triggered a refresh"
-  end
-
-  def test_an_update_landing_mid_materialization_still_converges
-    append(lexxy_full_state)
-    # Sneak one extra update in between materialize's load and save — the
-    # exact convergence race: without the watermark the projection would be
-    # stamped newer than the sneaked update and everything would skip.
-    document = @post.collaborative_document(:body)
-    sneaked = false
-    original = document.method(:load_state)
-    document.define_singleton_method(:load_state) do
-      original.call.tap do
-        unless sneaked
-          sneaked = true
-          Y::Document.append(key, lexxy_full_state)
-        end
-      end
-    end
-
-    assert @post.materialize_collaborative_rich_text!(:body)
-    refute_nil @document.reload.materialized_at, "the watermark lives on our document"
-    assert_equal :stale, @post.collaborative_rich_text_freshness(:body),
-                 "the mid-render update must read as newer than the projection"
-    assert @post.materialize_collaborative_rich_text!(:body), "the sneaked update's own job converges"
-    assert_equal :fresh, @post.collaborative_rich_text_freshness(:body)
-  end
-
-  def test_reading_under_write_contention_serves_the_current_value
-    append(lexxy_full_state)
-    @post.body # materialize once so a stale-but-present value exists
-    append(lexxy_full_state)
-
-    # The lock is busy (peers typing): the read must not raise, and must
-    # return the last materialized value instead of failing the page.
-    @post.define_singleton_method(:materialize_collaborative_rich_text!) do |_name|
-      raise ActiveRecord::LockWaitTimeout
-    end
-
-    assert_equal lexxy_full_html, @post.body
-  end
-
-  def test_reading_through_a_dirty_instance_serves_the_current_value
-    append(lexxy_full_state)
-    @post.body # materialize a first value
-    @post.title = "edited but unsaved" # a form assignment in flight
-
-    assert_equal lexxy_full_html, @post.body, "read works on a dirty instance"
-    assert_equal "edited but unsaved", @post.title, "the dirty change was not committed"
-    refute_equal "edited but unsaved", @post.reload.title
-  end
-
-  def test_reading_with_no_document_reads_the_column_untouched
-    @post.update!(body: "<p>manual</p>")
-    before = @post.reload.updated_at
-
-    assert_equal "<p>manual</p>", @post.body
-    assert_equal before, @post.reload.updated_at
   end
 
   def test_materialize_saves_past_unrelated_model_validations
