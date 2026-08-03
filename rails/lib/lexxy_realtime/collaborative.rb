@@ -69,7 +69,7 @@ module LexxyRealtime
 
       # :fresh (provably current), :stale (provably behind), or :unknown (no
       # document yet, or nothing recorded). One column comparison — the
-      # document stamps changed_at on content changes and folding leaves it
+      # document stamps changed_at on content changes and compacting leaves it
       # alone. The reader acts on :stale; the job acts on anything but :fresh.
       def collaborative_rich_text_freshness(name)
         document = collaborative_document(name)
