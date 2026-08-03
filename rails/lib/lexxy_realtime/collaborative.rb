@@ -75,7 +75,7 @@ module LexxyRealtime
       # The reader acts on :stale; the job acts on anything but :fresh.
       def collaborative_rich_text_freshness(name)
         document = collaborative_document(name)
-        return :unknown unless document && document.changes_count.positive?
+        return :unknown unless document&.changes_count&.positive?
 
         consumed = document.materialized_changes_count
         consumed && consumed >= document.changes_count ? :fresh : :stale
