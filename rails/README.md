@@ -48,16 +48,15 @@ first collaborative open seeds the document from it.
 
 ## How the body stays current
 
-Live edits are CRDT deltas recorded to the update log. `post.body` remains
-regular Action Text, kept current two ways:
-
-- Every recorded change schedules a re-render
-  (`materialize_collaborative_rich_text_later`, visible in the generated
-  channel; delay `LexxyRealtime.materialize_after`, default 5s) that renders
-  the document to HTML server-side via yrby's `Y::Lexxy`. Active Job's async
-  adapter runs it in development; Solid Queue on stock Rails 8 in production.
-- **Reads are plain reads.** The stored value already tracks the
-  document; leaving the editor for a show page never shows stale content.
+Live edits are CRDT deltas recorded to the document. `post.body` remains
+regular Action Text, rendered write-through: after recording each change,
+the channel renders the document to HTML server-side via yrby's `Y::Lexxy`
+(`materialize_collaborative_rich_text!`, visible in the generated channel)
+and saves it as the attribute. No job, no delay, nothing to configure —
+reads are plain reads, and leaving the editor for a show page never shows
+stale content. A render failure is logged rather than raised (the change
+is already recorded; the next change re-renders everything), so a
+rendering bug degrades to a briefly stale body, never a sync outage.
 
 ## Access control
 
