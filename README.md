@@ -48,18 +48,20 @@ this lives in [`demo/`](demo/).
 `ActionText::RichText` ships in Action Text). `y_documents` is the
 structural twin of Action Text's `rich_texts`: one row per collaborative
 document, addressed by a unique transport `key` and, when bound to a model,
-by polymorphic `record` + `name`, holding `materialized_at`. Your model gets
-a real association (`collaborative_document_body`), and destroying a record
-sweeps its document and log. `y_document_updates` is the append-only CRDT
-log belonging to the document, running yrby's `Y::UpdateLog`: `load` merges
-rows, `append` adds one, and every 500 rows (`compact_every`) the log
-compacts into one snapshot row so loads stay fast. While people edit, the log holds the real
-document; `post.body` is re-rendered from it for everything else to read
-(next section). Swap the whole store with
-`LexxyRealtime.store_name` (any class implementing `load`/`append`).
+by polymorphic `record` + `name` — plus the merged `state` snapshot and the
+`changed_at`/`materialized_at` pair that answers "is the stored body
+stale?" as one column comparison. Your model gets a real association
+(`collaborative_document_body`), and destroying a record sweeps its
+document and history. `y_document_updates` is the uncompacted tail: one
+CRDT delta per row, folded into `state` and deleted once the tail reaches
+the fold threshold, so loading a document is one row read plus a short,
+bounded tail — whatever its history. While people edit, the document holds
+the real content; `post.body` is re-rendered from it for everything else to
+read (next section). Different storage entirely is the channel's job: point
+`on_load`/`on_change` anywhere.
 
 **A channel** — `DocumentChannel` speaks the Yjs sync protocol over Action
-Cable (or AnyCable), backed by the store: every edit is recorded durably
+Cable (or AnyCable), backed by `Y::Document`: every edit is recorded durably
 before it's acknowledged or relayed, so replaying the log always rebuilds the
 document. Clients join with a signed GlobalID minted by the form helper —
 they never name documents directly, and a signed id from another feature
@@ -75,10 +77,11 @@ Node anywhere — and saves it through the normal Action Text writer. So
 `post.body` always reflects the collaborative state, and everything downstream
 (rendering, search, mailers) is plain Action Text.
 
-Reads are fresh: when the update log is newer than the stored value, the
-attribute reader materializes inline before returning, so leaving the editor
-for the show page never shows a stale body. Most reads find the value already
-fresh and pay one indexed query, because every recorded change also enqueues
+Reads are fresh: when the document is newer than the stored value
+(`changed_at` vs `materialized_at`, one column comparison), the attribute
+reader materializes inline before returning, so leaving the editor for the
+show page never shows a stale body. Most reads find the value already
+fresh, because every recorded change also enqueues
 an idempotent materialization job with a short delay. The job is scheduled at
 edit time, so it does not depend on a clean disconnect — a closed browser or
 killed tab leaves the last edit's job already queued. In development Active

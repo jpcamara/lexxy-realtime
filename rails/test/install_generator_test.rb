@@ -16,7 +16,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     File.write(File.join(destination_root, "app/javascript/application.js"), "// entry\n")
   end
 
-  def test_generates_channel_store_model_and_migration
+  def test_generates_channel_and_migration
     with_js_entrypoint
     run_generator
 
@@ -28,7 +28,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match "collaborative_document!", channel
       assert_match "materialize_collaborative_rich_text_later", channel,
                    "the channel names the Action Text linkage, not job plumbing"
-      assert_match "LexxyRealtime.store.append", channel
+      assert_match "Y::Document.append", channel
       assert_match "def authorized?", channel
     end
     assert_no_file "app/models/yrby_document_store.rb"

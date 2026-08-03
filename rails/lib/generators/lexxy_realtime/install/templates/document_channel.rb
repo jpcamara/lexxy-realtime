@@ -1,33 +1,33 @@
 # frozen_string_literal: true
 
 # Live edits sync through this channel into the record's collaborative
-# document (a Y::Document and its update log, from yrby). The regular
-# attribute — Action Text when the model has it — is a projection of that
-# log, re-rendered shortly after each recorded change (on_change below) and
-# on any stale read. Clients join with a signed GlobalID minted by the form
-# helper; they never name documents.
+# document (a Y::Document, from yrby). The regular attribute — Action Text
+# when the model has it — is a projection of that document, re-rendered
+# shortly after each recorded change (on_change below) and on any stale
+# read. Clients join with a signed GlobalID minted by the form helper; they
+# never name documents.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
-  on_load { |document_id| LexxyRealtime.store.load(document_id) }
-  on_change do |document_id, update|
+  on_load { |key| Y::Document.load_state(key) }
+  on_change do |key, update|
     # Schedule before recording: a failed schedule raises with nothing
     # recorded, so the client's retransmit retries both.
     record.materialize_collaborative_rich_text_later(field)
-    LexxyRealtime.store.append(document_id, update)
+    Y::Document.append(key, update)
   end
 
   def subscribed
     reject and return unless record&.collaborative_rich_text?(field)
     reject and return unless authorized?
 
-    sync_subscribed(record.collaborative_document!(field).id)
+    sync_subscribed(record.collaborative_document!(field).key)
   end
 
   def receive(data)
     return unless record
 
-    sync_receive(data, record.collaborative_document!(field).id)
+    sync_receive(data, record.collaborative_document!(field).key)
   end
 
   private

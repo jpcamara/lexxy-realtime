@@ -17,14 +17,6 @@ module LexxyRealtime
   CHANNEL_NAME = "DocumentChannel"
 
   class << self
-    # The update store: any class implementing load/append (plus
-    # latest_change_at for read freshness). Resolved by name so code
-    # reloading stays clean.
-    attr_writer :store_name
-
-    def store_name = @store_name ||= "Y::DocumentUpdate"
-    def store = store_name.constantize
-
     # Delay between a recorded change and its materialization job.
     attr_writer :materialize_after
 

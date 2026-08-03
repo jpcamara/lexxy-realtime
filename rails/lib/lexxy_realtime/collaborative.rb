@@ -7,7 +7,7 @@ module LexxyRealtime
   # through the collaborative document and materialize back into the stored
   # value. With Action Text on the model it layers on has_rich_text; without
   # it, it materializes into a plain attribute. Reads are fresh — the reader
-  # materializes first whenever the update log is newer than the stored value.
+  # materializes first whenever the document is newer than the stored value.
   #
   # Only the macro is installed globally; the instance API below is
   # included when a model declares an attribute.
@@ -16,7 +16,7 @@ module LexxyRealtime
 
     class_methods do
       def has_collaborative_rich_text(name, **options) # rubocop:disable Naming/PredicatePrefix
-        # The update log stores plaintext CRDT rows, so encrypted rich text
+        # The document stores plaintext CRDT bytes, so encrypted rich text
         # is unsupported.
         raise ArgumentError, "encrypted: is not supported (the update log is plaintext)" if options.key?(:encrypted)
 
@@ -68,17 +68,14 @@ module LexxyRealtime
       end
 
       # :fresh (provably current), :stale (provably behind), or :unknown (no
-      # document yet, nothing recorded, or a store without latest_change_at).
-      # The reader acts on :stale; the job acts on anything but :fresh.
+      # document yet, or nothing recorded). One column comparison — the
+      # document stamps changed_at on content changes and folding leaves it
+      # alone. The reader acts on :stale; the job acts on anything but :fresh.
       def collaborative_rich_text_freshness(name)
         document = collaborative_document(name)
-        store = LexxyRealtime.store
-        return :unknown unless document && store.respond_to?(:latest_change_at)
+        return :unknown unless document&.changed_at
 
-        latest = store.latest_change_at(document.id)
-        return :unknown if latest.nil?
-
-        document.materialized_at && document.materialized_at >= latest ? :fresh : :stale
+        document.materialized_at && document.materialized_at >= document.changed_at ? :fresh : :stale
       end
 
       # Schedule materialization of a just-recorded change, after
@@ -108,13 +105,13 @@ module LexxyRealtime
         # materialize when stale — flag the window or the assignment recurses.
         @materializing_collaborative_rich_text = true
         with_lock do
-          store = LexxyRealtime.store
-          # The watermark: the newest log row visible before the load. The
-          # document is stamped with this time, so an update landing
-          # mid-render reads as newer and its scheduled job re-renders. The
+          # The watermark: changed_at as read before the load. The document
+          # is stamped with this time, so an update landing mid-render moves
+          # changed_at past it and the scheduled job re-renders. The
           # projection converges once writes quiesce.
-          as_of = store.respond_to?(:latest_change_at) ? store.latest_change_at(document.id) : nil
-          state = store.load(document.id)
+          document.reload
+          as_of = document.changed_at
+          state = document.load_state
           break false if state.nil?
 
           doc = Y::Doc.new
