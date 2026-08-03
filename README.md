@@ -53,8 +53,8 @@ by polymorphic `record` + `name` — plus the merged `state` snapshot and the
 stale?" as one column comparison. Your model gets a real association
 (`collaborative_document_body`), and destroying a record sweeps its
 document and history. `y_document_updates` is the uncompacted tail: one
-CRDT delta per row, folded into `state` and deleted once the tail reaches
-the fold threshold, so loading a document is one row read plus a short,
+CRDT delta per row, compacted into `state` and deleted once the tail
+reaches the compaction threshold, so loading a document is one row read plus a short,
 bounded tail — whatever its history. While people edit, the document holds
 the real content; `post.body` is re-rendered from it for everything else to
 read (next section). Different storage entirely is the channel's job: point
