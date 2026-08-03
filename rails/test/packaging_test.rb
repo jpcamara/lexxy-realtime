@@ -7,6 +7,5 @@ class PackagingTest < Minitest::Test
     spec = Dir.chdir("/") { Gem::Specification.load(File.expand_path("../lexxy-realtime.gemspec", __dir__)) }
 
     assert_includes spec.files, "lib/lexxy_realtime.rb"
-    assert_includes spec.files, "app/jobs/lexxy_realtime/materialize_job.rb"
   end
 end

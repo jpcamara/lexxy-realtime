@@ -4,10 +4,10 @@ require "active_support/concern"
 
 module LexxyRealtime
   # `has_collaborative_rich_text :body`: an attribute whose live edits sync
-  # through the collaborative document and materialize back into the stored
-  # value. With Action Text on the model it layers on has_rich_text; without
-  # it, it materializes into a plain attribute. Reads are fresh — the reader
-  # materializes first whenever the document is newer than the stored value.
+  # through the collaborative document and render back into the stored value
+  # on every recorded change — write-through, so the stored attribute is
+  # never stale and reads are plain reads. With Action Text on the model it
+  # layers on has_rich_text; without it, it renders into a plain attribute.
   #
   # Only the macro is installed globally; the instance API below is
   # included when a model declares an attribute.
@@ -22,23 +22,12 @@ module LexxyRealtime
 
         include Model unless include?(Model)
         # Action Text is optional: has_rich_text when the model has it, a
-        # plain attribute otherwise. The document and log work the same
-        # either way.
+        # plain attribute otherwise. The document works the same either way.
         has_rich_text(name, **options) if respond_to?(:has_rich_text)
         self.collaborative_rich_text_names = (collaborative_rich_text_names + [name.to_sym]).freeze
 
         has_one :"collaborative_document_#{name}", -> { where(name: name) },
                 class_name: "Y::Document", as: :record, inverse_of: :record, dependent: :destroy
-
-        # One stable, inspectable module per model for the generated readers.
-        unless const_defined?(:CollaborativeRichTextMethods, false)
-          const_set(:CollaborativeRichTextMethods, Module.new)
-          prepend const_get(:CollaborativeRichTextMethods, false)
-        end
-        const_get(:CollaborativeRichTextMethods, false).define_method(name) do
-          materialize_collaborative_rich_text_if_stale!(name) unless @materializing_collaborative_rich_text
-          super()
-        end
       end
     end
 
@@ -67,54 +56,20 @@ module LexxyRealtime
         end
       end
 
-      # :fresh (provably current), :stale (provably behind), or :unknown (no
-      # document yet, or nothing recorded). One column comparison — the
-      # document bumps changes_count per append with relative SQL, so the
-      # count is exact in commit order (a slow transaction's append cannot
-      # sneak under a wall-clock watermark), and compaction leaves it alone.
-      # The reader acts on :stale; the job acts on anything but :fresh.
-      def collaborative_rich_text_freshness(name)
-        document = collaborative_document(name)
-        return :unknown unless document&.changes_count&.positive?
-
-        consumed = document.materialized_changes_count
-        consumed && consumed >= document.changes_count ? :fresh : :stale
-      end
-
-      # Schedule materialization of a just-recorded change, after
-      # LexxyRealtime.materialize_after. Raises when the job can't be
-      # enqueued, so the channel can reject the change and the client
-      # retransmits.
-      def materialize_collaborative_rich_text_later(name)
-        ensure_collaborative!(name)
-        LexxyRealtime::MaterializeJob.set(wait: LexxyRealtime.materialize_after)
-                                     .perform_later(self, name.to_s) || raise("materialize enqueue failed")
-      rescue NotImplementedError
-        # The inline adapter can enqueue but not schedule (enqueue_at raises).
-        # Render now instead of rejecting every edit.
-        LexxyRealtime::MaterializeJob.perform_later(self, name.to_s) || raise("materialize enqueue failed")
-      end
-
       # Render the document server-side (Y::Lexxy — the editor's own markup)
-      # and save it as the attribute. Locked per record, state loaded inside
-      # the lock, so concurrent runs converge; false when nothing is recorded.
+      # and save it as the attribute. The channel calls this after recording
+      # each change, so the stored value tracks the document write-through.
+      # Locked per record and state loaded inside the lock, so concurrent
+      # renders across processes converge on the latest state; false when
+      # nothing is recorded.
       def materialize_collaborative_rich_text!(name)
         ensure_collaborative!(name)
 
         document = collaborative_document(name)
         return false unless document
 
-        # Action Text's writer reads the attribute (get-or-build), and reads
-        # materialize when stale — flag the window or the assignment recurses.
-        @materializing_collaborative_rich_text = true
         with_lock do
-          # The watermark: changes_count as read before the load. The
-          # document is stamped with this count, so an update landing
-          # mid-render moves the count past it and the scheduled job
-          # re-renders. The projection converges once writes quiesce.
-          document.reload
-          as_of = document.changes_count
-          state = document.load_state
+          state = document.reload.load_state
           break false if state.nil?
 
           doc = Y::Doc.new
@@ -124,24 +79,8 @@ module LexxyRealtime
 
           public_send("#{name}=", html)
           save!(validate: false) # a system-written projection; validations belong to user saves
-          document.update_columns(materialized_changes_count: as_of, materialized_at: Time.current)
           true
         end
-      ensure
-        @materializing_collaborative_rich_text = false
-      end
-
-      # The read path. Skips dirty instances (with_lock raises on unsaved
-      # changes, and the save would commit them) and serves the current value
-      # under lock contention — exact once writes quiesce, best-effort during
-      # them; the per-edit job converges either way.
-      def materialize_collaborative_rich_text_if_stale!(name)
-        return false unless persisted? && !has_changes_to_save?
-        return false unless collaborative_rich_text_freshness(name) == :stale
-
-        materialize_collaborative_rich_text!(name)
-      rescue ActiveRecord::LockWaitTimeout, ActiveRecord::Deadlocked, ActiveRecord::StatementTimeout
-        false
       end
 
       private

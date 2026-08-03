@@ -31,6 +31,5 @@ class UpdateTest < Minitest::Test
     served = Y::Doc.new.tap { |d| d.apply_update(Y::Document.load_state(document.key)) }
 
     assert_equal lexxy_full_html, Y::Lexxy.new(served).to_html
-    assert_predicate document.reload.changed_at, :present?, "the append stamped content freshness"
   end
 end

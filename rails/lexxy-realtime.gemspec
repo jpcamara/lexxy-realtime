@@ -24,7 +24,7 @@ Gem::Specification.new do |spec|
 
   # Anchored to the gemspec's directory: `gem build rails/lexxy-realtime.gemspec`
   # from the repo root otherwise globs nothing and ships an empty gem.
-  spec.files = Dir.chdir(__dir__) { Dir["lib/**/*", "app/**/*", "LICENSE", "README.md"] }
+  spec.files = Dir.chdir(__dir__) { Dir["lib/**/*", "LICENSE", "README.md"] }
   spec.require_paths = ["lib"]
 
   spec.add_dependency "lexxy", ">= 0.9"

@@ -5,7 +5,6 @@ require "test_helper"
 class ConfigTest < Minitest::Test
   def teardown
     LexxyRealtime.identity = nil
-    LexxyRealtime.materialize_after = nil
   end
 
   FakeView = Struct.new(:current_user)
@@ -14,10 +13,7 @@ class ConfigTest < Minitest::Test
   end
 
   def test_defaults
-    LexxyRealtime.materialize_after = nil
-
     assert_equal "DocumentChannel", LexxyRealtime::CHANNEL_NAME
-    assert_equal 5, LexxyRealtime.materialize_after
     assert_equal :lexxy_realtime, LexxyRealtime::SGID_PURPOSE
   end
 
