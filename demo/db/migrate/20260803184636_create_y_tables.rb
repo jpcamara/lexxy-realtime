@@ -13,9 +13,16 @@ class CreateYTables < ActiveRecord::Migration[8.1]
       t.references :record, polymorphic: true, null: true, index: false
       t.string :name
       # The snapshot is the whole document. Longblob on MySQL, a no-op on
-      # PostgreSQL/SQLite; a 16 MB cap would make folding fail on a large
+      # PostgreSQL/SQLite; a 16 MB cap would make compacting fail on a large
       # document and block appends.
       t.binary :state, limit: 4.gigabytes - 1
+      # changes_count is the freshness signal: bumped with relative SQL per
+      # append, so it is exact in commit order even when appends run inside
+      # slow transactions — wall-clock stamps are not. A projection records
+      # the count it consumed in materialized_changes_count; the timestamps
+      # are for humans and logs.
+      t.bigint :changes_count, null: false, default: 0
+      t.bigint :materialized_changes_count
       t.datetime :changed_at
       t.datetime :materialized_at
       t.timestamps
@@ -27,7 +34,7 @@ class CreateYTables < ActiveRecord::Migration[8.1]
                                               name: "index_y_documents_on_record_and_name"
     end
 
-    # The uncompacted tail: one CRDT delta per row, folded into the
+    # The uncompacted tail: one CRDT delta per row, compacted into the
     # document's state and deleted once the tail reaches the threshold.
     # pending marks causally-gapped rows, quarantined until they heal.
     create_table :y_document_updates do |t|
