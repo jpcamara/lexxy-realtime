@@ -2,39 +2,21 @@
 
 require "test_helper"
 
-# A store that sneaks one extra update in between materialize's load and
-# save — the exact convergence race: without the watermark the projection
-# would be stamped newer than the sneaked update and everything would skip.
-class SneakyStore
-  class << self
-    attr_accessor :sneak, :sneaked_update
-
-    def latest_change_at(key) = Y::DocumentUpdate.latest_change_at(key)
-    def append(key, update) = Y::DocumentUpdate.append(key, update)
-
-    def load(key)
-      Y::DocumentUpdate.load(key).tap do
-        if sneak
-          self.sneak = false
-          Y::DocumentUpdate.append(key, sneaked_update)
-        end
-      end
-    end
-  end
-end
-
 class CollaborativeTest < Minitest::Test
   def setup
     Y::DocumentUpdate.delete_all
     Y::Document.delete_all
-    LexxyRealtime.store_name = nil
     @post = Post.create!(title: "Doc")
     @document = @post.collaborative_document!(:body)
   end
 
+  # Appends the way the channel does (by key), then reloads the cached
+  # association target: production reads load the document fresh per
+  # request, and the long-lived instances here must see changed_at move.
   def append(state, record = nil)
     doc = record ? record.collaborative_document!(:body) : @document
-    Y::DocumentUpdate.append(doc.id, state)
+    Y::Document.append(doc.key, state)
+    doc.reload
   end
 
   def test_models_without_the_macro_get_no_instance_api
@@ -110,7 +92,7 @@ class CollaborativeTest < Minitest::Test
 
   def test_plain_model_without_action_text_materializes_into_the_attribute
     plain = PlainPost.find(@post.id)
-    Y::DocumentUpdate.append(plain.collaborative_document!(:body).id, lexxy_full_state)
+    append(lexxy_full_state, plain)
 
     assert_equal lexxy_full_html, plain.body, "read materializes into the plain column"
   end
@@ -167,9 +149,20 @@ class CollaborativeTest < Minitest::Test
 
   def test_an_update_landing_mid_materialization_still_converges
     append(lexxy_full_state)
-    LexxyRealtime.store_name = "SneakyStore"
-    SneakyStore.sneaked_update = lexxy_full_state
-    SneakyStore.sneak = true
+    # Sneak one extra update in between materialize's load and save — the
+    # exact convergence race: without the watermark the projection would be
+    # stamped newer than the sneaked update and everything would skip.
+    document = @post.collaborative_document(:body)
+    sneaked = false
+    original = document.method(:load_state)
+    document.define_singleton_method(:load_state) do
+      original.call.tap do
+        unless sneaked
+          sneaked = true
+          Y::Document.append(key, lexxy_full_state)
+        end
+      end
+    end
 
     assert @post.materialize_collaborative_rich_text!(:body)
     refute_nil @document.reload.materialized_at, "the watermark lives on our document"
@@ -222,7 +215,7 @@ class CollaborativeTest < Minitest::Test
     record = invalid.find(@post.id)
 
     refute_predicate record, :valid?
-    Y::DocumentUpdate.append(record.collaborative_document!(:body).id, lexxy_full_state)
+    append(lexxy_full_state, record)
 
     assert record.materialize_collaborative_rich_text!(:body)
     assert_equal lexxy_full_html, record.reload.body

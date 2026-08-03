@@ -30,6 +30,8 @@ ActiveRecord::Schema.define do
     t.string :key, null: false, index: { unique: true }
     t.references :record, polymorphic: true, null: true
     t.string :name
+    t.binary :state
+    t.datetime :changed_at
     t.datetime :materialized_at
     t.timestamps
     t.index %i[record_type record_id name], unique: true
@@ -38,6 +40,7 @@ ActiveRecord::Schema.define do
   create_table :y_document_updates, force: true do |t|
     t.references :document, null: false
     t.binary :payload, null: false
+    t.boolean :pending, null: false, default: false
     t.datetime :created_at, null: false
   end
 end

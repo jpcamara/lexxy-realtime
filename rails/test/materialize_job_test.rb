@@ -8,13 +8,12 @@ class MaterializeJobTest < Minitest::Test
   def setup
     Y::DocumentUpdate.delete_all
     Y::Document.delete_all
-    LexxyRealtime.store_name = nil
     @post = Post.create!(title: "Doc")
     @document = @post.collaborative_document!(:body)
   end
 
   def test_perform_materializes_the_field
-    Y::DocumentUpdate.append(@document.id, lexxy_full_state)
+    @document.append(lexxy_full_state)
 
     LexxyRealtime::MaterializeJob.perform_now(@post, "body")
 
@@ -22,7 +21,7 @@ class MaterializeJobTest < Minitest::Test
   end
 
   def test_perform_skips_the_render_when_already_fresh
-    Y::DocumentUpdate.append(@document.id, lexxy_full_state)
+    @document.append(lexxy_full_state)
     LexxyRealtime::MaterializeJob.perform_now(@post, "body")
     done_at = @document.reload.materialized_at
 

@@ -70,7 +70,6 @@ Clients join with a signed, purpose-scoped GlobalID minted by the form helper
 ## Configuration
 
 ```ruby
-LexxyRealtime.store_name = "MyUpdateLog"   # any class with load/append (+ latest_change_at)
 LexxyRealtime.materialize_after = 10       # seconds between an edit and its job
 LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil } }
 ```

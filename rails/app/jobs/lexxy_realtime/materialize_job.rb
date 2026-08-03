@@ -3,7 +3,7 @@
 module LexxyRealtime
   # One delayed job per recorded change; after a typing burst the first run
   # renders the final state and the rest skip on the freshness check. The
-  # skip is safe because the projection is stamped with the log version it
+  # skip is safe because the projection is stamped with the changed_at it
   # rendered (see materialize_collaborative_rich_text!), so a mid-render
   # update always reads as newer and its own job re-renders.
   class MaterializeJob < ActiveJob::Base
