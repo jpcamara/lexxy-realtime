@@ -49,8 +49,9 @@ this lives in [`demo/`](demo/).
 structural twin of Action Text's `rich_texts`: one row per collaborative
 document, addressed by a unique transport `key` and, when bound to a model,
 by polymorphic `record` + `name` — plus the merged `state` snapshot and the
-`changed_at`/`materialized_at` pair that answers "is the stored body
-stale?" as one column comparison. Your model gets a real association
+`changes_count`/`materialized_changes_count` pair that answers "is the
+stored body stale?" as one comparison — a counter bumped with relative
+SQL, exact in commit order where wall-clock stamps are not. Your model gets a real association
 (`collaborative_document_body`), and destroying a record sweeps its
 document and history. `y_document_updates` is the uncompacted tail: one
 CRDT delta per row, compacted into `state` and deleted once the tail
@@ -78,7 +79,7 @@ Node anywhere — and saves it through the normal Action Text writer. So
 (rendering, search, mailers) is plain Action Text.
 
 Reads are fresh: when the document is newer than the stored value
-(`changed_at` vs `materialized_at`, one column comparison), the attribute
+(`changes_count` vs the count the projection consumed), the attribute
 reader materializes inline before returning, so leaving the editor for the
 show page never shows a stale body. Most reads find the value already
 fresh, because every recorded change also enqueues

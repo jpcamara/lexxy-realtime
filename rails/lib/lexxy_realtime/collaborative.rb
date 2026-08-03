@@ -69,13 +69,16 @@ module LexxyRealtime
 
       # :fresh (provably current), :stale (provably behind), or :unknown (no
       # document yet, or nothing recorded). One column comparison — the
-      # document stamps changed_at on content changes and compacting leaves it
-      # alone. The reader acts on :stale; the job acts on anything but :fresh.
+      # document bumps changes_count per append with relative SQL, so the
+      # count is exact in commit order (a slow transaction's append cannot
+      # sneak under a wall-clock watermark), and compaction leaves it alone.
+      # The reader acts on :stale; the job acts on anything but :fresh.
       def collaborative_rich_text_freshness(name)
         document = collaborative_document(name)
-        return :unknown unless document&.changed_at
+        return :unknown unless document && document.changes_count.positive?
 
-        document.materialized_at && document.materialized_at >= document.changed_at ? :fresh : :stale
+        consumed = document.materialized_changes_count
+        consumed && consumed >= document.changes_count ? :fresh : :stale
       end
 
       # Schedule materialization of a just-recorded change, after
@@ -105,12 +108,12 @@ module LexxyRealtime
         # materialize when stale — flag the window or the assignment recurses.
         @materializing_collaborative_rich_text = true
         with_lock do
-          # The watermark: changed_at as read before the load. The document
-          # is stamped with this time, so an update landing mid-render moves
-          # changed_at past it and the scheduled job re-renders. The
-          # projection converges once writes quiesce.
+          # The watermark: changes_count as read before the load. The
+          # document is stamped with this count, so an update landing
+          # mid-render moves the count past it and the scheduled job
+          # re-renders. The projection converges once writes quiesce.
           document.reload
-          as_of = document.changed_at
+          as_of = document.changes_count
           state = document.load_state
           break false if state.nil?
 
@@ -121,7 +124,7 @@ module LexxyRealtime
 
           public_send("#{name}=", html)
           save!(validate: false) # a system-written projection; validations belong to user saves
-          document.update_column(:materialized_at, as_of) if as_of
+          document.update_columns(materialized_changes_count: as_of, materialized_at: Time.current)
           true
         end
       ensure
