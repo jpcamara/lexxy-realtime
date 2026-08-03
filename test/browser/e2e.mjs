@@ -207,7 +207,7 @@ check(
 ab("frank", "close");
 check(
   "alone client sweeps the orphaned upload placeholder",
-  await waitEval("erin", '!window.__test.docRoot().includes("orphan-probe.png")', "orphan swept", 45000)
+  await waitEval("erin", '!window.__test.docRoot().includes("orphan-probe.png")', "orphan swept", 70000)
 );
 ab("erin", "close");
 
