@@ -2,19 +2,24 @@
 
 # Live edits sync through this channel into the record's collaborative
 # document (a Y::Document, from yrby). The regular attribute — Action Text
-# when the model has it — is a projection of that document, re-rendered
-# shortly after each recorded change (on_change below) and on any stale
-# read. Clients join with a signed GlobalID minted by the form helper; they
-# never name documents.
+# when the model has it — is rendered from the document on every recorded
+# change (on_change below), so it is never stale. Clients join with a
+# signed GlobalID minted by the form helper; they never name documents.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
   on_load { |key| Y::Document.load_state(key) }
   on_change do |key, update|
-    # Schedule before recording: a failed schedule raises with nothing
-    # recorded, so the client's retransmit retries both.
-    record.materialize_collaborative_rich_text_later(field)
     Y::Document.append(key, update)
+    # Write-through: the stored attribute tracks the document. A render
+    # failure is logged, not raised — the change is already recorded, and
+    # raising would make the client retransmit an update whose replay
+    # skips on_change; the next change re-renders everything anyway.
+    begin
+      record.materialize_collaborative_rich_text!(field)
+    rescue StandardError => e
+      Rails.logger.error("lexxy-realtime render failed for #{key}: #{e.class}: #{e.message}")
+    end
   end
 
   def subscribed

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_03_184636) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_03_214358) do
   create_table "action_text_rich_texts", force: :cascade do |t|
     t.text "body"
     t.datetime "created_at", null: false
@@ -64,12 +64,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_184636) do
   end
 
   create_table "y_documents", force: :cascade do |t|
-    t.datetime "changed_at"
-    t.bigint "changes_count", default: 0, null: false
     t.datetime "created_at", null: false
     t.string "key", null: false
-    t.datetime "materialized_at"
-    t.bigint "materialized_changes_count"
     t.string "name"
     t.integer "record_id"
     t.string "record_type"
