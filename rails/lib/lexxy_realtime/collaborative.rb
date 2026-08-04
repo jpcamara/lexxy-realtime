@@ -3,14 +3,11 @@
 require "active_support/concern"
 
 module LexxyRealtime
-  # `has_collaborative_rich_text :body`: an attribute whose live edits sync
-  # through the collaborative document and render back into the stored value
-  # on every recorded change, so reads are plain reads. With Action Text on
-  # the model it layers on has_rich_text; without it, it renders into a
-  # plain attribute.
-  #
-  # Only the macro is installed globally; the instance API below is
-  # included when a model declares an attribute.
+  # +has_collaborative_rich_text+ declares an attribute whose live edits
+  # sync through a collaborative document (Y::Document) and render back
+  # into the stored value on every recorded change. With Action Text on
+  # the model it layers on +has_rich_text+; without it, it writes a plain
+  # attribute.
   module Collaborative
     extend ActiveSupport::Concern
 
@@ -21,8 +18,6 @@ module LexxyRealtime
         raise ArgumentError, "encrypted: is not supported (the document stores plaintext)" if options.key?(:encrypted)
 
         include Model unless include?(Model)
-        # Action Text is optional: has_rich_text when the model has it, a
-        # plain attribute otherwise. The document works the same either way.
         has_rich_text(name, **options) if respond_to?(:has_rich_text)
         self.collaborative_rich_text_names = (collaborative_rich_text_names + [name.to_sym]).freeze
 
@@ -44,10 +39,8 @@ module LexxyRealtime
       # The document, if collaboration has started (nil until the first join).
       def collaborative_document(name) = public_send("collaborative_document_#{name}")
 
-      # The document, created on first use — the channel calls this when a
-      # client joins, so creation happens server-side, already authorized.
-      # Y::Document.for tolerates two clients joining at once; the association
-      # target is then repaired, since the miss was cached.
+      # The document, created on first use. Concurrent joins converge on
+      # one row, and the cached association miss is repaired.
       def collaborative_document!(name)
         collaborative_document(name) || begin
           document = Y::Document.for(self, name)
@@ -56,12 +49,10 @@ module LexxyRealtime
         end
       end
 
-      # Render the document server-side (Y::Lexxy — the editor's own markup)
-      # and save it as the attribute. The channel calls this after recording
-      # each change, so the stored value tracks the document write-through.
-      # Locked per record and state loaded inside the lock, so concurrent
-      # renders across processes converge on the latest state; false when
-      # nothing is recorded.
+      # Renders the document to HTML server-side (Y::Lexxy) and saves it
+      # as the attribute, under the record's lock with a fresh document
+      # read, so concurrent renders converge on the latest state. Returns
+      # false when nothing has been recorded.
       def materialize_collaborative_rich_text!(name)
         ensure_collaborative!(name)
 
@@ -69,9 +60,7 @@ module LexxyRealtime
         return false unless document
 
         with_lock do
-          # A system save: the app's strict_loading must not stop the
-          # Action Text writer from lazily loading its rich-text row.
-          strict_loading!(false) if strict_loading?
+          strict_loading!(false) if strict_loading? # the writer lazily loads the rich-text row
           state = document.reload.load_state
           break false if state.nil?
 

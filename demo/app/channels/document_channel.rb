@@ -1,20 +1,16 @@
 # frozen_string_literal: true
 
-# Live edits sync through this channel into the record's collaborative
-# document (a Y::Document, from yrby). The regular attribute — Action Text
-# when the model has it — is rendered from the document on every recorded
-# change (on_change below). Clients join with a signed GlobalID minted by
-# the form helper; they never name documents.
+# Syncs live edits into the record's collaborative document and renders
+# them back into the attribute on every recorded change. Clients join
+# with a signed GlobalID minted by the form helper.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
   on_load { |key| Y::Document.load_state(key) }
   on_change do |key, update|
     Y::Document.append(key, update)
-    # Write-through: the stored attribute tracks the document. If the
-    # render fails we log it. The change is already recorded, and raising
-    # would make the client retransmit an update whose replay skips
-    # on_change; the next change re-renders everything anyway.
+    # The change is already durable; a failed render logs and catches up
+    # on the next change. Raising here would only make the client resend.
     begin
       record.materialize_collaborative_rich_text!(field)
     rescue StandardError => e
@@ -37,9 +33,8 @@ class DocumentChannel < ApplicationCable::Channel
 
   private
 
-  # The demo has no users, so everyone is in. A real app checks the
-  # connecting user here — the generated template denies everyone until
-  # you fill it in.
+  # The demo has no users, so everyone is in; the generated template
+  # denies everyone until the app fills this in.
   def authorized?
     true
   end
