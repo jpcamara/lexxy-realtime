@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
 module LexxyRealtime
-  # `form.collaborative_rich_textarea :body` — the FormBuilder method, like
-  # Action Text's `form.rich_textarea` and Lexxy's `form.lexxy_rich_textarea`.
-  # Renders the Lexxy editor with a wired <lexxy-collaboration> child; the
-  # record travels as a purpose-scoped signed GlobalID, and identity comes
-  # from LexxyRealtime.identity (current_user by default).
+  # +form.collaborative_rich_textarea :body+ renders the Lexxy editor
+  # with a wired <lexxy-collaboration> element. The record travels as a
+  # signed GlobalID scoped to the record and the field; cursor identity
+  # comes from LexxyRealtime.identity.
   module FormBuilder
     def collaborative_rich_textarea(method, name: nil, color: nil, **options)
       record = object
@@ -18,9 +17,8 @@ module LexxyRealtime
       identity = LexxyRealtime.identity.call(@template)
       collaborator = name || identity[:name]
       lexxy_rich_textarea(method, options) do
-        # The doc-id is the client-side Yjs binding key — peers of this
-        # attribute must agree on it. The server never sees it; the storage
-        # key comes from the signed GlobalID.
+        # The client-side Yjs binding key, shared by peers of this
+        # attribute. The server never sees it.
         @template.content_tag("lexxy-collaboration", "",
                               "doc-id" => "#{record.model_name.param_key}-#{record.id}-#{method}",
                               "name" => collaborator,
