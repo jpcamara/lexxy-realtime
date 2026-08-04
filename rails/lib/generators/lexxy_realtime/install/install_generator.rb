@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 require "rails/generators"
 require "generators/yrby/tables/tables_generator"
 
@@ -11,8 +12,20 @@ module LexxyRealtime
     class InstallGenerator < Rails::Generators::Base
       source_root File.expand_path("templates", __dir__)
 
-      # Apps generated without Action Cable lack the base classes the channel
-      # inherits from; add whichever files are missing.
+      # An app generated with --skip-action-cable has no ActionCable to
+      # inherit from and no /cable endpoint; the generated files would
+      # NameError at boot. Stop with instructions instead.
+      def check_action_cable
+        return if defined?(ActionCable)
+
+        say "Action Cable is not loaded (rails new --skip-action-cable?). " \
+            'Add `require "action_cable/engine"` to config/application.rb, ' \
+            "create config/cable.yml, and re-run this generator.", :red
+        raise Thor::Error, "lexxy_realtime:install requires Action Cable"
+      end
+
+      # Apps generated without the channel boilerplate lack the base classes
+      # the channel inherits from; add whichever files are missing.
       def create_application_cable
         %w[connection channel].each do |file|
           destination = "app/channels/application_cable/#{file}.rb"
@@ -34,7 +47,7 @@ module LexxyRealtime
 
       def add_javascript_import
         root = Pathname(destination_root)
-        if root.join("config/importmap.rb").exist? && !root.join("package.json").exist?
+        if root.join("config/importmap.rb").exist? && !bundler_backed?(root)
           # Importmap can't pin this package yet, so warn instead of adding
           # an import that won't resolve.
           say "Importmap-only app detected: lexxy-realtime requires a JS bundler " \
@@ -65,6 +78,20 @@ module LexxyRealtime
           Optional: tighten `authorized?` in app/channels/document_channel.rb;
           set cursor names with `LexxyRealtime.identity`.
         NEXT
+      end
+
+      private
+
+      # An importmap app often has a package.json for unrelated tooling
+      # (PostCSS, tests). Only a build script is evidence the entrypoint is
+      # actually bundled (the jsbundling-rails convention).
+      def bundler_backed?(root)
+        package = root.join("package.json")
+        return false unless package.exist?
+
+        JSON.parse(package.read).dig("scripts", "build").to_s.strip != ""
+      rescue JSON::ParserError
+        false
       end
     end
   end

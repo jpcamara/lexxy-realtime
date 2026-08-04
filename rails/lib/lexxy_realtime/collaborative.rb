@@ -69,6 +69,9 @@ module LexxyRealtime
         return false unless document
 
         with_lock do
+          # A system save: the app's strict_loading must not stop the
+          # Action Text writer from lazily loading its rich-text row.
+          strict_loading!(false) if strict_loading?
           state = document.reload.load_state
           break false if state.nil?
 
