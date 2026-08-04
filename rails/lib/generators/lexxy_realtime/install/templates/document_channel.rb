@@ -8,9 +8,12 @@
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
-  on_load { |key| Y::Document.load_state(key) }
-  on_change do |key, update|
-    Y::Document.append(key, update)
+  # Storage routes through the record's association, so an attribute
+  # declared `encrypted: true` reads and writes through
+  # Y::EncryptedDocument without the channel knowing.
+  on_load { |_key| record.collaborative_document!(field).load_state }
+  on_change do |_key, update|
+    record.collaborative_document!(field).append(update)
     # Write-through: the stored attribute tracks the document. If the
     # render fails we log it. The change is already recorded, and raising
     # would make the client retransmit an update whose replay skips

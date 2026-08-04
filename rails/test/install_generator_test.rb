@@ -28,7 +28,8 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match "collaborative_document!", channel
       assert_match "materialize_collaborative_rich_text!", channel,
                    "the channel renders write-through, named in place"
-      assert_match "Y::Document.append", channel
+      assert_match "record.collaborative_document!(field).append", channel,
+                   "storage routes through the record so encrypted attributes decrypt"
       assert_match "def authorized?", channel
     end
     assert_no_file "app/models/yrby_document_store.rb"

@@ -48,6 +48,18 @@ Open the page in two browsers and edit together. The record must be persisted
 (the document key derives from it). A record with an existing body works: the
 first collaborative open seeds the document from it.
 
+Encryption works the way Action Text's does:
+
+```ruby
+has_collaborative_rich_text :body, encrypted: true
+```
+
+The rendered body goes through `ActionText::EncryptedRichText`, and the
+collaborative document (CRDT state and update payloads) is stored through
+yrby's `Y::EncryptedDocument` — both use Active Record encryption, so the
+app must configure encryption keys. Without Action Text, declare
+`encrypts` on the plain attribute yourself.
+
 ## How the body stays current
 
 Live edits are CRDT deltas recorded to the document. `post.body` remains

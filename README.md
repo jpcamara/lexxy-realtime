@@ -66,6 +66,12 @@ they never name documents directly, and a signed id from another feature
 can't be replayed here. The signed id doesn't check who is connecting,
 though: authorize the user in the channel's `authorized?`.
 
+`has_collaborative_rich_text :body, encrypted: true` encrypts the whole
+pipeline the way Action Text's `encrypted: true` does: the rendered body
+through `ActionText::EncryptedRichText`, and the document's CRDT state and
+update payloads through yrby's `Y::EncryptedDocument`, all with Active
+Record encryption.
+
 ### How it stays in sync with Action Text
 
 `has_collaborative_rich_text :body` is a regular `has_rich_text` attribute

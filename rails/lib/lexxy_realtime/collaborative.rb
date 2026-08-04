@@ -16,18 +16,20 @@ module LexxyRealtime
 
     class_methods do
       def has_collaborative_rich_text(name, **options) # rubocop:disable Naming/PredicatePrefix
-        # The document stores plaintext CRDT bytes, so encrypted rich text
-        # is unsupported.
-        raise ArgumentError, "encrypted: is not supported (the document stores plaintext)" if options.key?(:encrypted)
-
         include Model unless include?(Model)
         # Action Text is optional: has_rich_text when the model has it, a
         # plain attribute otherwise. The document works the same either way.
         has_rich_text(name, **options) if respond_to?(:has_rich_text)
         self.collaborative_rich_text_names = (collaborative_rich_text_names + [name.to_sym]).freeze
 
+        # encrypted: true encrypts both halves of the storage: Action Text
+        # swaps in ActionText::EncryptedRichText for the rendered body, and
+        # the document association swaps in Y::EncryptedDocument for the
+        # CRDT state and update payloads. Without Action Text, declare
+        # `encrypts` on the plain attribute yourself.
+        document_class = options[:encrypted] ? "Y::EncryptedDocument" : "Y::Document"
         has_one :"collaborative_document_#{name}", -> { where(name: name) },
-                class_name: "Y::Document", as: :record, inverse_of: :record, dependent: :destroy
+                class_name: document_class, as: :record, inverse_of: :record, dependent: :destroy
       end
     end
 
@@ -46,11 +48,14 @@ module LexxyRealtime
 
       # The document, created on first use — the channel calls this when a
       # client joins, so creation happens server-side, already authorized.
-      # Y::Document.for tolerates two clients joining at once; the association
-      # target is then repaired, since the miss was cached.
+      # The class comes from the association, so an encrypted attribute
+      # creates a Y::EncryptedDocument. `.for` tolerates two clients joining
+      # at once; the association target is then repaired, since the miss was
+      # cached.
       def collaborative_document!(name)
         collaborative_document(name) || begin
-          document = Y::Document.for(self, name)
+          klass = self.class.reflect_on_association(:"collaborative_document_#{name}").klass
+          document = klass.for(self, name)
           association(:"collaborative_document_#{name}").target = document
           document
         end

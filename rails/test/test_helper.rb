@@ -11,6 +11,8 @@ require "lexxy_realtime"
 # engine loads them in a real app; here they're required directly).
 require File.expand_path("../../../yrby/app/models/y/document", __dir__)
 require File.expand_path("../../../yrby/app/models/y/document_update", __dir__)
+require File.expand_path("../../../yrby/app/models/y/encrypted_document", __dir__)
+require File.expand_path("../../../yrby/app/models/y/encrypted_document_update", __dir__)
 
 # The suite runs against real ActiveRecord (in-memory SQLite), real yrby
 # rendering (a captured Lexxy editor session fixture), and a real signed
@@ -18,6 +20,12 @@ require File.expand_path("../../../yrby/app/models/y/document_update", __dir__)
 # loaded here (the demo app covers that integration); the collaborative
 # attribute writes through the regular attribute writer either way.
 ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
+# Test-only keys so encrypted collaborative attributes can round-trip.
+ActiveRecord::Encryption.configure(
+  primary_key: "test-primary-key" * 2,
+  deterministic_key: "test-deterministic-key" * 2,
+  key_derivation_salt: "test-key-derivation-salt" * 2
+)
 ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
   create_table :posts, force: true do |t|

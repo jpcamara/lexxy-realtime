@@ -32,5 +32,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "yrby", ">= 0.6.0"
   # yrby-rails (formerly yrby-actioncable): the sync channel and the
   # Y::Document / Y::DocumentUpdate models.
-  spec.add_dependency "yrby-rails", ">= 0.4"
+  # 0.5 ships Y::EncryptedDocument, which encrypted: attributes wire in.
+  spec.add_dependency "yrby-rails", ">= 0.5"
 end
