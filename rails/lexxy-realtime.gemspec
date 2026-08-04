@@ -11,8 +11,8 @@ Gem::Specification.new do |spec|
   spec.summary = "Collaborative editing for Lexxy in Rails"
   spec.description = "Real-time collaborative editing for Lexxy (Action Text) in Rails: " \
                      "a model macro, a form helper, an install generator, and server-side " \
-                     "materialization of the collaborative document back into Action Text, " \
-                     "backed by yrby (Yjs CRDTs in Ruby, no Node)."
+                     "rendering of the collaborative document back into Action Text, " \
+                     "backed by yrby (Yjs CRDTs in Ruby)."
   spec.homepage = "https://github.com/jpcamara/lexxy-realtime"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.4"
@@ -30,7 +30,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "lexxy", ">= 0.9"
   spec.add_dependency "rails", ">= 7.1"
   spec.add_dependency "yrby", ">= 0.6.0"
-  # yrby-rails (formerly yrby-actioncable): the sync channel, Y::Document /
-  # Y::DocumentUpdate storage, and Y::UpdateLog.
+  # yrby-rails (formerly yrby-actioncable): the sync channel and the
+  # Y::Document / Y::DocumentUpdate models.
   spec.add_dependency "yrby-rails", ">= 0.4"
 end
