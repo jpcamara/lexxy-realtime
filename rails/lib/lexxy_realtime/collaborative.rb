@@ -18,7 +18,7 @@ module LexxyRealtime
       def has_collaborative_rich_text(name, **options) # rubocop:disable Naming/PredicatePrefix
         # The document stores plaintext CRDT bytes, so encrypted rich text
         # is unsupported.
-        raise ArgumentError, "encrypted: is not supported (the update log is plaintext)" if options.key?(:encrypted)
+        raise ArgumentError, "encrypted: is not supported (the document stores plaintext)" if options.key?(:encrypted)
 
         include Model unless include?(Model)
         # Action Text is optional: has_rich_text when the model has it, a

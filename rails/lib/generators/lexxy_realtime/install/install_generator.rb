@@ -6,7 +6,8 @@ require "generators/yrby/tables/tables_generator"
 module LexxyRealtime
   module Generators
     # `bin/rails generate lexxy_realtime:install`: the document channel, the
-    # update-log migration (the model ships in the gem), and the JS import.
+    # storage migration (the models ship in the yrby-rails gem), and the JS
+    # import.
     class InstallGenerator < Rails::Generators::Base
       source_root File.expand_path("templates", __dir__)
 

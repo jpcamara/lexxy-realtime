@@ -70,12 +70,12 @@ can't be replayed here. Tighten access further in `authorized?`.
 ### How it stays in sync with Action Text
 
 `has_collaborative_rich_text :body` is a regular `has_rich_text` attribute
-underneath. A few seconds after each change (`LexxyRealtime.materialize_after`),
-a job renders the collaborative document to HTML **on the server** — yrby's
-`Y::Lexxy` produces byte-identical markup to the editor's own serializer, no
-Node anywhere — and saves it through the normal Action Text writer. So
-`post.body` always reflects the collaborative state, and everything downstream
-(rendering, search, mailers) is plain Action Text.
+underneath. After recording each change, the channel renders the
+collaborative document to HTML **on the server** — yrby's `Y::Lexxy`
+produces byte-identical markup to the editor's own serializer, no Node
+anywhere — and saves it through the normal Action Text writer,
+write-through. So `post.body` always reflects the collaborative state, and
+everything downstream (rendering, search, mailers) is plain Action Text.
 
 The stored value is never stale: the channel renders the document back
 into the attribute on every recorded change, write-through, before the
@@ -334,8 +334,7 @@ note.content = html # a has_rich_text attribute
 
 No browser is involved and no client-submitted HTML is trusted. The
 [yrby demo's `NoteMaterializer`](https://github.com/jpcamara/yrby/blob/main/examples/actioncable-demo/app/lib/note_materializer.rb)
-shows the full pattern, refreshed on read with a store-version staleness
-check.
+shows the same server-side rendering in a store-agnostic form.
 
 ## Turbo
 
