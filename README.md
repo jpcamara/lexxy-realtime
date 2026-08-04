@@ -79,9 +79,9 @@ everything downstream (rendering, search, mailers) is plain Action Text.
 
 The stored value is never stale: the channel renders the document back
 into the attribute on every recorded change, write-through, before the
-next message is processed. There is no job, no delay window, and no
-freshness bookkeeping — reads are plain reads. A closed browser or killed
-tab changes nothing; the last recorded change was already rendered.
+next message is processed. There is no job and no delay window; reads are
+plain reads. A closed browser or killed tab changes nothing — the last
+recorded change was already rendered.
 
 Records with an existing Action Text body work: on the first collaborative
 open of a document, the element seeds it from the editor's server-rendered
