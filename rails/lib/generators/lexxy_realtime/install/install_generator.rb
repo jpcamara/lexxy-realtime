@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "json"
 require "rails/generators"
 require "generators/yrby/tables/tables_generator"
 
@@ -45,25 +44,6 @@ module LexxyRealtime
         invoke "yrby:tables"
       end
 
-      def add_javascript_import
-        root = Pathname(destination_root)
-        if root.join("config/importmap.rb").exist? && !bundler_backed?(root)
-          # Importmap can't pin this package yet, so warn instead of adding
-          # an import that won't resolve.
-          say "Importmap-only app detected: lexxy-realtime requires a JS bundler " \
-              "(esbuild/vite/webpack); its lexical/yjs dependencies aren't pinnable yet. " \
-              "Skipping the JS import.", :yellow
-          return
-        end
-
-        entrypoint = root.join("app/javascript/application.js")
-        if !entrypoint.exist?
-          say 'Add `import "lexxy-realtime"` to your JavaScript entrypoint (app/javascript/application.js not found).'
-        elsif !entrypoint.read.include?('import "lexxy-realtime"') # idempotent on re-run
-          append_to_file "app/javascript/application.js", %(import "lexxy-realtime"\n)
-        end
-      end
-
       def show_next_steps
         say <<~NEXT
 
@@ -72,26 +52,16 @@ module LexxyRealtime
 
             1. bin/rails db:migrate
             2. Install the lexxy-realtime npm package (npm/yarn/bun/pnpm)
+               and add `import "lexxy-realtime"` to your JavaScript
+               entrypoint. A JS bundler is required; importmap can't pin
+               this package yet.
             3. Declare `has_collaborative_rich_text :body` on a model and
                render it with `<%= form.collaborative_rich_textarea :body %>`.
+            4. Implement `authorized?` in app/channels/document_channel.rb —
+               everyone is denied until you do.
 
-          Optional: tighten `authorized?` in app/channels/document_channel.rb;
-          set cursor names with `LexxyRealtime.identity`.
+          Optional: set cursor names with `LexxyRealtime.identity`.
         NEXT
-      end
-
-      private
-
-      # An importmap app often has a package.json for unrelated tooling
-      # (PostCSS, tests). Only a build script is evidence the entrypoint is
-      # actually bundled (the jsbundling-rails convention).
-      def bundler_backed?(root)
-        package = root.join("package.json")
-        return false unless package.exist?
-
-        JSON.parse(package.read).dig("scripts", "build").to_s.strip != ""
-      rescue JSON::ParserError
-        false
       end
     end
   end
