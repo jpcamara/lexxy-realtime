@@ -3,8 +3,8 @@
 # Live edits sync through this channel into the record's collaborative
 # document (a Y::Document, from yrby). The regular attribute — Action Text
 # when the model has it — is rendered from the document on every recorded
-# change (on_change below), so it is never stale. Clients join with a
-# signed GlobalID minted by the form helper; they never name documents.
+# change (on_change below). Clients join with a signed GlobalID minted by
+# the form helper; they never name documents.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
@@ -37,11 +37,13 @@ class DocumentChannel < ApplicationCable::Channel
 
   private
 
-  # The signed GlobalID proves your app rendered this user the editor for
-  # this record; tighten here when page access isn't the whole story —
-  # e.g. `record.editable_by?(current_user)`, with current_user coming from
-  # `identified_by :current_user` in ApplicationCable::Connection. Runs at
-  # subscribe, so it also catches access revoked after the page rendered.
+  # The signed GlobalID stops clients naming arbitrary records — only ids
+  # your app minted for this purpose locate. It isn't tied to a user,
+  # though: anyone holding the token can present it. Check the connecting
+  # user here — e.g. `record.editable_by?(current_user)`, with current_user
+  # from `identified_by :current_user` in ApplicationCable::Connection.
+  # Runs at subscribe, so it also catches access revoked after the page
+  # rendered.
   def authorized?
     true
   end

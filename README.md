@@ -38,7 +38,8 @@ end
 import "lexxy-realtime"
 ```
 
-Open the page in two browsers and edit together.
+Open the page in two browsers and edit together. A working app doing exactly
+this lives in [`demo/`](demo/).
 
 ### What the generator created, and why
 
