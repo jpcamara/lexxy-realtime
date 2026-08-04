@@ -23,13 +23,15 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_file "app/channels/document_channel.rb" do |channel|
       assert_match "include Y::ActionCable", channel
       assert_match "GlobalID::Locator.locate_signed", channel
-      assert_match "LexxyRealtime::SGID_PURPOSE", channel
+      assert_match "LexxyRealtime.sgid_purpose(field)", channel,
+                   "the token is scoped to the record and the field"
       assert_match "collaborative_rich_text?", channel, "the field must be a declared collaborative attribute"
       assert_match "collaborative_document!", channel
       assert_match "materialize_collaborative_rich_text!", channel,
                    "the channel renders write-through, named in place"
       assert_match "Y::Document.append", channel
-      assert_match "def authorized?", channel
+      assert_match "def authorized?\n    false", channel,
+                   "the generated channel denies everyone until the app fills it in"
     end
     assert_no_file "app/models/yrby_document_store.rb"
     assert_no_file "app/models/yrby_document_update.rb"
@@ -76,12 +78,29 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     with_js_entrypoint
     FileUtils.mkdir_p(File.join(destination_root, "config"))
     File.write(File.join(destination_root, "config/importmap.rb"), "pin \"application\"\n")
-    File.write(File.join(destination_root, "package.json"), "{}\n")
+    # A build script is the evidence the entrypoint is actually bundled.
+    File.write(File.join(destination_root, "package.json"),
+               '{ "scripts": { "build": "esbuild app/javascript/*.js" } }')
 
     run_generator
 
     assert_file "app/javascript/application.js" do |entry|
       assert_includes entry, 'import "lexxy-realtime"'
+    end
+  end
+
+  def test_importmap_with_an_unrelated_package_json_skips_the_import
+    with_js_entrypoint
+    FileUtils.mkdir_p(File.join(destination_root, "config"))
+    File.write(File.join(destination_root, "config/importmap.rb"), "pin \"application\"\n")
+    # package.json without a build script (PostCSS, test tooling): the
+    # entrypoint is importmapped, so a bare import would not resolve.
+    File.write(File.join(destination_root, "package.json"), "{}\n")
+
+    run_generator
+
+    assert_file "app/javascript/application.js" do |entry|
+      refute_includes entry, 'import "lexxy-realtime"'
     end
   end
 end

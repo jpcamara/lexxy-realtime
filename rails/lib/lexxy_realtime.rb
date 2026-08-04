@@ -9,14 +9,18 @@ require "lexxy_realtime/engine"
 # install generator, and server-side rendering back into Action Text,
 # built on yrby (Yjs CRDTs in Ruby).
 module LexxyRealtime
-  # Stamped into and verified against the signed GlobalIDs the form helper
-  # mints, so a signed id from another feature can't join a document.
+  # The base purpose for the signed GlobalIDs the form helper mints;
+  # sgid_purpose scopes it per attribute, so a signed id from another
+  # feature — or from another collaborative field on the same record —
+  # can't join this document.
   SGID_PURPOSE = :lexxy_realtime
 
   # The channel the installer generates and the form helper points elements at.
   CHANNEL_NAME = "DocumentChannel"
 
   class << self
+    def sgid_purpose(field) = "#{SGID_PURPOSE}/#{field}"
+
     # Cursor identity, called with the view context; returns { name:, color: }
     # (a nil color gets a stable one derived from the name).
     attr_writer :identity

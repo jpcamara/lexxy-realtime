@@ -3,6 +3,7 @@
 require "minitest/autorun"
 require "active_record"
 require "active_job"
+require "action_cable"
 require "global_id"
 require "y"
 require "y/action_cable"
