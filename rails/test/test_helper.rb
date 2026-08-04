@@ -8,12 +8,13 @@ require "global_id"
 require "y"
 require "y/action_cable"
 require "lexxy_realtime"
-# yrby's engine-owned models, from the path-pinned sibling checkout (the
-# engine loads them in a real app; here they're required directly).
-require File.expand_path("../../../yrby/app/models/y/document", __dir__)
-require File.expand_path("../../../yrby/app/models/y/document_update", __dir__)
-require File.expand_path("../../../yrby/app/models/y/encrypted_document", __dir__)
-require File.expand_path("../../../yrby/app/models/y/encrypted_document_update", __dir__)
+# yrby's engine-owned models (the engine loads them in a real app; here
+# they're required from wherever the gem resolved).
+yrby_rails = Gem.loaded_specs.fetch("yrby-rails").full_gem_path
+require File.join(yrby_rails, "app/models/y/document")
+require File.join(yrby_rails, "app/models/y/document_update")
+require File.join(yrby_rails, "app/models/y/encrypted_document")
+require File.join(yrby_rails, "app/models/y/encrypted_document_update")
 
 # The suite runs against real ActiveRecord (in-memory SQLite), real yrby
 # rendering (a captured Lexxy editor session fixture), and a real signed
