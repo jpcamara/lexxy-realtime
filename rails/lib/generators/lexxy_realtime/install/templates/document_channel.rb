@@ -6,23 +6,13 @@
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
-<<<<<<< HEAD
   # Storage routes through the record's association, so an encrypted
   # attribute reads and writes through Y::EncryptedDocument.
   on_load { |_key| record.collaborative_document!(field).load_state }
-  on_change do |_key, update|
-    record.collaborative_document!(field).append(update)
-    # Write-through: the stored attribute tracks the document. If the
-    # render fails we log it. The change is already recorded, and raising
-    # would make the client retransmit an update whose replay skips
-    # on_change; the next change re-renders everything anyway.
-=======
-  on_load { |key| Y::Document.load_state(key) }
   on_change do |key, update|
-    Y::Document.append(key, update)
+    record.collaborative_document!(field).append(update)
     # The change is already durable; a failed render logs and catches up
     # on the next change. Raising here would only make the client resend.
->>>>>>> feat/rails-gem
     begin
       record.materialize_collaborative_rich_text!(field)
     rescue StandardError => e
