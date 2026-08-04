@@ -52,11 +52,11 @@ Live edits are CRDT deltas recorded to the document. `post.body` remains
 regular Action Text, rendered write-through: after recording each change,
 the channel renders the document to HTML server-side via yrby's `Y::Lexxy`
 (`materialize_collaborative_rich_text!`, visible in the generated channel)
-and saves it as the attribute. No job, no delay, nothing to configure —
-reads are plain reads, and leaving the editor for a show page never shows
-stale content. A render failure is logged rather than raised (the change
-is already recorded; the next change re-renders everything), so a
-rendering bug degrades to a briefly stale body, never a sync outage.
+and saves it as the attribute. There is no job or queue to configure;
+reads are plain reads, and a show page never shows stale content. If a
+render fails, the error is logged — the change is already recorded and
+the next change re-renders everything, so a rendering bug leaves the body
+briefly stale at worst.
 
 ## Access control
 
