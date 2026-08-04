@@ -4,10 +4,12 @@ source "https://rubygems.org"
 
 gemspec
 
-# Local development against the sibling yrby checkout; CI and consumers use
-# the released gems.
-gem "yrby", path: "../../yrby"
-gem "yrby-rails", path: "../../yrby"
+# Local development uses the sibling yrby checkout when present; CI and
+# consumers resolve the released gems.
+if File.directory?(File.expand_path("../../yrby", __dir__))
+  gem "yrby", path: "../../yrby"
+  gem "yrby-rails", path: "../../yrby"
+end
 
 group :development, :test do
   gem "minitest"
