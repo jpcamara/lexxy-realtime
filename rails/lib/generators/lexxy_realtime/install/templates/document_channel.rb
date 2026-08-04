@@ -40,19 +40,24 @@ class DocumentChannel < ApplicationCable::Channel
 
   private
 
-  # The signed GlobalID stops clients naming arbitrary records — only ids
-  # your app minted for this purpose locate. It isn't tied to a user,
-  # though: anyone holding the token can present it. Check the connecting
-  # user here — e.g. `record.editable_by?(current_user)`, with current_user
-  # from `identified_by :current_user` in ApplicationCable::Connection.
-  # Runs at subscribe, so it also catches access revoked after the page
-  # rendered.
+  # Everyone is denied until you fill this in. The signed GlobalID stops
+  # clients naming arbitrary records, but it isn't tied to a user: anyone
+  # holding the token can present it. Check the connecting user here —
+  # e.g. `record.editable_by?(current_user)`, with current_user from
+  # `identified_by :current_user` in ApplicationCable::Connection. Runs at
+  # subscribe, so it also catches access revoked after the page rendered.
   def authorized?
-    true
+    false
   end
 
+  # The signed GlobalID is scoped to this record and field — a token
+  # minted for one collaborative attribute can't open another. A bad or
+  # foreign-purpose token returns nil; a token for a since-deleted record
+  # raises. Both mean "no record", and subscribed rejects.
   def record
-    @record ||= GlobalID::Locator.locate_signed(params[:sgid], for: LexxyRealtime::SGID_PURPOSE)
+    @record ||= GlobalID::Locator.locate_signed(params[:sgid], for: LexxyRealtime.sgid_purpose(field))
+  rescue ActiveRecord::RecordNotFound
+    nil
   end
 
   def field

@@ -38,7 +38,8 @@ end
 import "lexxy-realtime"
 ```
 
-Open the page in two browsers and edit together.
+Implement `authorized?` in the generated channel — everyone is denied
+until you do — then open the page in two browsers and edit together.
 
 ### What the generator created, and why
 
@@ -63,8 +64,10 @@ Cable (or AnyCable), backed by `Y::Document`: every edit is recorded durably
 before it's acknowledged or relayed, so replaying the log always rebuilds the
 document. Clients join with a signed GlobalID minted by the form helper —
 they never name documents directly, and a signed id from another feature
-can't be replayed here. The signed id doesn't check who is connecting,
-though: authorize the user in the channel's `authorized?`.
+can't be replayed here — the token is scoped to the record and the
+field, so one attribute's token can't open another. The signed id doesn't
+check who is connecting: the generated `authorized?` denies everyone
+until you wire it to your app's auth.
 
 `has_collaborative_rich_text :body, encrypted: true` encrypts the whole
 pipeline the way Action Text's `encrypted: true` does: the rendered body

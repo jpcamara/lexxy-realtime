@@ -26,7 +26,7 @@ module LexxyRealtime
                               "name" => collaborator,
                               "color" => color || identity[:color] || LexxyRealtime.collaborator_color(collaborator),
                               "channel-name" => LexxyRealtime::CHANNEL_NAME,
-                              "channel-params" => { sgid: record.to_sgid(for: LexxyRealtime::SGID_PURPOSE).to_s,
+                              "channel-params" => { sgid: record.to_sgid(for: LexxyRealtime.sgid_purpose(method)).to_s,
                                                     field: method }.to_json)
       end
     end

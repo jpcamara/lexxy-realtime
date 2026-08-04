@@ -44,7 +44,8 @@ end
 <% end %>
 ```
 
-Open the page in two browsers and edit together. The record must be persisted
+Implement `authorized?` in the generated channel (everyone is denied until
+you do), then open the page in two browsers and edit together. The record must be persisted
 (the document key derives from it). A record with an existing body works: the
 first collaborative open seeds the document from it.
 
@@ -74,11 +75,12 @@ value.
 
 ## Access control
 
-Clients join with a signed, purpose-scoped GlobalID minted by the form helper
-— they never name documents, and a signed id from another feature can't be
-replayed here. The signed id identifies the record; it doesn't check who is
-connecting. Authorize the user in the generated channel's `authorized?`
-(for example, `record.editable_by?(current_user)`).
+Clients join with a signed GlobalID minted by the form helper, scoped to
+the record and the field — they never name documents, and a token from
+another feature or another collaborative attribute can't be replayed
+here. The signed id identifies the record; it doesn't check who is
+connecting. The generated channel denies everyone until you implement
+`authorized?` (for example, `record.editable_by?(current_user)`).
 
 ## Configuration
 

@@ -28,7 +28,9 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "lexxy", ">= 0.9"
-  spec.add_dependency "rails", ">= 7.1"
+  # lexxy 0.9's own Rails floor; declaring less just moves the resolution
+  # failure somewhere less obvious.
+  spec.add_dependency "rails", ">= 8.0.2"
   spec.add_dependency "yrby", ">= 0.6.0"
   # yrby-rails (formerly yrby-actioncable): the sync channel and the
   # Y::Document / Y::DocumentUpdate models.

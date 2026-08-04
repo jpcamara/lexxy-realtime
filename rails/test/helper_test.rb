@@ -57,7 +57,7 @@ class HelperTest < Minitest::Test
     params = JSON.parse(attrs["channel-params"])
 
     assert_equal "body", params["field"]
-    assert_equal @post, GlobalID::Locator.locate_signed(params["sgid"], for: LexxyRealtime::SGID_PURPOSE),
+    assert_equal @post, GlobalID::Locator.locate_signed(params["sgid"], for: LexxyRealtime.sgid_purpose(:body)),
                  "the signed GlobalID round-trips to the record"
   end
 
@@ -66,6 +66,13 @@ class HelperTest < Minitest::Test
 
     assert_nil GlobalID::Locator.locate_signed(params["sgid"], for: :something_else),
                "a signed id minted for collaboration must not verify for another purpose"
+  end
+
+  def test_sgid_is_field_scoped
+    params = JSON.parse(element_attributes(@form.collaborative_rich_textarea(:body))["channel-params"])
+
+    assert_nil GlobalID::Locator.locate_signed(params["sgid"], for: LexxyRealtime.sgid_purpose(:internal_notes)),
+               "a token minted for one collaborative field must not open another"
   end
 
   def test_identity_overrides_and_stable_color
