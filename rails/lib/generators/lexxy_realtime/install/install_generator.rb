@@ -5,15 +5,13 @@ require "generators/yrby/tables/tables_generator"
 
 module LexxyRealtime
   module Generators
-    # `bin/rails generate lexxy_realtime:install`: the document channel, the
-    # storage migration (the models ship in the yrby-rails gem), and the JS
-    # import.
+    # Installs the document channel, the storage migration (via yrby's
+    # generator), and the Action Cable boilerplate when missing.
     class InstallGenerator < Rails::Generators::Base
       source_root File.expand_path("templates", __dir__)
 
-      # An app generated with --skip-action-cable has no ActionCable to
-      # inherit from and no /cable endpoint; the generated files would
-      # NameError at boot. Stop with instructions instead.
+      # rails new --skip-action-cable leaves nothing for the channel to
+      # inherit from.
       def check_action_cable
         return if defined?(ActionCable)
 
@@ -23,8 +21,6 @@ module LexxyRealtime
         raise Thor::Error, "lexxy_realtime:install requires Action Cable"
       end
 
-      # Apps generated without the channel boilerplate lack the base classes
-      # the channel inherits from; add whichever files are missing.
       def create_application_cable
         %w[connection channel].each do |file|
           destination = "app/channels/application_cable/#{file}.rb"
@@ -38,8 +34,7 @@ module LexxyRealtime
         template "document_channel.rb", "app/channels/document_channel.rb"
       end
 
-      # Storage is yrby's (Y::Document + Y::DocumentUpdate, engine-owned);
-      # its generator owns the migration.
+      # yrby owns the models and their migration.
       def create_tables
         invoke "yrby:tables"
       end

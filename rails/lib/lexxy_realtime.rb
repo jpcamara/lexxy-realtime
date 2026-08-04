@@ -9,10 +9,8 @@ require "lexxy_realtime/engine"
 # install generator, and server-side rendering back into Action Text,
 # built on yrby (Yjs CRDTs in Ruby).
 module LexxyRealtime
-  # The base purpose for the signed GlobalIDs the form helper mints;
-  # sgid_purpose scopes it per attribute, so a signed id from another
-  # feature — or from another collaborative field on the same record —
-  # can't join this document.
+  # Signed ids from the form helper carry this purpose scoped per field
+  # (sgid_purpose), so a token minted elsewhere can't join a document.
   SGID_PURPOSE = :lexxy_realtime
 
   # The channel the installer generates and the form helper points elements at.
@@ -28,8 +26,7 @@ module LexxyRealtime
     def identity
       @identity ||= lambda do |view|
         user = view.respond_to?(:current_user) ? view.current_user : nil
-        # No email fallback: an email is a poor cursor label. Set
-        # LexxyRealtime.identity to choose.
+        # No email fallback: an email is a poor cursor label.
         name = user && %i[name username handle].lazy.filter_map { |a| user.try(a).presence }.first
         { name: name || "Anonymous", color: nil }
       end

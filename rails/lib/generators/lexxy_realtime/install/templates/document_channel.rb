@@ -1,16 +1,14 @@
 # frozen_string_literal: true
 
-# Live edits sync through this channel into the record's collaborative
-# document (a Y::Document, from yrby). The regular attribute — Action Text
-# when the model has it — is rendered from the document on every recorded
-# change (on_change below). Clients join with a signed GlobalID minted by
-# the form helper; they never name documents.
+# Syncs live edits into the record's collaborative document and renders
+# them back into the attribute on every recorded change. Clients join
+# with a signed GlobalID minted by the form helper.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
-  # Storage routes through the record's association, so an attribute
-  # declared `encrypted: true` reads and writes through
-  # Y::EncryptedDocument without the channel knowing.
+<<<<<<< HEAD
+  # Storage routes through the record's association, so an encrypted
+  # attribute reads and writes through Y::EncryptedDocument.
   on_load { |_key| record.collaborative_document!(field).load_state }
   on_change do |_key, update|
     record.collaborative_document!(field).append(update)
@@ -18,6 +16,13 @@ class DocumentChannel < ApplicationCable::Channel
     # render fails we log it. The change is already recorded, and raising
     # would make the client retransmit an update whose replay skips
     # on_change; the next change re-renders everything anyway.
+=======
+  on_load { |key| Y::Document.load_state(key) }
+  on_change do |key, update|
+    Y::Document.append(key, update)
+    # The change is already durable; a failed render logs and catches up
+    # on the next change. Raising here would only make the client resend.
+>>>>>>> feat/rails-gem
     begin
       record.materialize_collaborative_rich_text!(field)
     rescue StandardError => e
@@ -41,19 +46,15 @@ class DocumentChannel < ApplicationCable::Channel
   private
 
   # Everyone is denied until you fill this in. The signed GlobalID stops
-  # clients naming arbitrary records, but it isn't tied to a user: anyone
-  # holding the token can present it. Check the connecting user here —
-  # e.g. `record.editable_by?(current_user)`, with current_user from
-  # `identified_by :current_user` in ApplicationCable::Connection. Runs at
-  # subscribe, so it also catches access revoked after the page rendered.
+  # clients naming arbitrary records but isn't tied to a user — check
+  # current_user here (identified_by in ApplicationCable::Connection).
+  # Runs at subscribe, so it also catches access revoked after render.
   def authorized?
     false
   end
 
-  # The signed GlobalID is scoped to this record and field — a token
-  # minted for one collaborative attribute can't open another. A bad or
-  # foreign-purpose token returns nil; a token for a since-deleted record
-  # raises. Both mean "no record", and subscribed rejects.
+  # Scoped to the record and the field; a token for another attribute or
+  # a deleted record locates nothing, and subscribed rejects.
   def record
     @record ||= GlobalID::Locator.locate_signed(params[:sgid], for: LexxyRealtime.sgid_purpose(field))
   rescue ActiveRecord::RecordNotFound
