@@ -11,10 +11,10 @@ class DocumentChannel < ApplicationCable::Channel
   on_load { |key| Y::Document.load_state(key) }
   on_change do |key, update|
     Y::Document.append(key, update)
-    # Write-through: the stored attribute tracks the document. A render
-    # failure is logged, not raised — the change is already recorded, and
-    # raising would make the client retransmit an update whose replay
-    # skips on_change; the next change re-renders everything anyway.
+    # Write-through: the stored attribute tracks the document. If the
+    # render fails we log it. The change is already recorded, and raising
+    # would make the client retransmit an update whose replay skips
+    # on_change; the next change re-renders everything anyway.
     begin
       record.materialize_collaborative_rich_text!(field)
     rescue StandardError => e
