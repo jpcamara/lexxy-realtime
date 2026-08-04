@@ -13,7 +13,7 @@ Each side sees the other's cursor and selection:
 
 ## Rails
 
-The whole setup is one gem, one generator, three lines. The npm package and the
+Setup is a gem, a generator, and a JS import. The npm package and the
 Rails gem ship from this repo under the same name.
 
 ```bash
@@ -38,50 +38,50 @@ end
 import "lexxy-realtime"
 ```
 
-Open the page in two browsers and edit together. A working app doing exactly
-this lives in [`demo/`](demo/).
+Open the page in two browsers and edit together.
 
 ### What the generator created, and why
 
 **A migration** — for yrby's two tables (the models — `Y::Document` and
 `Y::DocumentUpdate` — ship in the yrby-rails gem, the way
-`ActionText::RichText` ships in Action Text). `y_documents` is the
-structural twin of Action Text's `rich_texts`: one row per collaborative
-document, addressed by a unique transport `key` and, when bound to a model,
-by polymorphic `record` + `name` — plus the merged `state` snapshot. The document
-carries no projection state — the stored body is rendered write-through
-on every change, so "is it stale?" never needs asking. Your model gets a real association
-(`collaborative_document_body`), and destroying a record sweeps its
-document and history. `y_document_updates` is the uncompacted tail: one
-CRDT delta per row, compacted into `state` and deleted once the tail
-reaches the compaction threshold, so loading a document is one row read plus a short,
-bounded tail — whatever its history. While people edit, the document holds
-the real content; `post.body` is re-rendered from it for everything else to
-read (next section). Different storage entirely is the channel's job: point
-`on_load`/`on_change` anywhere.
+`ActionText::RichText` ships in Action Text). `y_documents` follows the
+shape of Action Text's `rich_texts`: one row per collaborative document,
+addressed by a unique transport `key` and, when bound to a model, by
+polymorphic `record` + `name` — plus the merged `state` snapshot. Your
+model gets a real association (`collaborative_document_body`), and
+destroying a record destroys its document and update history.
+`y_document_updates` holds the uncompacted tail: one CRDT delta per row,
+compacted into `state` and deleted once the tail reaches the compaction
+threshold, which keeps a load to one row plus the current tail. While
+people edit, the document holds the real content; `post.body` is
+re-rendered from it for everything else to read (next section). Manual
+yrby channels can point `on_load`/`on_change` at any store; the model
+integration here uses `Y::Document`.
 
 **A channel** — `DocumentChannel` speaks the Yjs sync protocol over Action
 Cable (or AnyCable), backed by `Y::Document`: every edit is recorded durably
 before it's acknowledged or relayed, so replaying the log always rebuilds the
 document. Clients join with a signed GlobalID minted by the form helper —
 they never name documents directly, and a signed id from another feature
-can't be replayed here. Tighten access further in `authorized?`.
+can't be replayed here. The signed id doesn't check who is connecting,
+though: authorize the user in the channel's `authorized?`.
 
 ### How it stays in sync with Action Text
 
 `has_collaborative_rich_text :body` is a regular `has_rich_text` attribute
 underneath. After recording each change, the channel renders the
 collaborative document to HTML **on the server** — yrby's `Y::Lexxy`
-produces byte-identical markup to the editor's own serializer, no Node
-anywhere — and saves it through the normal Action Text writer,
-write-through. So `post.body` always reflects the collaborative state, and
-everything downstream (rendering, search, mailers) is plain Action Text.
+produces byte-identical markup to the editor's own serializer, in Ruby —
+and saves it through the normal Action Text writer. So `post.body` tracks
+the collaborative state, and everything downstream (rendering, search,
+mailers) is plain Action Text.
 
-The stored value is never stale: the channel renders the document back
-into the attribute on every recorded change, write-through, before the
-next message is processed. There is no job and no delay window; reads are
-plain reads. A closed browser or killed tab changes nothing — the last
-recorded change was already rendered.
+The render happens inline on every recorded change — no job, no delay
+window; reads are plain reads. A closed browser or killed tab changes
+nothing: the last recorded change was already rendered. If a render fails
+(or a process dies between recording and rendering), the document is
+still durable and the attribute catches up on the next successful
+change.
 
 Records with an existing Action Text body work: on the first collaborative
 open of a document, the element seeds it from the editor's server-rendered
@@ -95,18 +95,19 @@ a document's first-ever open.
 ### Cursor identity
 
 The helper resolves the collaborator's name from `current_user` (name,
-username, handle, or email — first present wins) and derives a stable cursor
-color from it. Customize either globally or per render:
+username, or handle — first present wins, otherwise "Anonymous") and
+derives a stable cursor color from it. Customize either globally or per render:
 
 ```ruby
 LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil } }
 ```
 ```erb
-<%= collaborative_rich_text_area form, :body, name: "Reviewer", color: "#0ea5e9" %>
+<%= form.collaborative_rich_textarea :body, name: "Reviewer", color: "#0ea5e9" %>
 ```
 
 Identity is presence metadata: it labels cursors for other collaborators.
-Document access is what the signed GlobalID and `authorized?` gate.
+Document access is the channel's job: the signed GlobalID plus
+`authorized?`.
 
 ## Beyond Rails: how it fits together
 

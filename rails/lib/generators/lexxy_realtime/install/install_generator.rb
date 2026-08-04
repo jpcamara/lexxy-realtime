@@ -35,7 +35,8 @@ module LexxyRealtime
       def add_javascript_import
         root = Pathname(destination_root)
         if root.join("config/importmap.rb").exist? && !root.join("package.json").exist?
-          # An unpinnable import fails silently in the browser; warn instead.
+          # Importmap can't pin this package yet, so warn instead of adding
+          # an import that won't resolve.
           say "Importmap-only app detected: lexxy-realtime requires a JS bundler " \
               "(esbuild/vite/webpack); its lexical/yjs dependencies aren't pinnable yet. " \
               "Skipping the JS import.", :yellow

@@ -6,8 +6,8 @@ require "lexxy_realtime/form_builder"
 require "lexxy_realtime/engine"
 
 # Collaborative Lexxy editing for Rails: a model macro, a form helper, an
-# install generator, and server-side materialization back into Action Text,
-# built on yrby (Yjs CRDTs in Ruby, no Node).
+# install generator, and server-side rendering back into Action Text,
+# built on yrby (Yjs CRDTs in Ruby).
 module LexxyRealtime
   # Stamped into and verified against the signed GlobalIDs the form helper
   # mints, so a signed id from another feature can't join a document.

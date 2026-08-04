@@ -11,5 +11,6 @@ Example:
         app/channels/document_channel.rb
         app/channels/application_cable/{connection,channel}.rb  (if missing)
         db/migrate/XXXXXXXX_create_y_tables.rb
-    and append `import "lexxy-realtime"` to app/javascript/application.js.
+    and append `import "lexxy-realtime"` to app/javascript/application.js
+    when that file exists.
     The models ship in the gems (Y::Document, Y::DocumentUpdate).

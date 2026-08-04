@@ -2,7 +2,7 @@
 
 Collaborative editing for [Lexxy](https://github.com/basecamp/lexxy) (Action
 Text) in Rails, backed by [yrby](https://github.com/jpcamara/yrby) — Yjs CRDTs
-in Ruby, no Node anywhere.
+in Ruby, with no Node service to run.
 
 ## Install
 
@@ -26,7 +26,9 @@ The generator creates `app/channels/document_channel.rb`, the migration for
 yrby's tables (`y_documents` + `y_document_updates`; the models ship
 in the yrby-rails gem as `Y::Document` and `Y::DocumentUpdate`), the Action
 Cable boilerplate if your app
-lacks it, and appends `import "lexxy-realtime"` to your JavaScript entrypoint.
+lacks it, and appends `import "lexxy-realtime"` to
+`app/javascript/application.js` when it exists (importmap-only apps get a
+warning instead).
 
 ## Use
 
@@ -53,16 +55,18 @@ regular Action Text, rendered write-through: after recording each change,
 the channel renders the document to HTML server-side via yrby's `Y::Lexxy`
 (`materialize_collaborative_rich_text!`, visible in the generated channel)
 and saves it as the attribute. There is no job or queue to configure;
-reads are plain reads, and a show page never shows stale content. If a
-render fails, the error is logged — the change is already recorded and
-the next change re-renders everything, so a rendering bug leaves the body
-briefly stale at worst.
+reads are plain reads. If a render fails, the error is logged — the
+change is already recorded, and the next successful change re-renders
+everything. Until one arrives, the attribute keeps its last rendered
+value.
 
 ## Access control
 
 Clients join with a signed, purpose-scoped GlobalID minted by the form helper
-— they never name documents. Tighten further in the generated channel's
-`authorized?` (for example, tenant checks against `current_user`).
+— they never name documents, and a signed id from another feature can't be
+replayed here. The signed id identifies the record; it doesn't check who is
+connecting. Authorize the user in the generated channel's `authorized?`
+(for example, `record.editable_by?(current_user)`).
 
 ## Configuration
 

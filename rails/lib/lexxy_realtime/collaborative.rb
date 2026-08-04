@@ -5,9 +5,9 @@ require "active_support/concern"
 module LexxyRealtime
   # `has_collaborative_rich_text :body`: an attribute whose live edits sync
   # through the collaborative document and render back into the stored value
-  # on every recorded change — write-through, so the stored attribute is
-  # never stale and reads are plain reads. With Action Text on the model it
-  # layers on has_rich_text; without it, it renders into a plain attribute.
+  # on every recorded change, so reads are plain reads. With Action Text on
+  # the model it layers on has_rich_text; without it, it renders into a
+  # plain attribute.
   #
   # Only the macro is installed globally; the instance API below is
   # included when a model declares an attribute.
@@ -78,7 +78,7 @@ module LexxyRealtime
           break false if html.nil?
 
           public_send("#{name}=", html)
-          save!(validate: false) # a system-written projection; validations belong to user saves
+          save!(validate: false) # skip model validations for this system-managed save
           true
         end
       end
