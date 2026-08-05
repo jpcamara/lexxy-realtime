@@ -38,18 +38,18 @@ end
 import "lexxy-realtime"
 ```
 
-Implement `authorized?` in the generated channel — everyone is denied
-until you do — then open the page in two browsers and edit together. A
+Implement `authorized?` in the generated channel (everyone is denied
+until you do), then open the page in two browsers and edit together. A
 working app doing exactly this lives in [`demo/`](demo/).
 
 ### What the generator created, and why
 
-**A migration** — for yrby's two tables (the models — `Y::Document` and
-`Y::DocumentUpdate` — ship in the yrby-rails gem, the way
+**A migration** for yrby's two tables (the models, `Y::Document` and
+`Y::DocumentUpdate`, ship in the yrby-rails gem, the way
 `ActionText::RichText` ships in Action Text). `y_documents` follows the
 shape of Action Text's `rich_texts`: one row per collaborative document,
 addressed by a unique transport `key` and, when bound to a model, by
-polymorphic `record` + `name` — plus the merged `state` snapshot. Your
+polymorphic `record` + `name`, plus the merged `state` snapshot. Your
 model gets a real association (`collaborative_document_body`), and
 destroying a record destroys its document and update history.
 `y_document_updates` holds the uncompacted tail: one CRDT delta per row,
@@ -60,12 +60,12 @@ re-rendered from it for everything else to read (next section). Manual
 yrby channels can point `on_load`/`on_change` at any store; the model
 integration here uses `Y::Document`.
 
-**A channel** — `DocumentChannel` speaks the Yjs sync protocol over Action
+**A channel**: `DocumentChannel` speaks the Yjs sync protocol over Action
 Cable (or AnyCable), backed by `Y::Document`: every edit is recorded durably
 before it's acknowledged or relayed, so replaying the log always rebuilds the
-document. Clients join with a signed GlobalID minted by the form helper —
+document. Clients join with a signed GlobalID minted by the form helper;
 they never name documents directly, and a signed id from another feature
-can't be replayed here — the token is scoped to the record and the
+can't be replayed here. The token is scoped to the record and the
 field, so one attribute's token can't open another. The signed id doesn't
 check who is connecting: the generated `authorized?` denies everyone
 until you wire it to your app's auth.
@@ -74,14 +74,14 @@ until you wire it to your app's auth.
 
 `has_collaborative_rich_text :body` is a regular `has_rich_text` attribute
 underneath. After recording each change, the channel renders the
-collaborative document to HTML **on the server** — yrby's `Y::Lexxy`
-produces byte-identical markup to the editor's own serializer, in Ruby —
-and saves it through the normal Action Text writer. So `post.body` tracks
+collaborative document to HTML **on the server** and saves it through
+the normal Action Text writer. yrby's `Y::Lexxy` produces byte-identical
+markup to the editor's own serializer, in Ruby. So `post.body` tracks
 the collaborative state, and everything downstream (rendering, search,
 mailers) is plain Action Text.
 
-The render happens inline on every recorded change — no job, no delay
-window; reads are plain reads. A closed browser or killed tab changes
+The render happens inline on every recorded change: no job, no delay
+window, and reads are plain reads. A closed browser or killed tab changes
 nothing: the last recorded change was already rendered. If a render fails
 (or a process dies between recording and rendering), the document is
 still durable and the attribute catches up on the next successful
@@ -92,14 +92,14 @@ open of a document, the element seeds it from the editor's server-rendered
 value, so the stored content becomes the collaborative document (and an
 intentional delete-everything materializes back as empty, like any other
 edit). The one edge: two clients opening a never-collaborated document at the
-same instant can both seed it, duplicating the initial content — the same
+same instant can both seed it, duplicating the initial content, the same
 first-writer race as Lexical's own CollaborationPlugin bootstrap, confined to
 a document's first-ever open.
 
 ### Cursor identity
 
 The helper resolves the collaborator's name from `current_user` (name,
-username, or handle — first present wins, otherwise "Anonymous") and
+username, or handle; first present wins, otherwise "Anonymous") and
 derives a stable cursor color from it. Customize either globally or per render:
 
 ```ruby
@@ -119,13 +119,13 @@ Document access is the channel's job: the signed GlobalID plus
 y-webrtc, ...). The Rails path above is the element's default wiring: it builds
 a shared Action Cable consumer, a `Y.Doc`, and a
 [`YrbyProvider`](https://github.com/jpcamara/yrby) from its attributes. You can
-also hand it your own consumer, or a `Y.Doc` and provider for any backend —
+also hand it your own consumer, or a `Y.Doc` and provider for any backend;
 yrby isn't involved in that path. lexxy-realtime is tested extensively against
 the yrby stack; other providers plug into the small contract documented below.
 
 ## Requirements
 
-- A **Lexxy editor** on the page (`@37signals/lexxy`) — see
+- A **Lexxy editor** on the page (`@37signals/lexxy`); see
   [Lexxy's docs](https://basecamp.github.io/lexxy).
 - A backend for your **Yjs provider**; see [Server](#server-yrby) for the yrby
   setup.
@@ -240,7 +240,7 @@ function startCollaborating() {
   collab.doc = doc;
   collab.provider = provider;
   editor.appendChild(collab);
-  // y-websocket connects on construction — no connect() call needed.
+  // y-websocket connects on construction; no connect() call needed.
 }
 
 if (editor.editor) startCollaborating();
@@ -253,11 +253,11 @@ Point the provider at its own backend. Nothing else in the client wiring changes
 
 Any provider with the standard Yjs surface works:
 
-- `provider.awareness` — a [`y-protocols`](https://github.com/yjs/y-protocols)
+- `provider.awareness`: a [`y-protocols`](https://github.com/yjs/y-protocols)
   `Awareness` instance (used for remote cursors/selections).
-- `provider.synced` — `true` once caught up with the server (used to seed a
+- `provider.synced`: `true` once caught up with the server (used to seed a
   brand-new, empty document the first time).
-- `provider.disconnect()` — called when the element is removed.
+- `provider.disconnect()`: called when the element is removed.
 
 You start the connection however that provider expects (`provider.connect()` for
 `YrbyProvider`; `y-websocket` connects on construction). `y-websocket`,
@@ -326,8 +326,8 @@ The Rails gem does this for you (see
 this section is the underlying pattern for apps wiring yrby directly.
 
 The collaborative document lives in your durable store as CRDT updates.
-When the rest of your app needs it as rich text — display, search, mailers
-— render it server-side with the `yrby` gem's `Y::Lexxy`, which reproduces
+When the rest of your app needs it as rich text (display, search,
+mailers), render it server-side with the `yrby` gem's `Y::Lexxy`, which reproduces
 Lexxy's own HTML byte for byte:
 
 ```ruby
@@ -347,7 +347,7 @@ Two things matter under Turbo Drive:
 
 - Run your wiring on `turbo:load` (or make the editor page a Turbo frame
   boundary), so a fresh `<lexxy-collaboration>` mounts per visit. The
-  element tears down cleanly on removal — unmount before first sync,
+  element tears down cleanly on removal: unmount before first sync,
   DOM moves, and remounts are all covered by the test suite.
 - Don't cache a live editor: mark the editor container
   `data-turbo-temporary` (or `data-turbo-cache="false"` on the page) so
@@ -373,7 +373,7 @@ setup). Open `/docs/demo/lexxy` in two windows and type.
 ## Notes
 
 lexxy-realtime applies one small compatibility patch to `@lexical/yjs` at
-runtime, from inside its own bind path — no `patch-package`, no vendored
+runtime, from inside its own bind path. No `patch-package`, no vendored
 patches. It's temporary pending an upstream fix; details in
 [`CONTRIBUTING.md`](CONTRIBUTING.md). Lexxy itself needs the no-arg
 construction fix (basecamp/lexxy#1196), merged upstream and awaiting a

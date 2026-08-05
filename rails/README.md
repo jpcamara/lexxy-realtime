@@ -1,14 +1,14 @@
 # lexxy-realtime (Rails gem)
 
 Collaborative editing for [Lexxy](https://github.com/basecamp/lexxy) (Action
-Text) in Rails, backed by [yrby](https://github.com/jpcamara/yrby) — Yjs CRDTs
+Text) in Rails, backed by [yrby](https://github.com/jpcamara/yrby): Yjs CRDTs
 in Ruby, with no Node service to run.
 
 ## Install
 
 Prerequisites: a working [Lexxy](https://github.com/basecamp/lexxy) setup
-(the gem and its editor JS), and a JS bundler (esbuild/vite/webpack —
-importmap-only apps aren't supported yet; the lexical/yjs dependencies
+(the gem and its editor JS), and a JS bundler (esbuild/vite/webpack;
+importmap-only apps aren't supported yet, the lexical/yjs dependencies
 aren't pinnable until Lexxy exports them).
 
 ```ruby
@@ -19,7 +19,7 @@ gem "lexxy-realtime"
 ```bash
 bin/rails generate lexxy_realtime:install
 bin/rails db:migrate
-npm install lexxy-realtime   # or yarn/bun/pnpm — the JS half of this package
+npm install lexxy-realtime   # or yarn/bun/pnpm; the JS half of this package
 ```
 
 The generator creates `app/channels/document_channel.rb`, the migration for
@@ -55,7 +55,7 @@ regular Action Text, rendered write-through: after recording each change,
 the channel renders the document to HTML server-side via yrby's `Y::Lexxy`
 (`materialize_collaborative_rich_text!`, visible in the generated channel)
 and saves it as the attribute. There is no job or queue to configure;
-reads are plain reads. If a render fails, the error is logged — the
+reads are plain reads. If a render fails, the error is logged; the
 change is already recorded, and the next successful change re-renders
 everything. Until one arrives, the attribute keeps its last rendered
 value.
@@ -63,7 +63,7 @@ value.
 ## Access control
 
 Clients join with a signed GlobalID minted by the form helper, scoped to
-the record and the field — they never name documents, and a token from
+the record and the field; they never name documents, and a token from
 another feature or another collaborative attribute can't be replayed
 here. The signed id identifies the record; it doesn't check who is
 connecting. The generated channel denies everyone until you implement

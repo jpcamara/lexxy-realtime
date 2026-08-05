@@ -52,8 +52,8 @@ module LexxyRealtime
                this package yet.
             3. Declare `has_collaborative_rich_text :body` on a model and
                render it with `<%= form.collaborative_rich_textarea :body %>`.
-            4. Implement `authorized?` in app/channels/document_channel.rb —
-               everyone is denied until you do.
+            4. Implement `authorized?` in app/channels/document_channel.rb.
+               Everyone is denied until you do.
 
           Optional: set cursor names with `LexxyRealtime.identity`.
         NEXT
