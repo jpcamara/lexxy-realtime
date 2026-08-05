@@ -41,7 +41,7 @@ module LexxyRealtime
       def collaborative_document(name) = public_send("collaborative_document_#{name}")
 
       # The document, created on first use, of the class the association
-      # names — Y::EncryptedDocument for an encrypted attribute. Concurrent
+      # names: Y::EncryptedDocument for an encrypted attribute. Concurrent
       # joins converge on one row, and the cached association miss is
       # repaired.
       def collaborative_document!(name)
