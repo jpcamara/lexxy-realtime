@@ -7,6 +7,6 @@ gem "puma"
 # The library under test. Path-pinned to the local checkout so tests exercise
 # the latest yrby (reliable delivery + causal-gap protection), not a
 # published version. The ActionCable concern (Y::ActionCable::Sync) lives
-# in the companion yrby-actioncable gem (same repo).
+# in the companion yrby-rails gem (same repo).
 gem "yrby", path: "../../../yrby"
-gem "yrby-actioncable", path: "../../../yrby"
+gem "yrby-rails", path: "../../../yrby"
