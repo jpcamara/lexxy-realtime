@@ -32,7 +32,9 @@ been rendered to HTML on the server (no Node) and saved as regular Action Text.
 ## Notes
 
 - The Gemfile points at the sibling `rails/` gem and a local `../../yrby`
-  checkout; `package.json` points at the repo root (`file:..`).
+  checkout; `package.json` points at the repo root (`file:..`), and
+  `npm run build` builds the package there first (its `dist/` is built,
+  not committed).
 - The esbuild `--alias` flags exist because a `file:` dependency is a symlink,
   which would otherwise pull a second copy of `lexical`/`yjs` from the repo's
   own node_modules. Apps installing from the registries don't need them.
