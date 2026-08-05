@@ -15,3 +15,6 @@ demo/node_modules/
 demo/tmp/
 demo/config/master.key
 demo/config/credentials.yml.enc
+
+# Built output: `npm install` builds it (prepare); never committed.
+/dist/
