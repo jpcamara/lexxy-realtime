@@ -1,9 +1,9 @@
 PATH
   remote: ../../yrby
   specs:
-    yrby (0.6.0)
+    yrby (0.6.1)
       rb_sys (~> 0.9)
-    yrby-rails (0.4.0)
+    yrby-rails (0.5.0)
       actioncable (>= 7.1)
       activerecord (>= 7.1)
       activesupport (>= 7.1)
@@ -16,7 +16,7 @@ PATH
   specs:
     lexxy-realtime (0.1.0)
       lexxy (>= 0.9)
-      rails (>= 7.1)
+      rails (>= 8.0.2)
       yrby (>= 0.6.0)
       yrby-rails (>= 0.4)
 
@@ -414,8 +414,8 @@ CHECKSUMS
   web-console (4.3.0) sha256=e13b71301cdfc2093f155b5aa3a622db80b4672d1f2f713119cc7ec7ac6a6da4
   websocket-driver (0.8.2) sha256=97c556b019bf3410b4961002ac501621e9322d3f8a7bc02161a09301cc4c4146
   websocket-extensions (0.1.5) sha256=1c6ba63092cda343eb53fc657110c71c754c56484aad42578495227d717a8241
-  yrby (0.6.0)
-  yrby-rails (0.4.0)
+  yrby (0.6.1)
+  yrby-rails (0.5.0)
   zeitwerk (2.8.2) sha256=7212a61311083c604184b1ea2574b9aa05cd14f855a0841c06985cabe9181d12
 
 BUNDLED WITH
