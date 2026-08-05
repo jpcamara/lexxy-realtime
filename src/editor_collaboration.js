@@ -97,7 +97,7 @@ export class Collaboration extends HTMLElement {
     docMap.set(id, doc);
 
     // Capture what Lexxy loaded before aligning the editor with the collab
-    // tree — the server-rendered field value (an existing Action Text body).
+    // tree: the server-rendered field value (an existing Action Text body).
     // If the document turns out to be brand-new at first sync, this state
     // seeds it (see bootstrapWhenSynced), so pre-existing content becomes the
     // collaborative document instead of being lost to an empty bootstrap.

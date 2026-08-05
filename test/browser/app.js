@@ -4,7 +4,7 @@
 //
 // Reads `room`, `name`, `color` from the query string so two agent-browser
 // sessions can join the same document as different users. `mode=zero` skips
-// all host wiring — attributes only, no consumer/doc/provider assignment —
+// all host wiring: attributes only, no consumer/doc/provider assignment,
 // exercising the element's self-initializing path (auto-created shared
 // consumer). Exposes window.__test for assertions.
 import "@37signals/lexxy";
@@ -41,7 +41,7 @@ function buildCollaborationElement() {
 }
 
 function installTestHooks(collab) {
-  // Zero-config never holds doc/provider — read them back off the element,
+  // Zero-config never holds doc/provider; read them back off the element,
   // lazily, since the element assigns them during its own init.
   window.__test = {
     get doc() { return collab.doc; },

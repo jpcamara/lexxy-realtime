@@ -167,7 +167,7 @@ ab("zara", "close");
 
 // Seeding: a document opened for the first time on a record with an existing
 // body (the editor's server-rendered value) must adopt that content as the
-// collaborative document — visible to the seeder, durable, and delivered to a
+// collaborative document: visible to the seeder, durable, and delivered to a
 // later peer who has no local value.
 const SEEDROOM = `${ROOM}-seed`;
 ab("sam", "open", `http://localhost:${PORT}/?room=${SEEDROOM}&name=Sam&seedHtml=${encodeURIComponent("<p>EXISTING-BODY</p>")}`);
