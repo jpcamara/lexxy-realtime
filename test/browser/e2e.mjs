@@ -161,6 +161,40 @@ check(
 );
 ab("carol", "close");
 
+// Zero-config: attributes only, no host wiring at all. The element creates its
+// own shared consumer (defaulting to /cable), doc, and provider, and connects
+// itself. It must sync the same durable document.
+ab("zara", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Zara&mode=zero`);
+check("zero-config element connected and synced", await ready("zara"));
+const zaraHasBoth = await waitEval(
+  "zara",
+  'window.__test.text().includes("ALICE-EDIT") && window.__test.text().includes("BOB-EDIT")',
+  "zara loaded persisted doc via auto-consumer"
+);
+check("zero-config element loaded the document (auto-created consumer)", zaraHasBoth);
+
+ab("zara", "close");
+
+// Seeding: a document opened for the first time on a record with an existing
+// body (the editor's server-rendered value) must adopt that content as the
+// collaborative document: visible to the seeder, durable, and delivered to a
+// later peer who has no local value.
+const SEEDROOM = `${ROOM}-seed`;
+ab("sam", "open", `http://localhost:${PORT}/?room=${SEEDROOM}&name=Sam&seedHtml=${encodeURIComponent("<p>EXISTING-BODY</p>")}`);
+check("seeder synced", await ready("sam"));
+check(
+  "seeder kept the pre-existing content",
+  await waitEval("sam", 'window.__test.text().includes("EXISTING-BODY")', "sam sees EXISTING-BODY")
+);
+ab("tia", "open", `http://localhost:${PORT}/?room=${SEEDROOM}&name=Tia`);
+check("peer synced into the seeded doc", await ready("tia"));
+check(
+  "peer received the seeded content from the document (not a local value)",
+  await waitEval("tia", 'window.__test.text().includes("EXISTING-BODY")', "tia sees EXISTING-BODY")
+);
+ab("sam", "close");
+ab("tia", "close");
+
 open("dave", "Dave");
 check("Dave synced", await ready("dave"));
 check(
@@ -171,8 +205,8 @@ check(
 
 // The pagehide send can be lost (dying socket, no retransmit), leaving
 // the post-crash state: an upload placeholder with no local File
-// anywhere. Stage that state deterministically — dave authors the node
-// file-less, so his own pagehide cleanup provably skips it — with
+// anywhere. Stage that state deterministically (dave authors the node
+// file-less, so his own pagehide cleanup provably skips it) with
 // witnesses already present.
 open("erin", "Erin");
 open("frank", "Frank");

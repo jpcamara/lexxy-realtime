@@ -1,7 +1,7 @@
 {
   "name": "lexxy-realtime",
   "version": "0.3.0",
-  "description": "Real-time collaborative editing for Lexxy (Lexical) over Yjs — works with any Yjs provider; reliable yrby over ActionCable/AnyCable for Rails",
+  "description": "Real-time collaborative editing for Lexxy (Lexical) over Yjs \u2014 works with any Yjs provider; reliable yrby over ActionCable/AnyCable for Rails",
   "homepage": "https://github.com/jpcamara/lexxy-realtime#readme",
   "bugs": {
     "url": "https://github.com/jpcamara/lexxy-realtime/issues"
@@ -33,6 +33,7 @@
     "access": "public"
   },
   "scripts": {
+    "prepare": "npm run build",
     "build": "rolldown -c",
     "build:watch": "rolldown --watch -c",
     "build:test": "rolldown -c test/browser/rolldown.config.mjs",
@@ -48,7 +49,7 @@
     "yjs": "^13.6"
   },
   "devDependencies": {
-"@37signals/lexxy": "0.9.28",
+    "@37signals/lexxy": "0.9.28",
     "@lexical/yjs": "^0.44.0",
     "@rails/actioncable": "^8.1.300",
     "@rollup/plugin-terser": "^0.4.4",

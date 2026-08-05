@@ -20,7 +20,7 @@ Issues and PRs welcome. This package is the browser half of a small stack —
 
 ```bash
 bun install
-bun run build        # the published bundle (dist/)
+bun run build        # the published bundle (dist/ — built, never committed; npm install runs it via prepare)
 bun run build:test   # the browser test bundle
 ```
 
