@@ -88,7 +88,7 @@ function installTestHooks(collab) {
     // Insert a PROVISIONAL upload node carrying a real File — the
     // unsyncable property. No uploadUrl, so no DirectUpload starts; this
     // exists to prove the excluded properties survive a re-bind.
-    // opts.orphan inserts the node WITHOUT a local File — the post-crash
+    // opts.orphan inserts the node without a local File: the post-crash
     // shape: an upload placeholder no client can complete or claim.
     insertUploadNode: (name, opts = {}) => {
       const lexical = editor.editor;

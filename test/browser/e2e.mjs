@@ -221,7 +221,7 @@ check(
 ab("dave", "close");
 
 // Erin and frank each see the other in awareness: neither is alone, so
-// neither may sweep — from their side, the other could be the uploader.
+// neither may sweep; from their side, the other could be the uploader.
 check(
   "erin sees company in awareness",
   await waitEval("erin", "window.__test.provider.awareness.getStates().size >= 2", "erin has company")
