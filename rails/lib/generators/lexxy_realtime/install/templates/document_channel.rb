@@ -36,7 +36,7 @@ class DocumentChannel < ApplicationCable::Channel
   private
 
   # Everyone is denied until you fill this in. The signed GlobalID stops
-  # clients naming arbitrary records but isn't tied to a user — check
+  # clients naming arbitrary records but isn't tied to a user. Check
   # current_user here (identified_by in ApplicationCable::Connection).
   # Runs at subscribe, so it also catches access revoked after render.
   def authorized?
