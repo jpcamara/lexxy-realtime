@@ -75,8 +75,12 @@ await runScenario("bootstrapLeak");
 check("element-managed wiring syncs (element connects its own provider)", field("elementManaged", "r.synced === true"));
 check("element-managed provider disconnects on teardown", field("elementManaged", "r.disconnectedAfterTeardown === true"));
 
-check("bootstrap interval starts (scenario valid)", field("bootstrapLeak", "r.started === true"));
+check("whenSynced provider starts no bootstrap interval", field("bootstrapLeak", "r.intervalFree === true"));
 check("no leaked bootstrap interval after unmount-before-sync", field("bootstrapLeak", "r.leaked === false"));
+
+await runScenario("bootstrapLeakFallback");
+check("fallback poll starts without whenSynced (scenario valid)", field("bootstrapLeakFallback", "r.started === true"));
+check("fallback poll cleared on unmount-before-sync", field("bootstrapLeakFallback", "r.leaked === false"));
 
 // #3 — a DOM move must not kill a host-owned provider.
 await runScenario("domMove");
