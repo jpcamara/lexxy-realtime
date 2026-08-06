@@ -58,29 +58,37 @@ inside your `<lexxy-editor>` using one of these wirings.
 
 #### Element-managed
 
-Give the element a cable consumer and attributes. It connects the provider and
-disconnects it on removal:
+Render (or create) the element with attributes inside the editor and import the
+package once, nothing else. The element waits for the editor, creates a shared
+Action Cable consumer (from the standard `action-cable-url` meta tag, falling
+back to `/cable`), builds the doc and provider, connects, and disconnects on
+removal:
+
+```html
+<lexxy-editor>
+  <lexxy-collaboration doc-id="doc-42" name="Ada"
+    channel-name="DocumentChannel" channel-params='{"id":"doc-42"}'>
+  </lexxy-collaboration>
+</lexxy-editor>
+```
 
 ```js
 import "@37signals/lexxy";
 import "lexxy-realtime"; // registers <lexxy-collaboration>
-import { createConsumer } from "@rails/actioncable"; // or "@anycable/web"
-
-const editor = document.querySelector("lexxy-editor");
-
-function startCollaborating() {
-  const collab = document.createElement("lexxy-collaboration");
-  collab.setAttribute("doc-id", documentId);
-  collab.setAttribute("name", currentUserName);
-  collab.setAttribute("channel-name", "DocumentChannel");
-  collab.setAttribute("channel-params", JSON.stringify({ id: documentId }));
-  collab.consumer = createConsumer();
-  editor.appendChild(collab);
-}
-
-if (editor.editor) startCollaborating();
-else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
 ```
+
+To use a specific transport (for example `@anycable/web`), set the app-wide
+consumer once at boot; every element without one of its own uses it:
+
+```js
+import { createCable } from "@anycable/web";
+import { setConsumer } from "lexxy-realtime";
+
+setConsumer(() => createCable());
+```
+
+Assigning `collab.consumer` on an element before it initializes still wins,
+per element.
 
 #### Host-managed
 

@@ -151,6 +151,30 @@ check(
 
 ab("carol", "close");
 
+// Zero-config: attributes only, no host wiring at all. The element creates its
+// own shared consumer (defaulting to /cable), doc, and provider, and connects
+// itself. It must sync the same durable document.
+ab("zara", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Zara&mode=zero`);
+check("zero-config element connected and synced", await ready("zara"));
+const zaraHasBoth = await waitEval(
+  "zara",
+  'window.__test.text().includes("ALICE-EDIT") && window.__test.text().includes("BOB-EDIT")',
+  "zara loaded persisted doc via auto-consumer"
+);
+check("zero-config element loaded the document (auto-created consumer)", zaraHasBoth);
+
+ab("zara", "close");
+
+// The app-wide consumer (setConsumer, the @anycable/web path): the element
+// must ride the configured consumer instead of auto-creating one.
+ab("uma", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Uma&mode=setconsumer`);
+check("setConsumer element connected and synced", await ready("uma"));
+check(
+  "element used the configured consumer",
+  /\btrue\b/.test(ab("uma", "eval", "!!window.__test.usesConfiguredConsumer()"))
+);
+ab("uma", "close");
+
 console.log("");
 if (failures > 0) {
   console.log(`FAILED: ${failures} check(s) failed`);
