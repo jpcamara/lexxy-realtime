@@ -394,7 +394,7 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
   const seed = () => {
     if (done || !provider.synced) return;
     done = true;
-    clearInterval(timer);
+    if (timer) clearInterval(timer);
     if (binding.root.getSharedType().length === 0) {
       if (initialEditorState && !emptyEditorState(initialEditorState)) {
         // Restore the captured content. The binding diffs against the cleared
@@ -419,11 +419,19 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
       );
     }
   };
-  const timer = setInterval(seed, 50);
-  if (typeof timer?.unref === 'function') timer.unref();
+  // Event-driven on providers that expose whenSynced (YrbyProvider); the
+  // poll is the fallback for foreign providers, which only promise a
+  // `synced` getter.
+  let timer;
+  if (provider.whenSynced?.then) {
+    provider.whenSynced.then(seed, () => {});
+  } else {
+    timer = setInterval(seed, 50);
+    if (typeof timer?.unref === 'function') timer.unref();
+  }
   return () => {
     done = true;
-    clearInterval(timer);
+    if (timer) clearInterval(timer);
   };
 }
 
