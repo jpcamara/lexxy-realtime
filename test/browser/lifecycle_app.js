@@ -78,13 +78,31 @@ const scenarios = {
     return { synced, disconnectedAfterTeardown };
   },
 
-  // #1: unmounting before the first sync must clear the bootstrap poll interval.
+  // #1: unmounting before the first sync must leak nothing. A provider with
+  // whenSynced (YrbyProvider) never starts the fallback interval at all.
   async bootstrapLeak() {
     const editor = await makeEditor();
     const before = short.size;
     const { collab } = makeCollab(`lc-leak-${Date.now()}`); // never connected => never synced
     editor.appendChild(collab);
-    await sleep(300); // bind + bootstrap interval starts
+    await sleep(300);
+    const during = short.size;
+    collab.remove();
+    await sleep(300);
+    const after = short.size;
+    editor.remove();
+    return { before, during, after, intervalFree: during === before, leaked: after > before };
+  },
+
+  // #1b: a foreign provider (no whenSynced, only `synced`) gets the fallback
+  // poll, and teardown must clear it.
+  async bootstrapLeakFallback() {
+    const editor = await makeEditor();
+    const before = short.size;
+    const { collab, provider } = makeCollab(`lc-leakfb-${Date.now()}`);
+    Object.defineProperty(provider, "whenSynced", { value: undefined });
+    editor.appendChild(collab);
+    await sleep(300); // bind + fallback interval starts
     const during = short.size;
     collab.remove(); // teardown should clear it
     await sleep(300);
