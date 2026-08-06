@@ -8,7 +8,7 @@
 // exercising the element's self-initializing path (auto-created shared
 // consumer). Exposes window.__test for assertions.
 import "@37signals/lexxy";
-import { YrbyProvider } from "../../src/index.js"; // also registers <lexxy-collaboration>
+import { YrbyProvider, setConsumer } from "../../src/index.js"; // also registers <lexxy-collaboration>
 import * as Y from "yjs";
 import { createConsumer } from "@rails/actioncable";
 import { $getRoot } from "lexical";
@@ -27,6 +27,7 @@ const room = params.get("room") || "browser-demo";
 const name = params.get("name") || "User";
 const color = params.get("color") || "#3b82f6";
 const zeroConfig = params.get("mode") === "zero";
+const setConsumerMode = params.get("mode") === "setconsumer";
 
 const editor = document.getElementById("editor");
 
@@ -54,6 +55,7 @@ function installTestHooks(collab) {
       return ce ? ce.innerText : "";
     },
     synced: () => !!collab.provider?.synced,
+    usesConfiguredConsumer: () => !!window.__configuredConsumer && collab.provider?.consumer === window.__configuredConsumer,
     errors: () => window.__errors,
     // Insert an attachment the way a finished upload does: a real
     // action_text_attachment node with an sgid, appended to the root. Uses
@@ -186,7 +188,13 @@ function installTestHooks(collab) {
 function start() {
   const collab = buildCollaborationElement();
 
-  if (!zeroConfig) {
+  if (setConsumerMode) {
+    // The app-wide default (the @anycable/web path): one boot-time call,
+    // attribute-only element. It must ride exactly this consumer.
+    window.__configuredConsumer = createConsumer(`ws://${location.host}/cable`);
+    setConsumer(() => window.__configuredConsumer);
+    editor.appendChild(collab);
+  } else if (!zeroConfig) {
     const consumer = createConsumer(`ws://${location.host}/cable`);
     const doc = new Y.Doc();
     const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: room });

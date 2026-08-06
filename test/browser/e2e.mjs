@@ -175,6 +175,16 @@ check("zero-config element loaded the document (auto-created consumer)", zaraHas
 
 ab("zara", "close");
 
+// The app-wide consumer (setConsumer, the @anycable/web path): the element
+// must ride the configured consumer instead of auto-creating one.
+ab("uma", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Uma&mode=setconsumer`);
+check("setConsumer element connected and synced", await ready("uma"));
+check(
+  "element used the configured consumer",
+  /\btrue\b/.test(ab("uma", "eval", "!!window.__test.usesConfiguredConsumer()"))
+);
+ab("uma", "close");
+
 // Seeding: a document opened for the first time on a record with an existing
 // body (the editor's server-rendered value) must adopt that content as the
 // collaborative document: visible to the seeder, durable, and delivered to a
