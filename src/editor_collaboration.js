@@ -382,13 +382,16 @@ function emptyEditorState(state) {
 // we never push stray content onto a doc that already has some.
 //
 // Two clients joining a still-empty document at the same instant can both
-// seed, duplicating the initial content -- the same first-writer race the
-// official CollaborationPlugin bootstrap has. It is confined to the first-ever
-// collaborative open of a document.
+// seed, duplicating the initial content. Lexical's CollaborationPlugin has
+// the same check-then-act race; its docs call client bootstrap dev-only
+// and recommend seeding server-side. We take the client path knowingly:
+// the window is one sync round trip on a document's first-ever open, and a
+// duplicate is visible and easily deleted. Server-side seeding needs
+// HTML-to-Yjs conversion on the server, which yrby doesn't have yet.
+// Repro: test/headless/bootstrap_race_repro.mjs.
 //
-// Returns a canceller: the poll interval otherwise runs forever if the element
-// is torn down (or the provider never syncs) before the first sync, since `seed`
-// only clears it on success.
+// Returns a canceller for teardown before the first sync: it stops the
+// fallback poll and makes a late whenSynced resolution a no-op.
 function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
   let done = false;
   const seed = () => {
