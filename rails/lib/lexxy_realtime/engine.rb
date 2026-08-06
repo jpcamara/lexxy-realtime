@@ -3,8 +3,8 @@
 require "rails/engine"
 require "action_dispatch" # Engine::Configuration references it at subclass definition
 
-# This gem's dependencies, not the app's: Bundler doesn't auto-require
-# them, and Lexxy's engine must register so its initializers run at boot.
+# Require the engine dependencies explicitly so their initializers run
+# during boot.
 require "lexxy"
 require "y"
 require "yrby-rails" # the sync concern, Y::Document storage, and yrby's engine

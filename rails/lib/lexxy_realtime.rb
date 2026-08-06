@@ -5,9 +5,7 @@ require "lexxy_realtime/collaborative"
 require "lexxy_realtime/form_builder"
 require "lexxy_realtime/engine"
 
-# Collaborative Lexxy editing for Rails: a model macro, a form helper, an
-# install generator, and server-side rendering back into Action Text,
-# built on yrby (Yjs CRDTs in Ruby).
+# Rails integration for collaborative Lexxy editing with yrby.
 module LexxyRealtime
   # Signed ids from the form helper carry this purpose scoped per field
   # (sgid_purpose), so a token minted elsewhere can't join a document.
@@ -26,7 +24,7 @@ module LexxyRealtime
     def identity
       @identity ||= lambda do |view|
         user = view.respond_to?(:current_user) ? view.current_user : nil
-        # No email fallback: an email is a poor cursor label.
+        # Use Anonymous when no display name is available.
         name = user && %i[name username handle].lazy.filter_map { |a| user.try(a).presence }.first
         { name: name || "Anonymous", color: nil }
       end

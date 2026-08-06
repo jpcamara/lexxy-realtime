@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
 module LexxyRealtime
-  # +form.collaborative_rich_textarea :body+ renders the Lexxy editor
-  # with a wired <lexxy-collaboration> element. The record travels as a
-  # signed GlobalID scoped to the record and the field; cursor identity
-  # comes from LexxyRealtime.identity.
+  # Renders a Lexxy editor with collaboration configured for the record
+  # and field. LexxyRealtime.identity supplies the cursor name and color.
   module FormBuilder
     def collaborative_rich_textarea(method, name: nil, color: nil, **options)
       record = object

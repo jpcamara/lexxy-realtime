@@ -2,8 +2,8 @@
 
 require "base64"
 
-# Small captured-from-real-Y.js updates (the Doc is read-only from Ruby, so
-# every "client edit" in tests is real update bytes).
+# Captured Y.js updates used to test the Ruby reader with real client
+# data.
 module YjsFixtures
   def self.b64(encoded) = Base64.strict_decode64(encoded)
 

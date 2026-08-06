@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
-# Syncs live edits into the record's collaborative document and renders
-# them back into the attribute on every recorded change. Clients join
-# with a signed GlobalID minted by the form helper.
+# Syncs clients with the record's collaborative document. Each stored
+# update is rendered back to the Action Text attribute.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
@@ -11,8 +10,9 @@ class DocumentChannel < ApplicationCable::Channel
   on_load { |_key| record.collaborative_document!(field).load_state }
   on_change do |key, update|
     record.collaborative_document!(field).append(update)
-    # The change is already durable; a failed render logs and catches up
-    # on the next change. Raising here would only make the client resend.
+    # Log render failures. The stored document renders again after the
+    # next update. Raising would make the client resend an update the
+    # server already has.
     begin
       record.materialize_collaborative_rich_text!(field)
     rescue StandardError => e
@@ -35,16 +35,15 @@ class DocumentChannel < ApplicationCable::Channel
 
   private
 
-  # Everyone is denied until you fill this in. The signed GlobalID stops
-  # clients naming arbitrary records but isn't tied to a user. Check
-  # current_user here (identified_by in ApplicationCable::Connection).
-  # Runs at subscribe, so it also catches access revoked after render.
+  # Check whether the current user may edit this record, e.g.
+  # record.editable_by?(current_user) with identified_by :current_user
+  # on the connection. Nothing connects until this returns true.
   def authorized?
     false
   end
 
-  # Scoped to the record and the field; a token for another attribute or
-  # a deleted record locates nothing, and subscribed rejects.
+  # Invalid, stale, or field-mismatched tokens return nil and are
+  # rejected by subscribed.
   def record
     @record ||= GlobalID::Locator.locate_signed(params[:sgid], for: LexxyRealtime.sgid_purpose(field))
   rescue ActiveRecord::RecordNotFound

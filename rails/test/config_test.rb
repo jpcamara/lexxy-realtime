@@ -26,12 +26,12 @@ class ConfigTest < Minitest::Test
   def test_default_identity_never_exposes_an_email_on_a_cursor
     view = FakeView.new(FakeUser.new(nil, "ada42", "ada@example.com"))
 
-    assert_equal "ada42", LexxyRealtime.identity.call(view)[:name], "name-ish attributes are used"
+    assert_equal "ada42", LexxyRealtime.identity.call(view)[:name], "uses username when name is blank"
 
     email_only = FakeView.new(FakeUser.new(nil, nil, "ada@example.com"))
 
     assert_equal "Anonymous", LexxyRealtime.identity.call(email_only)[:name],
-                 "an email is a poor cursor label; Anonymous instead"
+                 "uses Anonymous when only an email is available"
     assert_equal "Anonymous", LexxyRealtime.identity.call(Object.new)[:name]
   end
 

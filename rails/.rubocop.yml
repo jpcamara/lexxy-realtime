@@ -33,8 +33,8 @@ Metrics/MethodLength:
 Metrics/AbcSize:
   Max: 30
 
-# materialize_collaborative_rich_text_if_stale! is a guard chain; each branch
-# is one documented edge, not nesting.
+# The guard clauses in materialize_collaborative_rich_text_if_stale!
+# handle separate edge cases.
 Metrics/CyclomaticComplexity:
   Max: 8
 
@@ -55,7 +55,7 @@ Naming/PredicatePrefix:
   Exclude:
     - "test/**/*"
 
-# materialize_collaborative_rich_text! is an action that reports whether there
-# was anything to materialize; it is not a predicate.
+# This method performs the save and reports whether it found content to
+# materialize.
 Naming/PredicateMethod:
   Enabled: false

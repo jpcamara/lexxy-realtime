@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
-# Boots a minimal real Rails application with the engine (run as a
-# subprocess by engine_boot_test.rb) and verifies the integration points the
-# unit suite can't: engine initializers, app/ eager loading, the Action Text
-# macro path, and the FormBuilder prepend. Prints ENGINE BOOT OK on success.
+# Booted by engine_boot_test.rb to check the engine initializers, eager
+# loading, Action Text macro, and FormBuilder integration. Prints
+# ENGINE BOOT OK after all checks pass.
 ENV["DATABASE_URL"] = "sqlite3::memory:"
 
 require "rails"

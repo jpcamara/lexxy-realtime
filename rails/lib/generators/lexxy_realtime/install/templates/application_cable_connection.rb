@@ -2,8 +2,7 @@
 
 module ApplicationCable
   class Connection < ActionCable::Connection::Base
-    # Identify who is on this cable so DocumentChannel#authorized? can check
-    # them against the record:
+    # Expose the current user to DocumentChannel#authorized?:
     #
     #   identified_by :current_user
     #
