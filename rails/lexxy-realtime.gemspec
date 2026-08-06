@@ -9,10 +9,8 @@ Gem::Specification.new do |spec|
   spec.email = ["jp@jpcamara.com"]
 
   spec.summary = "Collaborative editing for Lexxy in Rails"
-  spec.description = "Real-time collaborative editing for Lexxy (Action Text) in Rails: " \
-                     "a model macro, a form helper, an install generator, and server-side " \
-                     "rendering of the collaborative document back into Action Text, " \
-                     "backed by yrby (Yjs CRDTs in Ruby)."
+  spec.description = "Adds collaborative Lexxy editing to Rails applications using yrby. " \
+                     "Includes the model, form, channel, generator, and Action Text integration."
   spec.homepage = "https://github.com/jpcamara/lexxy-realtime"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.4"
@@ -22,8 +20,8 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"] = "#{spec.homepage}/releases"
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  # Anchored to the gemspec's directory: `gem build rails/lexxy-realtime.gemspec`
-  # from the repo root otherwise globs nothing and ships an empty gem.
+  # Resolve file globs from the gem directory so builds work from the
+  # repository root.
   spec.files = Dir.chdir(__dir__) { Dir["lib/**/*", "LICENSE", "README.md"] }
   spec.require_paths = ["lib"]
 

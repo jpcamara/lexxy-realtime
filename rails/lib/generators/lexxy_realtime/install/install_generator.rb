@@ -46,14 +46,13 @@ module LexxyRealtime
           JS) must already be installed and working. Next steps:
 
             1. bin/rails db:migrate
-            2. Install the lexxy-realtime npm package (npm/yarn/bun/pnpm)
-               and add `import "lexxy-realtime"` to your JavaScript
-               entrypoint. A JS bundler is required; importmap can't pin
-               this package yet.
+            2. Install the lexxy-realtime npm package and import it from
+               your JavaScript entrypoint. Use a JS bundler; import maps
+               are not supported yet.
             3. Declare `has_collaborative_rich_text :body` on a model and
                render it with `<%= form.collaborative_rich_textarea :body %>`.
-            4. Implement `authorized?` in app/channels/document_channel.rb.
-               Everyone is denied until you do.
+            4. Update `authorized?` in app/channels/document_channel.rb
+               to check the current user.
 
           Optional: set cursor names with `LexxyRealtime.identity`.
         NEXT

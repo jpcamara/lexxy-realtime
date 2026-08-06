@@ -8,17 +8,15 @@ require "global_id"
 require "y"
 require "y/action_cable"
 require "lexxy_realtime"
-# yrby's engine-owned models (the engine loads them in a real app; here
-# they're required from wherever the gem resolved).
+# Load the yrby models directly because this test helper does not boot
+# the engine.
 yrby_rails = Gem.loaded_specs.fetch("yrby-rails").full_gem_path
 require File.join(yrby_rails, "app/models/y/document")
 require File.join(yrby_rails, "app/models/y/document_update")
 
-# The suite runs against real ActiveRecord (in-memory SQLite), real yrby
-# rendering (a captured Lexxy editor session fixture), and a real signed
-# GlobalID setup — without booting a Rails app. Action Text itself isn't
-# loaded here (the demo app covers that integration); the collaborative
-# attribute writes through the regular attribute writer either way.
+# Use in-memory Active Record, yrby rendering fixtures, and signed
+# GlobalIDs without booting Rails. The engine boot test covers the Action
+# Text integration.
 ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
 ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
@@ -56,24 +54,23 @@ class Post < ActiveRecord::Base
   include GlobalID::Identification
   include LexxyRealtime::Collaborative
 
-  # Action Text isn't booted here (the engine-boot test covers that); this
-  # stub exercises the Action-Text-present macro path.
+  # Stub has_rich_text so this model exercises the Action Text branch of
+  # the macro.
   def self.has_rich_text(name, **); end
 
   has_collaborative_rich_text :body
 
-  # Fidelity with Action Text: its attribute writer READS the attribute (to
-  # get-or-build the rich text record). Without this, the suite can't catch
-  # materialize-through-writer recursion (it once shipped as a stack overflow
-  # that only a real Action Text app exposed).
+  # Match Action Text's writer, which reads the attribute while finding
+  # or building the rich text record. This catches recursive
+  # materialization.
   def body=(value)
     body
     super
   end
 end
 
-# The Action-Text-free path: same table, no has_rich_text — the macro
-# detects the absence and materializes into the plain attribute.
+# PlainPost exercises the macro without Action Text and writes to the
+# body column directly.
 class PlainPost < ActiveRecord::Base
   self.table_name = "posts"
   include LexxyRealtime::Collaborative

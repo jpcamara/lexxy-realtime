@@ -1,8 +1,7 @@
 Description:
-    Wires the app for collaborative Lexxy editing: a DocumentChannel that
-    joins clients by signed GlobalID and materializes edits back into
-    Action Text, plus the storage migration (yrby's Y::Document +
-    Y::DocumentUpdate tables).
+    Installs the channel and database tables required for collaborative
+    Lexxy editing. The channel locates records by signed GlobalID and
+    saves rendered updates to Action Text.
 
 Example:
     bin/rails generate lexxy_realtime:install
@@ -12,5 +11,5 @@ Example:
         app/channels/application_cable/{connection,channel}.rb  (if missing)
         db/migrate/XXXXXXXX_create_y_tables.rb
     The models ship in the gems (Y::Document, Y::DocumentUpdate).
-    Add `import "lexxy-realtime"` to your JavaScript entrypoint yourself;
-    the generator prints the reminder.
+    The generator will remind you to add `import "lexxy-realtime"` to
+    your JavaScript entrypoint.

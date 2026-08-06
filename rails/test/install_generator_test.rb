@@ -22,10 +22,10 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match "collaborative_rich_text?", channel, "the field must be a declared collaborative attribute"
       assert_match "collaborative_document!", channel
       assert_match "materialize_collaborative_rich_text!", channel,
-                   "the channel renders write-through, named in place"
+                   "the channel materializes updates through the record API"
       assert_match "Y::Document.append", channel
       assert_match "def authorized?\n    false", channel,
-                   "the generated channel denies everyone until the app fills it in"
+                   "authorization defaults to false"
     end
     assert_no_file "app/models/yrby_document_store.rb"
     assert_no_file "app/models/yrby_document_update.rb"

@@ -1,15 +1,16 @@
 # lexxy-realtime (Rails gem)
 
-Collaborative editing for [Lexxy](https://github.com/basecamp/lexxy) (Action
-Text) in Rails, backed by [yrby](https://github.com/jpcamara/yrby): Yjs CRDTs
-in Ruby, with no Node service to run.
+Collaborative [Lexxy](https://github.com/basecamp/lexxy) editing for
+Rails, backed by [yrby](https://github.com/jpcamara/yrby)'s Ruby
+implementation of Yjs.
 
 ## Install
 
-Prerequisites: a working [Lexxy](https://github.com/basecamp/lexxy) setup
-(the gem and its editor JS), and a JS bundler (esbuild/vite/webpack;
-importmap-only apps aren't supported yet, the lexical/yjs dependencies
-aren't pinnable until Lexxy exports them).
+You need a working [Lexxy](https://github.com/basecamp/lexxy)
+installation, including its gem and editor JavaScript, plus a bundler
+such as esbuild, Vite, or webpack. Import maps are not supported yet
+because Lexxy does not export pinnable `lexical` and `yjs`
+dependencies.
 
 ```ruby
 # Gemfile
@@ -19,15 +20,14 @@ gem "lexxy-realtime"
 ```bash
 bin/rails generate lexxy_realtime:install
 bin/rails db:migrate
-npm install lexxy-realtime   # or yarn/bun/pnpm; the JS half of this package
+npm install lexxy-realtime   # JavaScript package; yarn, bun, and pnpm also work
 ```
 
-The generator creates `app/channels/document_channel.rb`, the migration for
-yrby's tables (`y_documents` + `y_document_updates`; the models ship
-in the yrby-rails gem as `Y::Document` and `Y::DocumentUpdate`), and the
-Action Cable boilerplate if your app lacks it. Add
-`import "lexxy-realtime"` to your JavaScript entrypoint yourself, like
-Lexxy's own import.
+The generator creates `app/channels/document_channel.rb`, installs
+yrby's table migration, and adds the standard Action Cable files when
+they are missing. The `Y::Document` and `Y::DocumentUpdate` models come
+from `yrby-rails`. Add `import "lexxy-realtime"` next to your Lexxy
+import.
 
 ## Use
 
@@ -43,31 +43,28 @@ end
 <% end %>
 ```
 
-Implement `authorized?` in the generated channel (everyone is denied until
-you do), then open the page in two browsers and edit together. The record must be persisted
+Add your app's access check to `authorized?` in the generated channel,
+then open the page in two browsers and edit together. The record must be persisted
 (the document key derives from it). A record with an existing body works: the
 first collaborative open seeds the document from it.
 
 ## How the body stays current
 
-Live edits are CRDT deltas recorded to the document. `post.body` remains
-regular Action Text, rendered write-through: after recording each change,
-the channel renders the document to HTML server-side via yrby's `Y::Lexxy`
-(`materialize_collaborative_rich_text!`, visible in the generated channel)
-and saves it as the attribute. There is no job or queue to configure;
-reads are plain reads. If a render fails, the error is logged; the
-change is already recorded, and the next successful change re-renders
-everything. Until one arrives, the attribute keeps its last rendered
-value.
+The channel records each CRDT update, renders the full document with
+`Y::Lexxy`, and saves the HTML through the Action Text writer. This
+happens synchronously in `materialize_collaborative_rich_text!`, so
+reads use the stored `post.body` value.
+
+If rendering fails, the update remains stored and the error is logged.
+The next successful update renders the full document again. Until then,
+`post.body` keeps its previous value.
 
 ## Access control
 
-Clients join with a signed GlobalID minted by the form helper, scoped to
-the record and the field; they never name documents, and a token from
-another feature or another collaborative attribute can't be replayed
-here. The signed id identifies the record; it doesn't check who is
-connecting. The generated channel denies everyone until you implement
-`authorized?` (for example, `record.editable_by?(current_user)`).
+The form helper gives clients a signed GlobalID scoped to one record and
+field. `DocumentChannel` uses it to locate the record. Put the user
+access check in `authorized?` (for example,
+`record.editable_by?(current_user)`).
 
 ## Configuration
 
@@ -75,8 +72,8 @@ connecting. The generated channel denies everyone until you implement
 LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil } }
 ```
 
-The identity default uses `current_user`'s name/username/handle and never an
-email address.
+By default, identity uses the first available `current_user` value from
+`name`, `username`, or `handle`, then falls back to `"Anonymous"`.
 
 Full documentation, the demo app, and the JavaScript package:
 [repository README](https://github.com/jpcamara/lexxy-realtime#readme).

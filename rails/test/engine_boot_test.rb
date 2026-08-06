@@ -3,9 +3,9 @@
 require "test_helper"
 require "open3"
 
-# The unit suite hand-wires everything; this boots the gem as a real Rails
-# engine in a subprocess and verifies what only a boot can (initializers,
-# eager loading, the real Action Text macro path, the FormBuilder prepend).
+# Boot a minimal Rails app in a subprocess to exercise the engine
+# initializers, eager loading, Action Text macro, and FormBuilder
+# integration.
 class EngineBootTest < Minitest::Test
   def test_the_engine_boots_a_real_rails_application
     script = File.expand_path("support/boot_check.rb", __dir__)
