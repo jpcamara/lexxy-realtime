@@ -3,26 +3,25 @@
 require "active_support/concern"
 
 module LexxyRealtime
-  # +has_collaborative_rich_text+ declares an attribute whose live edits
-  # sync through a collaborative document (Y::Document) and render back
-  # into the stored value on every recorded change. With Action Text on
-  # the model it layers on +has_rich_text+; without it, it writes a plain
-  # attribute.
+  # Adds Y::Document-backed collaboration to an attribute. When Action
+  # Text is available, it declares the corresponding +has_rich_text+
+  # association.
   module Collaborative
     extend ActiveSupport::Concern
 
     class_methods do
       def has_collaborative_rich_text(name, **options) # rubocop:disable Naming/PredicatePrefix
-        # The document stores plaintext CRDT bytes, so encrypted rich text
-        # is unsupported.
-        raise ArgumentError, "encrypted: is not supported (the document stores plaintext)" if options.key?(:encrypted)
-
         include Model unless include?(Model)
         has_rich_text(name, **options) if respond_to?(:has_rich_text)
         self.collaborative_rich_text_names = (collaborative_rich_text_names + [name.to_sym]).freeze
 
+        # encrypted: true encrypts both halves: has_rich_text gets the
+        # option (an encrypted body), and the document stores CRDT state
+        # through Y::EncryptedDocument. Without Action Text, declare
+        # +encrypts+ on the plain attribute yourself.
+        document_class = options[:encrypted] ? "Y::EncryptedDocument" : "Y::Document"
         has_one :"collaborative_document_#{name}", -> { where(name: name) },
-                class_name: "Y::Document", as: :record, inverse_of: :record, dependent: :destroy
+                class_name: document_class, as: :record, inverse_of: :record, dependent: :destroy
       end
     end
 
@@ -39,20 +38,21 @@ module LexxyRealtime
       # The document, if collaboration has started (nil until the first join).
       def collaborative_document(name) = public_send("collaborative_document_#{name}")
 
-      # The document, created on first use. Concurrent joins converge on
-      # one row, and the cached association miss is repaired.
+      # Creates the document on first use and refreshes the association.
+      # The association names the class, so an encrypted attribute gets a
+      # Y::EncryptedDocument.
       def collaborative_document!(name)
         collaborative_document(name) || begin
-          document = Y::Document.for(self, name)
+          klass = self.class.reflect_on_association(:"collaborative_document_#{name}").klass
+          document = klass.for(self, name)
           association(:"collaborative_document_#{name}").target = document
           document
         end
       end
 
-      # Renders the document to HTML server-side (Y::Lexxy) and saves it
-      # as the attribute, under the record's lock with a fresh document
-      # read, so concurrent renders converge on the latest state. Returns
-      # false when nothing has been recorded.
+      # Reloads and renders the document while holding the record lock,
+      # then saves the HTML through the attribute writer. Returns false
+      # when the document has no state.
       def materialize_collaborative_rich_text!(name)
         ensure_collaborative!(name)
 
@@ -70,7 +70,7 @@ module LexxyRealtime
           break false if html.nil?
 
           public_send("#{name}=", html)
-          save!(validate: false) # skip model validations for this system-managed save
+          save!(validate: false) # collaboration updates should not run unrelated model validations
           true
         end
       end

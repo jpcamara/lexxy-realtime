@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
-# Syncs live edits into the record's collaborative document and renders
-# them back into the attribute on every recorded change. Clients join
-# with a signed GlobalID minted by the form helper.
+# Syncs clients with the record's collaborative document. Each stored
+# update is rendered back to the Action Text attribute.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
   on_load { |key| Y::Document.load_state(key) }
   on_change do |key, update|
     Y::Document.append(key, update)
-    # The change is already durable; a failed render logs and catches up
-    # on the next change. Raising here would only make the client resend.
+    # Log render failures. The stored document renders again after the
+    # next update. Raising would make the client resend an update the
+    # server already has.
     begin
       record.materialize_collaborative_rich_text!(field)
     rescue StandardError => e
@@ -33,8 +33,8 @@ class DocumentChannel < ApplicationCable::Channel
 
   private
 
-  # The demo has no users, so everyone is in; the generated template
-  # denies everyone until the app fills this in.
+  # The demo has no users, so anyone may edit. A real app checks its
+  # current user here.
   def authorized?
     true
   end

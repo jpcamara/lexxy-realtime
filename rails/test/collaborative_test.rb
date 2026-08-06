@@ -10,9 +10,8 @@ class CollaborativeTest < Minitest::Test
     @document = @post.collaborative_document!(:body)
   end
 
-  # Appends the way the channel does (by key), then reloads the cached
-  # association target: production reads load the document fresh per
-  # request, and the long-lived instances here must see changed_at move.
+  # Append by document key, then reload the cached document so tests see
+  # the updated changed_at value.
   def append(state, record = nil)
     doc = record ? record.collaborative_document!(:body) : @document
     Y::Document.append(doc.key, state)
@@ -30,15 +29,39 @@ class CollaborativeTest < Minitest::Test
     refute bare.method_defined?(:materialize_collaborative_rich_text!)
   end
 
-  def test_encrypted_option_is_rejected
-    klass = Class.new(ActiveRecord::Base) do
-      self.table_name = "posts"
-      include LexxyRealtime::Collaborative
-
-      def self.has_rich_text(name, **); end
+  # A Post whose attribute is declared encrypted. Subclassing keeps the
+  # writer-fidelity shim and record_type ("Post"), so keys and adoption
+  # behave exactly as the plain class.
+  def encrypted_post_class
+    Class.new(Post) do
+      def self.name = "Post"
+      has_collaborative_rich_text :body, encrypted: true
     end
+  end
 
-    assert_raises(ArgumentError) { klass.has_collaborative_rich_text(:body, encrypted: true) }
+  def test_encrypted_attribute_wires_the_encrypted_document_class
+    klass = encrypted_post_class
+
+    assert_equal Y::EncryptedDocument,
+                 klass.reflect_on_association(:collaborative_document_body).klass
+    record = klass.create!
+
+    assert_instance_of Y::EncryptedDocument, record.collaborative_document!(:body)
+  end
+
+  def test_encrypted_attribute_materializes_and_stores_ciphertext
+    record = encrypted_post_class.create!
+    document = record.collaborative_document!(:body)
+    document.append(lexxy_full_state)
+
+    assert record.materialize_collaborative_rich_text!(:body)
+    assert_equal lexxy_full_html, record.reload.body, "rendering is unchanged by encryption"
+
+    raw = Y::Document.connection.select_value(
+      "SELECT payload FROM y_document_updates WHERE document_id = #{document.id} LIMIT 1"
+    )
+
+    assert_includes raw, '"p":', "payload rows hold the Active Record encryption envelope"
   end
 
   def test_macro_registers_the_attribute
@@ -56,8 +79,7 @@ class CollaborativeTest < Minitest::Test
   end
 
   def test_distinct_classes_get_distinct_documents_and_sti_shares
-    # A genuinely different class over the same table: its own record_type,
-    # its own document — the isolation string keys used to hand-encode.
+    # A separate model class on the same table gets a separate document.
     other_class = Class.new(ActiveRecord::Base) do
       self.table_name = "posts"
       include LexxyRealtime::Collaborative
@@ -69,9 +91,8 @@ class CollaborativeTest < Minitest::Test
 
     refute_equal @document, other_class.find(@post.id).collaborative_document!(:body)
 
-    # An STI subclass shares the base class record_type — and therefore the
-    # document — which is the correct Rails semantics (the old string keys
-    # wrongly split one record's document by subclass name).
+    # STI subclasses use the base class record_type, so they share the
+    # document.
     sti = Class.new(Post) { def self.name = "FeaturedPost" }
 
     assert_equal @document, sti.find(@post.id).collaborative_document!(:body)
@@ -112,9 +133,8 @@ class CollaborativeTest < Minitest::Test
   end
 
   def test_materialize_saves_past_unrelated_model_validations
-    # The projection is system-written content the collaboration flow already
-    # accepted; an unrelated validation (here: one this record currently
-    # fails) must not block it — nor 500 a read that triggers it.
+    # Materializing collaboration updates bypasses unrelated model
+    # validations.
     invalid = Class.new(Post) do
       def self.name = "Post"
       validates :title, absence: true

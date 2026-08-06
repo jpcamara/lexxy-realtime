@@ -2,8 +2,8 @@
 
 require "test_helper"
 
-# Storage is yrby's Y::Document (tested in yrby); these pin the binding —
-# the macro's document wiring and the channel-shaped calls the gem makes.
+# These tests cover the gem's Y::Document association and the calls made
+# by DocumentChannel.
 class UpdateTest < Minitest::Test
   def setup
     Y::DocumentUpdate.delete_all
@@ -25,9 +25,8 @@ class UpdateTest < Minitest::Test
 
     Y::Document.append(document.key, lexxy_full_state)
 
-    # Byte-compare the RENDERED document, not the update encoding: yrs map
-    # keys can re-order across a re-encode, so canonical bytes differ while
-    # content is identical. HTML parity is the consumer-grade equality.
+    # Compare rendered HTML because re-encoding a Yjs map can change byte
+    # order without changing its content.
     served = Y::Doc.new.tap { |d| d.apply_update(Y::Document.load_state(document.key)) }
 
     assert_equal lexxy_full_html, Y::Lexxy.new(served).to_html

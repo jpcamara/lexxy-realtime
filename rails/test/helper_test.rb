@@ -5,9 +5,9 @@ require "action_view"
 require "json"
 
 class HelperTest < Minitest::Test
-  # A view context with real tag helpers; the form builder is the real
-  # ActionView one with the engine's prepend, with Lexxy's editor method
-  # doubled to its exact contract (block content becomes the editor's child).
+  # A view context with real tag helpers. The test uses ActionView's
+  # FormBuilder and stubs Lexxy's editor method to yield its child
+  # content.
   class FakeView
     include ActionView::Helpers::TagHelper
     include ActionView::Helpers::CaptureHelper
