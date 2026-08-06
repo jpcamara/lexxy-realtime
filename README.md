@@ -172,13 +172,18 @@ import "@37signals/lexxy";
 import "lexxy-realtime"; // registers <lexxy-collaboration>
 ```
 
-To use a specific consumer (for example `@anycable/web`), assign it before the
-element initializes:
+To use a specific transport (for example `@anycable/web`), set the app-wide
+consumer once at boot; every element without one of its own uses it:
 
 ```js
-const collab = document.querySelector("lexxy-collaboration");
-collab.consumer = createCable(); // or createConsumer() from @rails/actioncable
+import { createCable } from "@anycable/web";
+import { setConsumer } from "lexxy-realtime";
+
+setConsumer(() => createCable());
 ```
+
+Assigning `collab.consumer` on an element before it initializes still wins,
+per element.
 
 #### Host-managed
 
