@@ -15,6 +15,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   sets the app-wide default for other transports such as `@anycable/web`;
   a consumer assigned directly on an element still wins. The element now
   also exposes `doc`, like `provider` and `awareness`.
+- A document opened for the first time on a record with an existing body
+  seeds the collaborative document from the editor's server-rendered
+  value, instead of clearing it to an empty paragraph. Existing documents
+  load exactly as before. Two first-ever openers can both seed, the same
+  check-then-act race as Lexical's CollaborationPlugin (whose docs call
+  client bootstrap dev-only); accepted knowingly, since the duplicate is
+  confined to a document's first open, visible, and easily deleted.
 - Attachments work under collaboration: an attachment created by one
   collaborator materializes for every peer and for late joiners. Uploads
   sync live (progress bar and error state; a finished upload no longer
