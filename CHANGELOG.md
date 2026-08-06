@@ -8,6 +8,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Zero-config element: with no consumer, doc, or provider assigned, the
+  element creates a shared Action Cable consumer (from the standard
+  `action-cable-url` meta tag, falling back to `/cable`), builds its own
+  doc and provider, and connects itself. `setConsumer(consumerOrFactory)`
+  sets the app-wide default for other transports such as `@anycable/web`;
+  a consumer assigned directly on an element still wins. The element now
+  also exposes `doc`, like `provider` and `awareness`.
+- A document opened for the first time on a record with an existing body
+  seeds the collaborative document from the editor's server-rendered
+  value, instead of clearing it to an empty paragraph. Existing documents
+  load exactly as before; the first-writer race on a brand-new document is
+  the same one Lexical's own CollaborationPlugin bootstrap has.
 - Attachments work under collaboration: an attachment created by one
   collaborator materializes for every peer and for late joiners. Uploads
   sync live (progress bar and error state; a finished upload no longer
@@ -24,7 +36,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   mutation-listener re-key. What remains: the unsyncable-property
   exclusions (`file`, `editor`, `previewSrc`, `uploadUrl`,
   `blobUrlTemplate`), keyed by node type and passed to `createBinding`,
-  and the `CollabElementNode.splice` patch — a separate `@lexical/yjs`
+  and the `CollabElementNode.splice` patch, a separate `@lexical/yjs`
   empty-bootstrap issue. Needs a Lexxy release containing the fix; CI
   overlays a dist built from the merge commit until one ships, and the
   `@37signals/lexxy` peer floor must rise to that release before this
