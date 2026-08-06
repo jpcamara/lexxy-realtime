@@ -91,10 +91,11 @@ Records with an existing Action Text body work: on the first collaborative
 open of a document, the element seeds it from the editor's server-rendered
 value, so the stored content becomes the collaborative document (and an
 intentional delete-everything materializes back as empty, like any other
-edit). The one edge: two clients opening a never-collaborated document at the
-same instant can both seed it, duplicating the initial content, the same
-first-writer race as Lexical's own CollaborationPlugin bootstrap, confined to
-a document's first-ever open.
+edit). The one edge: two clients opening a never-collaborated document at
+the same instant can both seed it, duplicating the initial content.
+Lexical's own CollaborationPlugin bootstrap has the same race; the window
+is one sync round trip on a document's first-ever open, and the duplicate
+is visible and easily deleted.
 
 ### Cursor identity
 
