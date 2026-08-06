@@ -12,6 +12,11 @@
 // first sync completes before either sees the other's seed both pass the
 // guard and both seed; the CRDT merges both. This script runs that exact
 // predicate for two simultaneous clients and prints the converged document.
+//
+// Lexical's collaboration docs acknowledge this ("two clients ... could
+// both try to initialize the content resulting in document corruption")
+// and gate client bootstrap to dev-testing; their production guidance is
+// server-side seeding.
 import * as Y from "yjs";
 import { ActionCableProvider as YrbyProvider } from "yrby-client";
 import { rawConsumer, URL } from "./support.mjs";
