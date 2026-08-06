@@ -165,6 +165,16 @@ check("zero-config element loaded the document (auto-created consumer)", zaraHas
 
 ab("zara", "close");
 
+// The app-wide consumer (setConsumer, the @anycable/web path): the element
+// must ride the configured consumer instead of auto-creating one.
+ab("uma", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Uma&mode=setconsumer`);
+check("setConsumer element connected and synced", await ready("uma"));
+check(
+  "element used the configured consumer",
+  /\btrue\b/.test(ab("uma", "eval", "!!window.__test.usesConfiguredConsumer()"))
+);
+ab("uma", "close");
+
 console.log("");
 if (failures > 0) {
   console.log(`FAILED: ${failures} check(s) failed`);
