@@ -9,6 +9,7 @@ jobs:
   build:
     name: Build & bundle
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -39,6 +40,7 @@ jobs:
   headless:
     name: Headless durability (Ruby ${{ matrix.ruby }})
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -95,6 +97,7 @@ jobs:
   browser:
     name: Browser e2e (real Chrome)
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       # Same sibling layout as the headless job: the test server's gems are
       # path-pinned to ../../../yrby.
