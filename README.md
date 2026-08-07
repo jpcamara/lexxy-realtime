@@ -69,6 +69,12 @@ broadcasting it, so the stored log can rebuild the document.
 The form helper gives the client a signed GlobalID scoped to one record
 and field. Use `authorized?` for your application's user access check.
 
+`has_collaborative_rich_text :body, encrypted: true` encrypts the whole
+pipeline the way Action Text's `encrypted: true` does: the rendered body
+through `ActionText::EncryptedRichText`, and the document's CRDT state and
+update payloads through yrby's `Y::EncryptedDocument`, all with Active
+Record encryption.
+
 ### How it stays in sync with Action Text
 
 `has_collaborative_rich_text :body` is a regular `has_rich_text` attribute
