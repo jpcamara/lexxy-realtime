@@ -4,6 +4,6 @@ import "./controllers"
 
 // The Lexxy editor, and collaboration for it. This is the entire client-side
 // setup: the server renders <lexxy-collaboration> with attributes (see
-// collaborative_rich_text_area) and the element wires itself up.
+// collaborative_rich_textarea) and the element wires itself up.
 import "@37signals/lexxy"
 import "lexxy-realtime"
