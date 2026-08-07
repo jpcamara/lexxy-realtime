@@ -170,6 +170,23 @@ export class Collaboration extends HTMLElement {
     };
     window.addEventListener('pagehide', removeOwnPendingUploads);
 
+    // Turbo replaces the body or a frame without firing pagehide: the
+    // page's JS survives, but the editor is discarded and its upload can
+    // never finish. Both events fire before the swap, while the binding
+    // and provider are still live, so the removal syncs reliably. They are
+    // plain DOM events; apps without Turbo never fire them. An editor
+    // inside data-turbo-permanent survives the navigation, upload
+    // included, so it is left alone. Streams and morphing can still
+    // discard an editor with no event scoped to it; the alone-sweep
+    // covers those.
+    const removeUploadsBeforeTurboDiscard = (event) => {
+      if (this.editorElement.closest('[data-turbo-permanent]')) return;
+      if (event.type === 'turbo:before-frame-render' && !event.target.contains(this.editorElement)) return;
+      removePendingUploadNodes(this.editor);
+    };
+    document.addEventListener('turbo:before-cache', removeUploadsBeforeTurboDiscard);
+    document.addEventListener('turbo:before-frame-render', removeUploadsBeforeTurboDiscard);
+
     // The pagehide send can be lost (the page is dying; nothing
     // retransmits), so a second layer sweeps leftovers: a client that has
     // been alone for a while deletes remote upload placeholders. See
@@ -189,6 +206,8 @@ export class Collaboration extends HTMLElement {
     this.#teardown = () => {
       this.#teardown = null;
       window.removeEventListener('pagehide', removeOwnPendingUploads);
+      document.removeEventListener('turbo:before-cache', removeUploadsBeforeTurboDiscard);
+      document.removeEventListener('turbo:before-frame-render', removeUploadsBeforeTurboDiscard);
       cancelOrphanSweep();
       awareness.off('update', renderCursors);
       unsubscribeCursorRender();

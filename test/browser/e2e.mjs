@@ -159,6 +159,32 @@ check(
   "pagehide removed the local pending upload node",
   await waitEval("carol", '!window.__test.docRoot().includes("rebind-probe.png")', "upload node removed locally")
 );
+
+// Turbo discards the editor without pagehide (body or frame swap). The
+// turbo:before-cache listener removes the pending upload the same way,
+// except for a data-turbo-permanent editor, which survives the
+// navigation with its upload still running.
+check(
+  "permanent editor keeps its pending upload through turbo:before-cache",
+  /\btrue\b/.test(ab(
+    "carol",
+    "eval",
+    'document.getElementById("editor").setAttribute("data-turbo-permanent", "");' +
+      ' window.__test.insertUploadNode("turbo-probe.png");' +
+      ' document.dispatchEvent(new CustomEvent("turbo:before-cache"));' +
+      ' window.__test.docRoot().includes("turbo-probe.png")'
+  ))
+);
+ab(
+  "carol",
+  "eval",
+  'document.getElementById("editor").removeAttribute("data-turbo-permanent");' +
+    ' document.dispatchEvent(new CustomEvent("turbo:before-cache")); "fired"'
+);
+check(
+  "turbo:before-cache removed the pending upload once the editor is not permanent",
+  await waitEval("carol", '!window.__test.docRoot().includes("turbo-probe.png")', "upload removed on turbo discard")
+);
 ab("carol", "close");
 
 // Zero-config: attributes only, no host wiring at all. The element creates its
@@ -208,8 +234,12 @@ ab("tia", "close");
 open("dave", "Dave");
 check("Dave synced", await ready("dave"));
 check(
-  "abandoned upload placeholder is gone for a fresh client",
-  /\btrue\b/.test(ab("dave", "eval", '!window.__test.docRoot().includes("rebind-probe.png")'))
+  "abandoned upload placeholders are gone for a fresh client",
+  /\btrue\b/.test(ab(
+    "dave",
+    "eval",
+    '!window.__test.docRoot().includes("rebind-probe.png") && !window.__test.docRoot().includes("turbo-probe.png")'
+  ))
 );
 // dave stays open: he authors the next scenario's orphan.
 
