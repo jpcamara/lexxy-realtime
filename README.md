@@ -16,6 +16,11 @@ Each side sees the other's cursor and selection:
 Rails apps install both the `lexxy-realtime` gem and npm package, then
 run the install generator. Both ship from this repo under the same name.
 
+Neither is released yet in this form: the gem is not on RubyGems, the
+published npm package predates the Rails integration, and both wait on a
+Lexxy release containing basecamp/lexxy#1196 (merged upstream). Until
+then, install from this repository.
+
 ```bash
 # Gemfile
 gem "lexxy-realtime"
@@ -70,11 +75,9 @@ broadcasting it, so the stored log can rebuild the document.
 The form helper gives the client a signed GlobalID scoped to one record
 and field. Use `authorized?` for your application's user access check.
 
-`has_collaborative_rich_text :body, encrypted: true` encrypts the whole
-pipeline the way Action Text's `encrypted: true` does: the rendered body
-through `ActionText::EncryptedRichText`, and the document's CRDT state and
-update payloads through yrby's `Y::EncryptedDocument`, all with Active
-Record encryption.
+`has_collaborative_rich_text :body, encrypted: true` stores the rendered
+body with `ActionText::EncryptedRichText`. The CRDT state and updates use
+yrby's encrypted document models. Active Record encryption handles both.
 
 ### How it stays in sync with Action Text
 
@@ -117,46 +120,47 @@ Cursor names and colors are sent as presence metadata. The channel uses
 the signed GlobalID to find the record and `authorized?` to check
 access.
 
-## Beyond Rails: how it fits together
+## JavaScript client
 
-`<lexxy-collaboration>` works with any Yjs provider, including
-`y-websocket`, Hocuspocus, and y-webrtc. In a Rails app, the element
+`<lexxy-collaboration>` works with providers that expose awareness and a
+boolean synced state, including `y-websocket` and Hocuspocus. In a Rails app, the element
 builds an Action Cable consumer, a `Y.Doc`, and a
 [`YrbyProvider`](https://github.com/jpcamara/yrby) from its attributes.
 You can instead supply a consumer or your own document and provider. The
 yrby stack has the most test coverage; other providers need the contract
 below.
 
-## Requirements
+### Requirements
 
-- A **Lexxy editor** on the page (`@37signals/lexxy`). See
-  [Lexxy's docs](https://basecamp.github.io/lexxy).
-- A backend for your **Yjs provider**; see [Server](#server-yrby) for the yrby
-  setup.
-- A **JS bundler** (jsbundling-rails / esbuild, or any app that bundles its
-  JavaScript). Collaboration relies on one shared copy of `lexical` and `yjs`
-  across Lexxy and lexxy-realtime; a bundler dedupes them for you (see
-  [a single copy of lexical & yjs](#a-single-copy-of-lexical--yjs)).
+Before installing, make sure the page already loads Lexxy
+(`@37signals/lexxy`, see [Lexxy's docs](https://basecamp.github.io/lexxy))
+and the app uses a JavaScript bundler. Collaboration relies on one shared
+copy of `lexical` and `yjs` across Lexxy and lexxy-realtime, and a bundler
+dedupes them for you (see
+[a single copy of lexical & yjs](#a-single-copy-of-lexical--yjs)). You
+also need a backend for whichever provider you choose; see
+[Server](#server-yrby) for the yrby setup. The Rails gem additionally
+requires Ruby 3.4+ and Rails 8.0.2+.
 
-## Install
+### Install
 
 ```bash
 npm install lexxy-realtime @lexical/yjs yjs y-protocols
 ```
 
 You also need a Lexxy editor and `lexical` (`^0.44`), which your app already has.
-Install the client transport for your setup: `@rails/actioncable` or
-`@anycable/web` for yrby, or the package for your chosen Yjs provider (for
-example, `y-websocket`).
+The element-managed Action Cable client is bundled. Install `@anycable/web`
+when configuring AnyCable, or the client package for your own Yjs provider
+(for example, `y-websocket`).
 
-## Client
+### Wiring the element
 
 `lexxy-realtime` registers the `<lexxy-collaboration>` custom element. Mount it
-inside your `<lexxy-editor>` using one of these wirings.
+inside your `<lexxy-editor>` using one of these setups.
 
 ### Default yrby path
 
-#### Element-managed
+#### Let the element create the provider
 
 Render (or create) the element with attributes inside the editor and import the
 package once. The element waits for the editor, creates a shared
@@ -167,7 +171,7 @@ removal:
 ```html
 <lexxy-editor>
   <lexxy-collaboration doc-id="doc-42" name="Ada"
-    channel-name="DocumentChannel" channel-params='{"id":"doc-42"}'>
+    channel-name="SyncChannel" channel-params='{"id":"doc-42"}'>
   </lexxy-collaboration>
 </lexxy-editor>
 ```
@@ -190,7 +194,7 @@ setConsumer(() => createCable());
 Assigning `collab.consumer` on an element before it initializes still wins,
 per element.
 
-#### Host-managed
+#### Create the provider yourself
 
 Create and manage the yrby provider yourself when you need its lifecycle for
 status UI, `whenSynced`, or sharing one document across components:
@@ -206,7 +210,7 @@ const editor = document.querySelector("lexxy-editor");
 function startCollaborating() {
   const doc = new Y.Doc();
   const consumer = createConsumer();
-  const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: documentId });
+  const provider = new YrbyProvider(doc, consumer, "SyncChannel", { id: documentId });
 
   const collab = document.createElement("lexxy-collaboration");
   collab.setAttribute("doc-id", documentId);       // Yjs document id (defaults to "main")
@@ -266,11 +270,13 @@ Any provider with the standard Yjs surface works:
   `Awareness` instance (used for remote cursors/selections).
 - `provider.synced`: `true` once caught up with the server (used to seed a
   brand-new, empty document the first time).
-- `provider.disconnect()`: called when the element is removed.
+- `provider.disconnect()` or `destroy()`: when you assign a provider, you
+  own its connection and must disconnect it yourself. The element
+  disconnects only providers it creates.
 
 You start the connection however that provider expects (`provider.connect()` for
-`YrbyProvider`; `y-websocket` connects on construction). `y-websocket`,
-Hocuspocus, and y-webrtc all satisfy this.
+`YrbyProvider`; `y-websocket` connects on construction). `y-websocket` and
+Hocuspocus satisfy this contract; other providers may need an adapter.
 
 ## Server (yrby)
 
@@ -282,7 +288,7 @@ concern:
 ```ruby
 # Gemfile: gem "yrby-rails"
 
-class DocumentChannel < ApplicationCable::Channel
+class SyncChannel < ApplicationCable::Channel
   include Y::ActionCable
 
   # Rebuild a document's state from your store (return nil for a new doc):
@@ -315,8 +321,9 @@ provider.awareness;        // the Yjs Awareness instance (presence/cursors)
 provider.hasPending;       // unacknowledged local edits in flight?
 ```
 
-The element creates the `Awareness` instance. Use `provider.awareness`
-to read presence data such as the current collaborators.
+`YrbyProvider` creates and owns its `Awareness` instance; the element
+uses and exposes `provider.awareness`. Read it for presence data such as
+the current collaborators.
 
 ## Attachments
 
@@ -324,9 +331,9 @@ File and image uploads work under collaboration. The uploader's
 browser does the ActiveStorage direct upload as usual; the attachment node
 syncs through Yjs, and peers render the finished image from its URL. While
 an upload is in flight, peers see a placeholder with the filename and a
-live progress bar. Nothing client-local crosses the wire: the `File`
-object, preview object-URLs, and upload configuration stay on the
-uploader's machine, and a peer never starts a duplicate upload.
+live progress bar. The raw `File`, preview URL, and upload settings stay in the uploader's
+browser. Other collaborators receive the attachment state without
+starting another upload.
 
 ## Persisting to ActionText (manual)
 
@@ -345,7 +352,7 @@ html = Y::Lexxy.new(ydoc).to_html("root")
 note.content = html # a has_rich_text attribute
 ```
 
-No browser is involved and no client-submitted HTML is trusted. The
+The
 [yrby demo's `NoteMaterializer`](https://github.com/jpcamara/yrby/blob/main/examples/actioncable-demo/app/lib/note_materializer.rb)
 shows the same server-side rendering in a store-agnostic form.
 
@@ -358,9 +365,9 @@ Two things matter under Turbo Drive:
   test suite covers removal before the first sync, DOM moves, and
   remounts.
 - Don't cache a live editor: mark the editor container
-  `data-turbo-temporary` (or `data-turbo-cache="false"` on the page) so
-  Turbo's snapshot doesn't restore a stale editor DOM next to a fresh
-  binding.
+  `data-turbo-temporary` so Turbo's snapshot doesn't restore a stale
+  editor DOM next to a fresh binding. To disable caching for the whole
+  page, use `<meta name="turbo-cache-control" content="no-cache">`.
 
 ## A single copy of `lexical` & `yjs`
 
