@@ -286,18 +286,20 @@ concern:
 class SyncChannel < ApplicationCable::Channel
   include Y::ActionCable
 
-  # Rebuild a document's state from your store (return nil for a new doc):
-  on_load   { |id| Document.find_by(id:)&.yjs_state }
-  # Persist each CRDT delta before it's acked/relayed:
-  on_change { |id, update| Document.record!(id, update) }
+  # Rebuild a document from storage (nil for a brand-new document):
+  on_load   { |key| Y::Document.load_state(key) }
+  # Record each CRDT delta before it's acked and relayed:
+  on_change { |key, update| Y::Document.append(key, update) }
 
   def subscribed = sync_subscribed(params[:id])
   def receive(data) = sync_receive(data, params[:id])
 end
 ```
 
-See [`yrby`](https://github.com/jpcamara/yrby) for durable-store options
-and the full protocol (reliable delivery, causal-gap handling).
+`Y::Document` ships in yrby-rails and is the storage the generators use.
+The hooks accept any store that can return and append update bytes. See
+[`yrby`](https://github.com/jpcamara/yrby) for the full protocol
+(reliable delivery, causal-gap handling).
 
 ## Provider API (yrby)
 
@@ -342,8 +344,8 @@ Lexxy's own HTML byte for byte:
 
 ```ruby
 ydoc = Y::Doc.new
-ydoc.apply_update(store.replay(document_id))
-html = Y::Lexxy.new(ydoc).to_html("root")
+ydoc.apply_update(Y::Document.load_state(key))
+html = Y::Lexxy.new(ydoc).to_html
 note.content = html # a has_rich_text attribute
 ```
 
