@@ -327,6 +327,11 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
   };
 
   awareness.on('change', onAwarenessChange);
+  // An orphan can also arrive with no awareness change at all: its
+  // author's awareness frames were lost, so only the doc update shows up.
+  // schedule is a no-op unless this client is alone with no sweep pending,
+  // so listening on every update costs one timer at most.
+  provider.doc?.on?.('update', schedule);
   provider.whenSynced?.then?.(schedule);
   schedule();
 
@@ -337,6 +342,7 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
     clearTimeout(timer);
     timer = null;
     awareness.off('change', onAwarenessChange);
+    provider.doc?.off?.('update', schedule);
   };
 }
 
@@ -396,7 +402,10 @@ function emptyEditorState(state) {
 // the same check-then-act race; its docs call client bootstrap dev-only
 // and recommend seeding server-side. We take the client path knowingly:
 // the window is one sync round trip on a document's first-ever open, and a
-// duplicate is visible and easily deleted. Server-side seeding needs
+// duplicate is visible and easily deleted. The same check also means
+// anything the user gets into the editor before that first sync (typed
+// text, a dropped file's upload placeholder) makes the root non-empty and
+// suppresses the seed of the captured content. Server-side seeding needs
 // HTML-to-Yjs conversion on the server, which yrby doesn't have yet.
 // Repro: test/headless/bootstrap_race_repro.mjs.
 //
