@@ -46,15 +46,15 @@ class CollaborativeTest < Minitest::Test
                  klass.reflect_on_association(:collaborative_document_body).klass
     record = klass.create!
 
-    assert_instance_of Y::EncryptedDocument, record.collaborative_document!(:body)
+    assert_instance_of Y::EncryptedDocument, record.find_or_create_collaborative_document(:body)
   end
 
   def test_encrypted_attribute_materializes_and_stores_ciphertext
     record = encrypted_post_class.create!
-    document = record.collaborative_document!(:body)
+    document = record.find_or_create_collaborative_document(:body)
     document.append(lexxy_full_state)
 
-    assert record.materialize_collaborative_rich_text!(:body)
+    assert record.refresh_collaborative_rich_text(:body)
     assert_equal lexxy_full_html, record.reload.body, "rendering is unchanged by encryption"
 
     raw = Y::Document.connection.select_value(
