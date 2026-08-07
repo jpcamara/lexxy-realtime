@@ -39,10 +39,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   exclusions (`file`, `editor`, `previewSrc`, `uploadUrl`,
   `blobUrlTemplate`), keyed by node type and passed to `createBinding`,
   and the `CollabElementNode.splice` patch, a separate `@lexical/yjs`
-  empty-bootstrap issue. Needs a Lexxy release containing the fix; CI
-  overlays a dist built from the merge commit until one ships, and the
-  `@37signals/lexxy` peer floor must rise to that release before this
-  publishes (`^0.9` admits versions that throw at bind).
+  empty-bootstrap issue.
+- The `@37signals/lexxy` peer floor is `^0.9.29`, the first release with
+  the constructor fix; earlier versions throw at bind. CI installs it
+  from the registry instead of overlaying a dist built from the merge
+  commit.
 
 ## [0.3.0] - 2026-07-13
 
