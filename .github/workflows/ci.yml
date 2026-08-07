@@ -17,6 +17,26 @@ jobs:
       - run: bun run build
       - run: bun run build:test
 
+  rails-gem:
+    name: Rails gem (Ruby ${{ matrix.ruby }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.4"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          working-directory: rails
+          bundler-cache: true
+      - name: Rails gem tests (unit + engine boot)
+        working-directory: rails
+        run: |
+          bundle exec rake test
+          bundle exec rubocop
+
   headless:
     name: Headless durability (Ruby ${{ matrix.ruby }})
     runs-on: ubuntu-latest

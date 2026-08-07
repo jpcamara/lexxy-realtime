@@ -10,7 +10,7 @@ Issues and PRs welcome. This package is the browser half of a small stack —
 - [Bun](https://bun.sh) (build + test runner)
 - A local checkout of [`yrby`](https://github.com/jpcamara/yrby) **as a
   sibling directory** (`../yrby`). The test server's `Gemfile` path-pins the
-  `yrby` and `yrby-actioncable` gems to that checkout.
+  `yrby` and `yrby-rails` gems to that checkout.
 - For the server-backed tests: Ruby 3.4+ and a Rust toolchain (the `yrby`
   gem has a native extension that compiles on `bundle install`).
 - For the browser tests: a Chrome/Chromium that [agent-browser](https://www.npmjs.com/package/agent-browser)
