@@ -39,7 +39,6 @@ group :development do
   gem "web-console"
 end
 
-# The monorepo gem under review, plus the local yrby checkout it builds on.
+# The gem this repo builds, from the sibling directory. Its yrby
+# dependencies resolve from RubyGems like any other gem.
 gem "lexxy-realtime", path: "../rails"
-gem "yrby", path: "../../yrby"
-gem "yrby-rails", path: "../../yrby"

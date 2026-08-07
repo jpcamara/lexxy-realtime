@@ -5,9 +5,11 @@
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
-  on_load { |key| Y::Document.load_state(key) }
+  # Storage routes through the record's association, so an encrypted
+  # attribute reads and writes through Y::EncryptedDocument.
+  on_load { |_key| record.find_or_create_collaborative_document(field).load_state }
   on_change do |key, update|
-    Y::Document.append(key, update)
+    record.find_or_create_collaborative_document(field).append(update)
     # Log render failures. The stored document renders again after the
     # next update. Raising would make the client resend an update the
     # server already has.
@@ -39,10 +41,8 @@ class DocumentChannel < ApplicationCable::Channel
     true
   end
 
-  # The signed GlobalID is scoped to this record and field — a token
-  # minted for one collaborative attribute can't open another. A bad or
-  # foreign-purpose token returns nil; a token for a since-deleted record
-  # raises. Both mean "no record", and subscribed rejects.
+  # Invalid, stale, or field-mismatched tokens return nil and are
+  # rejected by subscribed.
   def record
     @record ||= GlobalID::Locator.locate_signed(params[:sgid], for: LexxyRealtime.sgid_purpose(field))
   rescue ActiveRecord::RecordNotFound

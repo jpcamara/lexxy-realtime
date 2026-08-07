@@ -15,8 +15,10 @@ FileUtils.chdir APP_ROOT do
   puts "== Installing dependencies =="
   system("bundle check") || system!("bundle install")
 
-  # Install JavaScript dependencies
-  system("yarn install --check-files")
+  # Install JavaScript dependencies. The demo builds the repo's package
+  # first, so the repo root needs its dependencies too.
+  system!("npm --prefix .. install")
+  system!("npm install")
 
   # puts "\n== Copying sample files =="
   # unless File.exist?("config/database.yml")

@@ -4,7 +4,10 @@ CI.run do
   step "Setup", "bin/setup --skip-server"
 
   step "Security: Gem audit", "bin/bundler-audit"
-  step "Security: Yarn vulnerability audit", "yarn audit"
+  step "Security: npm vulnerability audit", "npm audit"
+
+  step "Build: JavaScript bundle", "npm run build"
+  step "Boot: application loads", "bin/rails runner 'Post.first; puts :boot_ok'"
 
 
   # Optional: set a green GitHub commit status to unblock PR merge.
