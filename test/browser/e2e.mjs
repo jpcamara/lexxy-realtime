@@ -106,7 +106,7 @@ const carolHasBoth = await waitEval(
   "carol loaded persisted doc"
 );
 check("fresh client rebuilt the document from the server (durability)", carolHasBoth);
-// The late joiner materializes the attachment from the initial sync too —
+// The late joiner materializes the attachment from the initial sync too:
 // the bind-time path, not just the live-update path.
 check(
   "fresh client materialized the attachment",
@@ -122,7 +122,7 @@ check(
 );
 
 // A re-bind (unmount + remount of the collaboration element) must keep the
-// excluded properties — exclusions are recomputed per bind, and losing them
+// excluded properties. Exclusions are recomputed per bind, and losing them
 // means the next upload node's raw File aborts the Lexical->Yjs sync.
 ab("carol", "eval", 'window.__test.remountCollab()');
 check("carol re-synced after remount", await waitEval("carol", "window.__test.synced()", "carol re-synced"));
@@ -149,6 +149,41 @@ check(
   /\btrue\b/.test(ab("carol", "eval", "window.__test.editorInvalidWhileUploading()"))
 );
 
+// pagehide removes this client's file-bearing upload placeholders while
+// the binding can still sync the deletion. The re-bind probe above is
+// still pending on carol; after her pagehide, a fresh client must load
+// the document without it.
+ab("carol", "eval", 'window.dispatchEvent(new Event("pagehide")); "fired"');
+check(
+  "pagehide removed the local pending upload node",
+  await waitEval("carol", '!window.__test.docRoot().includes("rebind-probe.png")', "upload node removed locally")
+);
+
+// A Turbo page replacement discards the editor without pagehide;
+// turbo:before-cache removes the pending upload the same way. A
+// data-turbo-permanent editor survives the navigation with its upload
+// still running and keeps the node.
+check(
+  "permanent editor keeps its pending upload through turbo:before-cache",
+  /\btrue\b/.test(ab(
+    "carol",
+    "eval",
+    'document.getElementById("editor").setAttribute("data-turbo-permanent", "");' +
+      ' window.__test.insertUploadNode("turbo-probe.png");' +
+      ' document.dispatchEvent(new CustomEvent("turbo:before-cache"));' +
+      ' window.__test.docRoot().includes("turbo-probe.png")'
+  ))
+);
+ab(
+  "carol",
+  "eval",
+  'document.getElementById("editor").removeAttribute("data-turbo-permanent");' +
+    ' document.dispatchEvent(new CustomEvent("turbo:before-cache")); "fired"'
+);
+check(
+  "turbo:before-cache removed the pending upload once the editor is not permanent",
+  await waitEval("carol", '!window.__test.docRoot().includes("turbo-probe.png")', "upload removed on turbo discard")
+);
 ab("carol", "close");
 
 // Zero-config: attributes only, no host wiring at all. The element creates its
@@ -194,6 +229,58 @@ check(
 );
 ab("sam", "close");
 ab("tia", "close");
+
+open("dave", "Dave");
+check("Dave synced", await ready("dave"));
+check(
+  "abandoned upload placeholders are gone for a fresh client",
+  /\btrue\b/.test(ab(
+    "dave",
+    "eval",
+    '!window.__test.docRoot().includes("rebind-probe.png") && !window.__test.docRoot().includes("turbo-probe.png")'
+  ))
+);
+// dave stays open: he authors the next scenario's orphan.
+
+// Stage the file-less placeholder left when a pagehide deletion is
+// lost. Dave authors the node without a File, so his own cleanup skips
+// it, and erin and frank receive it before he disconnects.
+open("erin", "Erin");
+open("frank", "Frank");
+check("Erin synced", await ready("erin"));
+check("Frank synced", await ready("frank"));
+
+ab("dave", "eval", 'window.__test.insertUploadNode("orphan-probe.png", { orphan: true })');
+check(
+  "orphan reached a live peer",
+  await waitEval("erin", 'window.__test.docRoot().includes("orphan-probe.png")', "orphan visible to erin")
+);
+ab("dave", "close");
+
+// Any other awareness state blocks the sweep; from each client's side,
+// the other could be the uploader.
+check(
+  "erin sees another client in awareness",
+  await waitEval("erin", "window.__test.provider.awareness.getStates().size >= 2", "erin sees frank")
+);
+check(
+  "frank sees another client in awareness",
+  await waitEval("frank", "window.__test.provider.awareness.getStates().size >= 2", "frank sees erin", 20000)
+);
+await sleep(27000); // past the settle window, with another client present
+check(
+  "no sweep while another peer is present",
+  /\btrue\b/.test(ab("erin", "eval", 'window.__test.docRoot().includes("orphan-probe.png")'))
+);
+
+// Frank leaves; erin becomes alone, and after the settle window she
+// sweeps the orphan.
+ab("frank", "close");
+check(
+  "alone client sweeps the orphaned upload placeholder",
+  await waitEval("erin", '!window.__test.docRoot().includes("orphan-probe.png")', "orphan swept", 70000)
+);
+ab("erin", "close");
 
 console.log("");
 if (failures > 0) {
