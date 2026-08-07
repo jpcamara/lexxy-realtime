@@ -47,6 +47,17 @@ class HelperTest < Minitest::Test
     assert_equal html, @form.collaborative_rich_text_area(:body), "underscore alias"
   end
 
+  def test_falls_back_to_rich_text_area_when_lexxy_helper_is_absent
+    @form.singleton_class.undef_method(:lexxy_rich_textarea)
+    @form.define_singleton_method(:rich_text_area) do |method, _options = {}, &block|
+      %(<lexxy-editor name="post[#{method}]">#{block.call}</lexxy-editor>)
+    end
+
+    html = @form.collaborative_rich_textarea(:body)
+
+    assert_includes html, "<lexxy-collaboration", "renders through the adapter-path helper"
+  end
+
   def test_wires_the_element_to_the_record
     attrs = element_attributes(@form.collaborative_rich_textarea(:body))
 
