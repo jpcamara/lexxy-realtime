@@ -6,8 +6,8 @@
   server.
 </p>
 
-<%# turbo_temporary keeps Turbo from caching a snapshot of the live
-    editor, which would flash stale content on back/forward navigation. %>
+<%# Turbo removes this form before caching the page, so a snapshot never
+    restores a dead editor. %>
 <%= form_with model: @post, data: { turbo_temporary: true } do |form| %>
   <%= form.collaborative_rich_textarea :body %>
 <% end %>

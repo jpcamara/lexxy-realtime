@@ -39,6 +39,6 @@ group :development do
   gem "web-console"
 end
 
-# The gem this repo builds, from the sibling directory. Its yrby
-# dependencies resolve from RubyGems like any other gem.
+# Load this repository's Rails gem from ../rails. Bundler resolves its
+# yrby dependencies from RubyGems.
 gem "lexxy-realtime", path: "../rails"

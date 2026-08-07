@@ -1,7 +1,6 @@
 <h1><%= @post.title %></h1>
 
-<%# The materialized Action Text body: regular rich text, rendered the regular
-    way — everything downstream of collaboration is just Action Text. %>
+<%# The channel saved this rendered HTML in @post.body through Action Text. %>
 <%= @post.body %>
 
 <p><%= link_to "Edit together", edit_post_path(@post) %></p>

@@ -39,8 +39,8 @@ import "lexxy-realtime"
 ```
 
 Implement `authorized?` in the generated channel, then open the page in
-two browsers and edit together. A working app doing exactly this lives
-in [`demo/`](demo/).
+two browsers and edit together. A working demo of this setup lives in
+[`demo/`](demo/).
 
 ### Generated files
 

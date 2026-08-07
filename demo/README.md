@@ -4,7 +4,7 @@ A small, real Rails app showing lexxy-realtime end to end: a `Post` with a
 collaborative Action Text `body`, edited together live, materialized back to
 `post.body` on the server.
 
-The interesting files are exactly the ones you'd touch in your own app:
+Key integration files:
 
 - `app/models/post.rb`: `has_collaborative_rich_text :body`
 - `app/views/posts/edit.html.erb`: `form.collaborative_rich_textarea :body`
@@ -14,8 +14,9 @@ The interesting files are exactly the ones you'd touch in your own app:
   authorization opened up, since the demo has no users. The models ship in
   the yrby-rails gem.
 - `app/javascript/application.js`: `import "lexxy-realtime"`
-- `config/initializers/lexxy_realtime.rb`: guest identity (a real app uses
-  `current_user`, which is the default)
+- `config/initializers/lexxy_realtime.rb`: guest identity for cursors.
+  Without it, the default reads `current_user.name`, `username`, or
+  `handle`.
 
 ## Run it
 
@@ -37,10 +38,11 @@ to HTML on the server (no Node) and saved as regular Action Text.
 
 ## Notes
 
-- The Gemfile takes `lexxy-realtime` from the sibling `rails/` directory;
-  its yrby dependencies come from RubyGems. `package.json` points at the
-  repo root (`file:..`), and `npm run build` builds the package there first
-  (its `dist/` is built, not committed).
+- The Gemfile loads `lexxy-realtime` from `../rails`. Bundler resolves its
+  yrby dependencies from RubyGems. `package.json` loads the root JavaScript
+  package through `file:..`, and `npm run build` compiles that package
+  before bundling the app; the compiled `dist/` is never committed.
 - The esbuild `--alias` flags exist because a `file:` dependency is a symlink,
   which would otherwise pull a second copy of `lexical`/`yjs` from the repo's
-  own node_modules. Apps installing from the registries don't need them.
+  own node_modules. Registry installs normally deduplicate compatible peer
+  versions without these aliases.

@@ -11,8 +11,8 @@ class PostsController < ApplicationController
     @post = Post.new
   end
 
-  # Collaboration needs a persisted record (the document key comes from it), so
-  # a post is created with just a title and edited collaboratively from then on.
+  # The form helper requires a persisted record, so create the post
+  # before rendering its collaborative editor.
   def create
     @post = Post.new(params.expect(post: [:title]))
     if @post.save

@@ -2,8 +2,8 @@
 import "@hotwired/turbo-rails"
 import "./controllers"
 
-// The Lexxy editor, and collaboration for it. This is the entire client-side
-// setup: the server renders <lexxy-collaboration> with attributes (see
-// collaborative_rich_textarea) and the element wires itself up.
+// collaborative_rich_textarea renders a configured <lexxy-collaboration>.
+// The imported custom element creates and connects its Action Cable
+// provider.
 import "@37signals/lexxy"
 import "lexxy-realtime"
