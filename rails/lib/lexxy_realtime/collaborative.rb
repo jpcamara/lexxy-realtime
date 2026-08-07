@@ -37,20 +37,18 @@ module LexxyRealtime
       # The document, if collaboration has started (nil until the first join).
       def collaborative_document(name) = public_send("collaborative_document_#{name}")
 
-      # Creates the document on first use and refreshes the association
-      # with the row returned by Y::Document.for.
-      def collaborative_document!(name)
+      # Creates the document on first use.
+      def find_or_create_collaborative_document(name)
         collaborative_document(name) || begin
-          document = Y::Document.for(self, name)
-          association(:"collaborative_document_#{name}").target = document
-          document
+          Y::Document.for(self, name)
+          public_send("reload_collaborative_document_#{name}")
         end
       end
 
       # Reloads and renders the document while holding the record lock,
       # then saves the HTML through the attribute writer. Returns false
       # when the document has no state.
-      def materialize_collaborative_rich_text!(name)
+      def refresh_collaborative_rich_text(name)
         ensure_collaborative!(name)
 
         document = collaborative_document(name)

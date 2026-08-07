@@ -52,7 +52,7 @@ first collaborative open seeds the document from it.
 
 The channel records each CRDT update, renders the full document with
 `Y::Lexxy`, and saves the HTML through the Action Text writer. This
-happens synchronously in `materialize_collaborative_rich_text!`, so
+happens synchronously in `refresh_collaborative_rich_text`, so
 reads use the stored `post.body` value.
 
 If rendering fails, the update remains stored and the error is logged.
