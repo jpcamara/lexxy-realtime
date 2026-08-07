@@ -159,20 +159,21 @@ export class Collaboration extends HTMLElement {
     // When this page dies mid-upload, its in-flight upload placeholders die
     // with it: the DirectUpload runs only in this browser, so no client
     // exists to finish or remove them, and peers would keep a dead
-    // placeholder forever. pagehide (not teardown -- a DOM move fires
-    // teardown while the upload survives) removes our own upload nodes; the
-    // send is best-effort, like the provider's presence removal. persisted
-    // means bfcache -- the page may come back and the upload with it.
+    // placeholder forever. pagehide removes our own upload nodes. Teardown
+    // is the wrong hook for this; a DOM move fires teardown while the
+    // upload survives. The send is best-effort, like the provider's
+    // presence removal. persisted means bfcache; the page may come back
+    // and the upload with it.
     const removeOwnPendingUploads = (event) => {
       if (event?.persisted) return;
       removePendingUploadNodes(this.editor);
     };
     window.addEventListener('pagehide', removeOwnPendingUploads);
 
-    // The pagehide send can be lost (the page is dying; there is no
-    // retransmit), so a second, receiver-side layer guarantees eventual
-    // cleanup: a client that is provably alone deletes remote upload
-    // placeholders. See removeOrphanedUploadsWhenAlone.
+    // The pagehide send can be lost (the page is dying; nothing
+    // retransmits), so a second layer sweeps leftovers: a client that has
+    // been alone for a while deletes remote upload placeholders. See
+    // removeOrphanedUploadsWhenAlone.
     const cancelOrphanSweep = removeOrphanedUploadsWhenAlone(this.editor, provider, awareness);
 
     // Re-render remote cursors when presence changes or the document reflows.
@@ -271,30 +272,35 @@ function patchCollabElementSplice(binding) {
 }
 
 // A remote upload node (no local File) can only ever be completed by the
-// client that holds the File. If awareness says no one else is connected,
-// that client is not here -- the node is dead, and deleting it cannot kill
-// a live upload. Runs after a settle delay and rechecks: at join time the
-// doc syncs before peers' awareness states arrive, and acting in that
-// window could delete a connected uploader's node. The residual risk --
-// an uploader connected for longer than the settle window with no
-// awareness state -- and a fresh joiner learns pre-existing PASSIVE peers
-// only when their awareness re-broadcasts, which y-protocols does on a
-// ~15s renewal cycle. The settle window must outlast that cycle, or the
-// last client into a quiet room believes it is alone and sweeps a live
-// upload. A garbage collector has no latency requirement; long is safe.
+// client that holds the File. When awareness reports no other clients for
+// a full settle delay, that client is presumed gone and the node is swept.
+// The delay exists because awareness lags the doc: at join time the doc
+// syncs before peers' awareness states arrive, and a quiet peer is only
+// re-learned when y-protocols renews its state on a ~15s cycle. The delay
+// must outlast that cycle, or the last client into a quiet room sweeps a
+// live upload. Sweeping has no deadline, so long is safe.
 //
-// Own in-flight nodes (file still present) are never touched: being alone
-// while uploading is normal.
+// This is a heuristic, not a guarantee. Awareness frames are best-effort,
+// and a background tab throttled past the settle delay can look absent
+// while its upload is still running; a peer would then sweep the live
+// node. Own in-flight nodes (file still present) are never touched: being
+// alone while uploading is normal.
 const ORPHAN_SWEEP_SETTLE_MS = 25000;
 
 function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
   let timer = null;
+  let cancelled = false;
 
   const alone = () => awareness.getStates().size <= 1;
 
   const sweep = () => {
     timer = null;
-    if (!provider.synced || !alone()) return;
+    if (cancelled || !alone()) return;
+    if (!provider.synced) {
+      // Not synced yet; try again after another settle delay.
+      schedule();
+      return;
+    }
     const info = editor?._nodes?.get?.('action_text_attachment_upload');
     if (!info) return;
 
@@ -309,7 +315,7 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
   };
 
   const schedule = () => {
-    if (!timer && alone()) timer = setTimeout(sweep, ORPHAN_SWEEP_SETTLE_MS);
+    if (!cancelled && !timer && alone()) timer = setTimeout(sweep, ORPHAN_SWEEP_SETTLE_MS);
   };
   const onAwarenessChange = () => {
     if (alone()) {
@@ -325,7 +331,11 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
   schedule();
 
   return () => {
+    // The flag also covers the whenSynced continuation, which can fire
+    // after teardown and would otherwise re-arm the timer.
+    cancelled = true;
     clearTimeout(timer);
+    timer = null;
     awareness.off('change', onAwarenessChange);
   };
 }

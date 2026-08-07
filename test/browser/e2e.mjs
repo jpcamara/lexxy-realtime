@@ -205,8 +205,6 @@ check(
 ab("sam", "close");
 ab("tia", "close");
 
-
-
 open("dave", "Dave");
 check("Dave synced", await ready("dave"));
 check(
@@ -215,11 +213,11 @@ check(
 );
 // dave stays open: he authors the next scenario's orphan.
 
-// The pagehide send can be lost (dying socket, no retransmit), leaving
-// the post-crash state: an upload placeholder with no local File
-// anywhere. Stage that state deterministically (dave authors the node
-// file-less, so his own pagehide cleanup provably skips it) with
-// witnesses already present.
+// The pagehide send can be lost (dying socket, no retransmit). What a
+// crash leaves behind is an upload placeholder with no local File
+// anywhere. Stage that deterministically: dave authors the node file-less,
+// so his own pagehide cleanup skips it, and other clients are already
+// connected when it lands.
 open("erin", "Erin");
 open("frank", "Frank");
 check("Erin synced", await ready("erin"));
@@ -235,21 +233,21 @@ ab("dave", "close");
 // Erin and frank each see the other in awareness: neither is alone, so
 // neither may sweep; from their side, the other could be the uploader.
 check(
-  "erin sees company in awareness",
-  await waitEval("erin", "window.__test.provider.awareness.getStates().size >= 2", "erin has company")
+  "erin sees another client in awareness",
+  await waitEval("erin", "window.__test.provider.awareness.getStates().size >= 2", "erin sees frank")
 );
 check(
-  "frank sees company in awareness",
-  await waitEval("frank", "window.__test.provider.awareness.getStates().size >= 2", "frank has company", 20000)
+  "frank sees another client in awareness",
+  await waitEval("frank", "window.__test.provider.awareness.getStates().size >= 2", "frank sees erin", 20000)
 );
-await sleep(27000); // past the settle window, with company present
+await sleep(27000); // past the settle window, with another client present
 check(
   "no sweep while another peer is present",
   /\btrue\b/.test(ab("erin", "eval", 'window.__test.docRoot().includes("orphan-probe.png")'))
 );
 
-// Frank leaves; erin becomes alone, and after the settle window the
-// orphan is provably dead and swept.
+// Frank leaves; erin becomes alone, and after the settle window she
+// sweeps the orphan.
 ab("frank", "close");
 check(
   "alone client sweeps the orphaned upload placeholder",
