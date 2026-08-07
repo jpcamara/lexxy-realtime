@@ -33,11 +33,6 @@ Metrics/MethodLength:
 Metrics/AbcSize:
   Max: 30
 
-# The guard clauses in materialize_collaborative_rich_text_if_stale!
-# handle separate edge cases.
-Metrics/CyclomaticComplexity:
-  Max: 8
-
 Metrics/BlockLength:
   Exclude:
     - "test/**/*"
@@ -55,7 +50,6 @@ Naming/PredicatePrefix:
   Exclude:
     - "test/**/*"
 
-# This method performs the save and reports whether it found content to
-# materialize.
+# refresh_collaborative_rich_text reports whether it found content to save.
 Naming/PredicateMethod:
   Enabled: false

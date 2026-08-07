@@ -7,14 +7,14 @@ class DocumentChannel < ApplicationCable::Channel
 
   # Storage routes through the record's association, so an encrypted
   # attribute reads and writes through Y::EncryptedDocument.
-  on_load { |_key| record.collaborative_document!(field).load_state }
+  on_load { |_key| record.find_or_create_collaborative_document(field).load_state }
   on_change do |key, update|
-    record.collaborative_document!(field).append(update)
+    record.find_or_create_collaborative_document(field).append(update)
     # Log render failures. The stored document renders again after the
     # next update. Raising would make the client resend an update the
     # server already has.
     begin
-      record.materialize_collaborative_rich_text!(field)
+      record.refresh_collaborative_rich_text(field)
     rescue StandardError => e
       Rails.logger.error("lexxy-realtime render failed for #{key}: #{e.class}: #{e.message}")
     end
@@ -24,13 +24,13 @@ class DocumentChannel < ApplicationCable::Channel
     reject and return unless record&.collaborative_rich_text?(field)
     reject and return unless authorized?
 
-    sync_subscribed(record.collaborative_document!(field).key)
+    sync_subscribed(record.find_or_create_collaborative_document(field).key)
   end
 
   def receive(data)
     return unless record
 
-    sync_receive(data, record.collaborative_document!(field).key)
+    sync_receive(data, record.find_or_create_collaborative_document(field).key)
   end
 
   private

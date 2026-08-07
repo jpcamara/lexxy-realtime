@@ -20,10 +20,10 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match "LexxyRealtime.sgid_purpose(field)", channel,
                    "the token is scoped to the record and the field"
       assert_match "collaborative_rich_text?", channel, "the field must be a declared collaborative attribute"
-      assert_match "collaborative_document!", channel
-      assert_match "materialize_collaborative_rich_text!", channel,
+      assert_match "find_or_create_collaborative_document", channel
+      assert_match "refresh_collaborative_rich_text", channel,
                    "the channel materializes updates through the record API"
-      assert_match "record.collaborative_document!(field).append", channel,
+      assert_match "record.find_or_create_collaborative_document(field).append", channel,
                    "storage routes through the record so encrypted attributes decrypt"
       assert_match "def authorized?\n    false", channel,
                    "authorization defaults to false"

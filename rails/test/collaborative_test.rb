@@ -7,13 +7,13 @@ class CollaborativeTest < Minitest::Test
     Y::DocumentUpdate.delete_all
     Y::Document.delete_all
     @post = Post.create!(title: "Doc")
-    @document = @post.collaborative_document!(:body)
+    @document = @post.find_or_create_collaborative_document(:body)
   end
 
   # Append by document key, then reload the cached document so tests see
   # the updated changed_at value.
   def append(state, record = nil)
-    doc = record ? record.collaborative_document!(:body) : @document
+    doc = record ? record.find_or_create_collaborative_document(:body) : @document
     Y::Document.append(doc.key, state)
     doc.reload
   end
@@ -25,8 +25,8 @@ class CollaborativeTest < Minitest::Test
     end
 
     assert_respond_to bare, :has_collaborative_rich_text, "the macro is available"
-    refute bare.method_defined?(:collaborative_document!), "instance API arrives only with a declaration"
-    refute bare.method_defined?(:materialize_collaborative_rich_text!)
+    refute bare.method_defined?(:find_or_create_collaborative_document), "instance API arrives only with a declaration"
+    refute bare.method_defined?(:refresh_collaborative_rich_text)
   end
 
   # A Post whose attribute is declared encrypted. Subclassing keeps the
@@ -46,15 +46,15 @@ class CollaborativeTest < Minitest::Test
                  klass.reflect_on_association(:collaborative_document_body).klass
     record = klass.create!
 
-    assert_instance_of Y::EncryptedDocument, record.collaborative_document!(:body)
+    assert_instance_of Y::EncryptedDocument, record.find_or_create_collaborative_document(:body)
   end
 
   def test_encrypted_attribute_materializes_and_stores_ciphertext
     record = encrypted_post_class.create!
-    document = record.collaborative_document!(:body)
+    document = record.find_or_create_collaborative_document(:body)
     document.append(lexxy_full_state)
 
-    assert record.materialize_collaborative_rich_text!(:body)
+    assert record.refresh_collaborative_rich_text(:body)
     assert_equal lexxy_full_html, record.reload.body, "rendering is unchanged by encryption"
 
     raw = Y::Document.connection.select_value(
@@ -75,7 +75,7 @@ class CollaborativeTest < Minitest::Test
     assert_equal @post, @document.record
     assert_equal "body", @document.name
     assert_equal @document, @post.collaborative_document_body, "has_one, like rich_text_body"
-    assert_equal @document, @post.collaborative_document!(:body), "created once, found after"
+    assert_equal @document, @post.find_or_create_collaborative_document(:body), "created once, found after"
   end
 
   def test_distinct_classes_get_distinct_documents_and_sti_shares
@@ -89,13 +89,13 @@ class CollaborativeTest < Minitest::Test
       has_collaborative_rich_text :body
     end
 
-    refute_equal @document, other_class.find(@post.id).collaborative_document!(:body)
+    refute_equal @document, other_class.find(@post.id).find_or_create_collaborative_document(:body)
 
     # STI subclasses use the base class record_type, so they share the
     # document.
     sti = Class.new(Post) { def self.name = "FeaturedPost" }
 
-    assert_equal @document, sti.find(@post.id).collaborative_document!(:body)
+    assert_equal @document, sti.find(@post.id).find_or_create_collaborative_document(:body)
   end
 
   def test_destroying_the_record_sweeps_document_and_log
@@ -110,23 +110,23 @@ class CollaborativeTest < Minitest::Test
     plain = PlainPost.find(@post.id)
     append(lexxy_full_state, plain)
 
-    assert plain.materialize_collaborative_rich_text!(:body)
+    assert plain.refresh_collaborative_rich_text(:body)
     assert_equal lexxy_full_html, plain.reload.body, "rendered into the plain column"
   end
 
   def test_materialize_raises_for_a_non_collaborative_attribute
-    assert_raises(ArgumentError) { @post.materialize_collaborative_rich_text!(:title) }
+    assert_raises(ArgumentError) { @post.refresh_collaborative_rich_text(:title) }
   end
 
   def test_materialize_is_false_with_no_recorded_document
-    refute @post.materialize_collaborative_rich_text!(:body)
+    refute @post.refresh_collaborative_rich_text(:body)
     assert_nil @post.reload.body
   end
 
   def test_materialize_renders_the_document_to_html_and_saves
     append(lexxy_full_state)
 
-    assert @post.materialize_collaborative_rich_text!(:body)
+    assert @post.refresh_collaborative_rich_text(:body)
     # Byte-identical to the Lexxy editor's own serialization of the same
     # session (the fixture pair is captured from a real editor).
     assert_equal lexxy_full_html, @post.reload.body
@@ -144,16 +144,16 @@ class CollaborativeTest < Minitest::Test
     refute_predicate record, :valid?
     append(lexxy_full_state, record)
 
-    assert record.materialize_collaborative_rich_text!(:body)
+    assert record.refresh_collaborative_rich_text(:body)
     assert_equal lexxy_full_html, record.reload.body
   end
 
   def test_materialize_is_idempotent
     append(lexxy_full_state)
-    @post.materialize_collaborative_rich_text!(:body)
+    @post.refresh_collaborative_rich_text(:body)
     first = @post.reload.body
 
-    assert @post.materialize_collaborative_rich_text!(:body)
+    assert @post.refresh_collaborative_rich_text(:body)
     assert_equal first, @post.reload.body
   end
 end
