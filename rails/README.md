@@ -12,12 +12,9 @@ editor JavaScript) and a bundler such as esbuild, Vite, or webpack. Import maps 
 because Lexxy does not export pinnable `lexical` and `yjs`
 dependencies.
 
-The gem is not on RubyGems yet; until the first release, point your
-Gemfile at this repository.
-
 ```ruby
 # Gemfile
-gem "lexxy-realtime", github: "jpcamara/lexxy-realtime", glob: "rails/*.gemspec"
+gem "lexxy-realtime"
 ```
 
 ```bash

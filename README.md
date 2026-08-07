@@ -16,11 +16,6 @@ Each side sees the other's cursor and selection:
 Rails apps install both the `lexxy-realtime` gem and npm package, then
 run the install generator. Both ship from this repo under the same name.
 
-Neither is released yet in this form: the gem is not on RubyGems, the
-published npm package predates the Rails integration, and both wait on a
-Lexxy release containing basecamp/lexxy#1196 (merged upstream). Until
-then, install from this repository.
-
 ```bash
 # Gemfile
 gem "lexxy-realtime"
