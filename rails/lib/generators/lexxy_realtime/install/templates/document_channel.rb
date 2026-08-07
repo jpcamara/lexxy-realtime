@@ -5,9 +5,11 @@
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
-  on_load { |key| Y::Document.load_state(key) }
+  # Storage routes through the record's association, so an encrypted
+  # attribute reads and writes through Y::EncryptedDocument.
+  on_load { |_key| record.find_or_create_collaborative_document(field).load_state }
   on_change do |key, update|
-    Y::Document.append(key, update)
+    record.find_or_create_collaborative_document(field).append(update)
     # Log render failures. The stored document renders again after the
     # next update. Raising would make the client resend an update the
     # server already has.

@@ -13,11 +13,19 @@ require "lexxy_realtime"
 yrby_rails = Gem.loaded_specs.fetch("yrby-rails").full_gem_path
 require File.join(yrby_rails, "app/models/y/document")
 require File.join(yrby_rails, "app/models/y/document_update")
+require File.join(yrby_rails, "app/models/y/encrypted_document")
+require File.join(yrby_rails, "app/models/y/encrypted_document_update")
 
 # Use in-memory Active Record, yrby rendering fixtures, and signed
 # GlobalIDs without booting Rails. The engine boot test covers the Action
 # Text integration.
 ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
+# Test-only keys so encrypted collaborative attributes can round-trip.
+ActiveRecord::Encryption.configure(
+  primary_key: "test-primary-key" * 2,
+  deterministic_key: "test-deterministic-key" * 2,
+  key_derivation_salt: "test-key-derivation-salt" * 2
+)
 ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
   create_table :posts, force: true do |t|

@@ -46,10 +46,17 @@ ActiveRecord::Schema.define { create_table(:boot_posts) { |t| t.string :title } 
 
 class BootPost < ActiveRecord::Base
   has_collaborative_rich_text :body
+  has_collaborative_rich_text :notes, encrypted: true
 end
 
 abort "rich_text association missing" unless BootPost.reflect_on_association(:rich_text_body)
 abort "document association missing" unless BootPost.reflect_on_association(:collaborative_document_body)
+if BootPost.reflect_on_association(:rich_text_notes).klass != ActionText::EncryptedRichText
+  abort "encrypted: did not reach Action Text"
+end
+if BootPost.reflect_on_association(:collaborative_document_notes).klass != Y::EncryptedDocument
+  abort "encrypted: did not reach the document association"
+end
 abort "instance API missing on declaring model" unless BootPost.method_defined?(:find_or_create_collaborative_document)
 if ActiveRecord::Base.method_defined?(:find_or_create_collaborative_document)
   abort "instance API leaked to plain models"
