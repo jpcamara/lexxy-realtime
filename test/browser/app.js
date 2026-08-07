@@ -87,11 +87,10 @@ function installTestHooks(collab) {
     },
     // The shared doc's root as XML, for asserting what actually synced.
     docRoot: () => (collab.doc?.share.get("root") ? collab.doc.share.get("root").toString() : ""),
-    // Insert a PROVISIONAL upload node carrying a real File — the
-    // unsyncable property. No uploadUrl, so no DirectUpload starts; this
-    // exists to prove the excluded properties survive a re-bind.
-    // opts.orphan inserts the node without a local File, which is what a
-    // crashed uploader leaves behind: a placeholder no client can finish.
+    // Insert a provisional upload node without starting DirectUpload (no
+    // uploadUrl). The default File exercises the Yjs exclusions across a
+    // re-bind. opts.orphan omits the File, staging the shared state a
+    // crashed uploader leaves behind.
     insertUploadNode: (name, opts = {}) => {
       const lexical = editor.editor;
       let klass;

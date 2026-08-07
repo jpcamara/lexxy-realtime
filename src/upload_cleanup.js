@@ -1,22 +1,15 @@
 import { $nodesOfType, HISTORY_MERGE_TAG } from 'lexical';
 
-// Abandoned-upload cleanup. An upload placeholder syncs to every client,
-// but only the client holding the File can complete it. When that client
-// goes away mid-upload, the placeholder would sit in the shared document
-// forever. Three layers remove it:
-//
-// 1. pagehide: the dying page removes its own file-bearing upload nodes.
-//    Best-effort; the send can be lost with the page.
-// 2. Turbo discard: a body or frame swap keeps the page's JS alive but
-//    destroys the editor, so the same removal runs from Turbo's events,
-//    which fire while the binding still syncs.
-// 3. Alone sweep: a client alone for a settle delay deletes remote
-//    (file-less) placeholders nobody can complete. The backstop for lost
-//    pagehide sends and for discards no event covers (streams, morphing).
+// Upload nodes sync without their File, so only the uploading client can
+// finish them. Pagehide and Turbo discard remove this client's own
+// file-bearing nodes while the binding can still sync the deletion. A
+// client alone past an awareness settle delay removes remaining file-less
+// placeholders, presuming their uploader gone -- the backstop for lost
+// pagehide sends and for discards no event covers (streams, morphing).
 export function registerUploadCleanup(editorElement, editor, provider, awareness) {
-  // pagehide, not teardown: a DOM move fires teardown while the upload
-  // survives. persisted means bfcache; the page may come back and the
-  // upload with it.
+  // Teardown also fires on DOM moves, where the upload lives on, so it
+  // cannot remove nodes. A persisted pagehide means bfcache: the page
+  // and its upload may come back.
   const removeOwnPendingUploads = (event) => {
     if (event?.persisted) return;
     removePendingUploadNodes(editor);
@@ -44,20 +37,13 @@ export function registerUploadCleanup(editorElement, editor, provider, awareness
   };
 }
 
-// A remote upload node (no local File) can only ever be completed by the
-// client that holds the File. When awareness reports no other clients for
-// a full settle delay, that client is presumed gone and the node is swept.
-// The delay exists because awareness lags the doc: at join time the doc
-// syncs before peers' awareness states arrive, and a quiet peer is only
-// re-learned when y-protocols renews its state on a ~15s cycle. The delay
-// must outlast that cycle, or the last client into a quiet room sweeps a
-// live upload. Sweeping has no deadline, so long is safe.
-//
-// This is a heuristic, not a guarantee. Awareness frames are best-effort,
-// and a background tab throttled past the settle delay can look absent
-// while its upload is still running; a peer would then sweep the live
-// node. Own in-flight nodes (file still present) are never touched: being
-// alone while uploading is normal.
+// A synced client that has seen no other awareness state for the whole
+// settle delay removes file-less upload nodes, presuming their uploader
+// gone. The delay must outlast y-protocols' ~15s awareness renewal, or
+// the last client into a quiet room sweeps a live upload; sweeping has no
+// deadline, so long is safe. Awareness stays best-effort: a tab throttled
+// past the delay looks absent while its upload runs. Own file-bearing
+// nodes are never touched, since being alone while uploading is normal.
 const ORPHAN_SWEEP_SETTLE_MS = 25000;
 
 function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {

@@ -106,7 +106,7 @@ const carolHasBoth = await waitEval(
   "carol loaded persisted doc"
 );
 check("fresh client rebuilt the document from the server (durability)", carolHasBoth);
-// The late joiner materializes the attachment from the initial sync too —
+// The late joiner materializes the attachment from the initial sync too:
 // the bind-time path, not just the live-update path.
 check(
   "fresh client materialized the attachment",
@@ -122,7 +122,7 @@ check(
 );
 
 // A re-bind (unmount + remount of the collaboration element) must keep the
-// excluded properties — exclusions are recomputed per bind, and losing them
+// excluded properties. Exclusions are recomputed per bind, and losing them
 // means the next upload node's raw File aborts the Lexical->Yjs sync.
 ab("carol", "eval", 'window.__test.remountCollab()');
 check("carol re-synced after remount", await waitEval("carol", "window.__test.synced()", "carol re-synced"));
@@ -149,21 +149,20 @@ check(
   /\btrue\b/.test(ab("carol", "eval", "window.__test.editorInvalidWhileUploading()"))
 );
 
-// A dying page removes its own in-flight upload placeholders (pagehide
-// fires the cleanup; the DirectUpload dies with the page, so the node can
-// never complete). The re-bind upload node above is still pending on
-// carol; after her pagehide, a fresh client must load the document
-// without it.
+// pagehide removes this client's file-bearing upload placeholders while
+// the binding can still sync the deletion. The re-bind probe above is
+// still pending on carol; after her pagehide, a fresh client must load
+// the document without it.
 ab("carol", "eval", 'window.dispatchEvent(new Event("pagehide")); "fired"');
 check(
   "pagehide removed the local pending upload node",
   await waitEval("carol", '!window.__test.docRoot().includes("rebind-probe.png")', "upload node removed locally")
 );
 
-// Turbo discards the editor without pagehide (body or frame swap). The
-// turbo:before-cache listener removes the pending upload the same way,
-// except for a data-turbo-permanent editor, which survives the
-// navigation with its upload still running.
+// A Turbo page replacement discards the editor without pagehide;
+// turbo:before-cache removes the pending upload the same way. A
+// data-turbo-permanent editor survives the navigation with its upload
+// still running and keeps the node.
 check(
   "permanent editor keeps its pending upload through turbo:before-cache",
   /\btrue\b/.test(ab(
@@ -243,11 +242,9 @@ check(
 );
 // dave stays open: he authors the next scenario's orphan.
 
-// The pagehide send can be lost (dying socket, no retransmit). What a
-// crash leaves behind is an upload placeholder with no local File
-// anywhere. Stage that deterministically: dave authors the node file-less,
-// so his own pagehide cleanup skips it, and other clients are already
-// connected when it lands.
+// Stage the file-less placeholder left when a pagehide deletion is
+// lost. Dave authors the node without a File, so his own cleanup skips
+// it, and erin and frank receive it before he disconnects.
 open("erin", "Erin");
 open("frank", "Frank");
 check("Erin synced", await ready("erin"));
@@ -260,8 +257,8 @@ check(
 );
 ab("dave", "close");
 
-// Erin and frank each see the other in awareness: neither is alone, so
-// neither may sweep; from their side, the other could be the uploader.
+// Any other awareness state blocks the sweep; from each client's side,
+// the other could be the uploader.
 check(
   "erin sees another client in awareness",
   await waitEval("erin", "window.__test.provider.awareness.getStates().size >= 2", "erin sees frank")
