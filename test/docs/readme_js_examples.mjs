@@ -65,5 +65,23 @@ for (const [i, block] of blocks.entries()) {
 }
 
 rmSync(dir, { recursive: true, force: true });
+
+// The ```html example's <lexxy-collaboration> attributes must all be ones
+// the element actually reads (getAttribute calls in the source).
+const source = readFileSync(join(root, "src", "editor_collaboration.js"), "utf8");
+const known = new Set([...source.matchAll(/getAttribute\('([^']+)'\)/g)].map((m) => m[1]));
+const htmlBlocks = [...readme.matchAll(/^```html\n([\s\S]*?)^```/gm)].map((m) => m[1]);
+for (const block of htmlBlocks) {
+  const tag = block.match(/<lexxy-collaboration\b([\s\S]*?)>/);
+  if (!tag) continue;
+  for (const [, attr] of tag[1].matchAll(/([a-z-]+)=/g)) {
+    if (!known.has(attr)) {
+      failures++;
+      console.error(`FAIL html example: attribute "${attr}" is not read by the element (knows: ${[...known].join(", ")})`);
+    }
+  }
+}
+if (htmlBlocks.length > 0 && failures === 0) console.log("ok html example attributes");
+
 console.log(failures === 0 ? "README JS EXAMPLES OK" : `${failures} example(s) failed`);
 process.exit(failures === 0 ? 0 : 1);

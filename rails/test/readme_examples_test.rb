@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "action_view"
 require_relative "fixtures/yjs_fixtures"
 
 # Runs the ```ruby blocks from both READMEs against the real gem, so an
@@ -72,5 +73,25 @@ class ReadmeExamplesTest < Minitest::Test
 
   def test_rails_readme_ruby_examples
     run_blocks(File.join(ROOT, "rails", "README.md"))
+  end
+
+  # ERB examples call form builder methods; every method named in one must
+  # exist on the prepended builder module.
+  def test_erb_examples_call_real_form_builder_methods
+    calls = []
+    [File.join(ROOT, "README.md"), File.join(ROOT, "rails", "README.md")].each do |path|
+      File.read(path).scan(/^```erb\n(.*?)^```/m).flatten.each do |block|
+        calls.concat(block.scan(/form\.(\w+)/).flatten)
+      end
+    end
+    calls.uniq!
+
+    assert_operator calls.length, :>=, 1, "no form builder calls found in erb examples"
+    calls.each do |method_name|
+      next if ActionView::Helpers::FormBuilder.method_defined?(method_name)
+
+      assert LexxyRealtime::FormBuilder.method_defined?(method_name),
+             "erb examples call form.#{method_name}, which no form builder defines"
+    end
   end
 end
