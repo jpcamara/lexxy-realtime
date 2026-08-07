@@ -10,6 +10,8 @@ import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG } from 'lexical';
 import { Doc } from 'yjs';
 import { createConsumer } from '@rails/actioncable';
 import { YrbyProvider } from './yrby_provider';
+import { attachmentExclusions, patchCollabElementSplice } from './attachment_sync';
+import { registerUploadCleanup } from './upload_cleanup';
 
 // One shared Action Cable consumer for every element that isn't handed one.
 // createConsumer() reads the standard `action-cable-url` meta tag (rendered by
@@ -48,7 +50,6 @@ export class Collaboration extends HTMLElement {
     }
     this.editor = this.editorElement.editor;
 
-    // Init now if the editor is already present, otherwise wait for it.
     if (this.editor) {
       this.#init();
     } else {
@@ -68,8 +69,7 @@ export class Collaboration extends HTMLElement {
   }
 
   #init() {
-    // The Yjs document id (the @lexical/yjs binding key). A dedicated attribute
-    // rather than the global HTML `id`, which it used to overload.
+    // The Yjs document id, used as the @lexical/yjs binding key.
     const id = this.getAttribute('doc-id') || 'main';
     const name = this.getAttribute('name') || 'Example User';
     const color = this.getAttribute('color') || '#958DF1';
@@ -86,30 +86,22 @@ export class Collaboration extends HTMLElement {
       channelParams = {};
     }
 
-    // Track what we create vs. what the host supplied. A host-supplied provider
-    // is the host's to manage -- it called connect(), it calls disconnect() --
-    // so we must not disconnect it on teardown. Doing so also broke DOM moves:
-    // moving the element fires disconnect+reconnect, and disconnecting the
-    // host's provider (then reusing it without reconnecting) left it dead.
+    // A provider created here is connected and disconnected with the
+    // element. A host-supplied provider keeps its own lifecycle:
+    // disconnecting it on teardown broke DOM moves, which reconnect and
+    // reuse it.
     const ownsProvider = !this.provider;
     const ownsDoc = !this.doc;
     const doc = this.doc || new Doc();
     const provider =
       this.provider ||
       new YrbyProvider(doc, this.consumer || resolveConsumer(), channelName, channelParams);
-    // A provider we created is ours to run: YrbyProvider does not
-    // auto-connect. A host-supplied provider is the host's — it decides
-    // when to connect.
+    // YrbyProvider does not auto-connect.
     if (ownsProvider) provider.connect();
 
-    // The provider owns its Awareness: it constructs its own and ignores any
-    // passed in. Every presence operation here -- initLocalState,
-    // setLocalStateFocus, syncLexicalUpdateToYjs, syncCursorPositions -- goes
-    // through `provider`, so the re-render trigger MUST listen on this exact
-    // instance. Listening on a separately-created Awareness (the old bug) meant
-    // remote cursor/selection changes, which only mutate the provider's
-    // instance, never triggered a re-render: a peer's caret moved only when they
-    // also edited text (an awareness-only move was invisible until then).
+    // Every presence operation goes through the provider, so cursor
+    // re-rendering must listen on the provider's own Awareness instance.
+    // A separate instance never sees awareness-only cursor moves.
     const awareness = provider.awareness;
 
     const docMap = new Map();
@@ -140,21 +132,20 @@ export class Collaboration extends HTMLElement {
     const cursorsContainer = this.#createCursorsContainer();
     binding.cursorsContainer = cursorsContainer;
 
-    // Seed local presence (identity + focus). The local cursor's anchor/focus is
-    // written to awareness by syncLexicalUpdateToYjs on every editor update, as
-    // Yjs relative positions that stay correct across concurrent edits.
-    //
-    // `focusing` stays true for the whole session. @lexical/yjs's
-    // syncCursorPositions renders a peer's caret ONLY while their `focusing` flag
-    // is true, so toggling it off on editor blur (the @lexical/react default)
-    // makes a collaborator vanish the moment their editor loses focus -- e.g.
-    // they click another window/tab, or (when testing two windows on one machine)
-    // simply whenever the other window is focused. We keep peers visible at their
-    // last position for as long as they're connected; a departed peer is removed
-    // by the provider's disconnect/pagehide presence removal and the awareness
-    // timeout.
+    // Seed local presence. Editor updates write the local selection to
+    // awareness as Yjs relative positions, which stay correct across
+    // concurrent edits. `focusing` stays true for the whole session:
+    // @lexical/yjs only renders a peer's caret while their focusing flag
+    // is true, and toggling it off on blur made peers vanish whenever
+    // their window lost focus. Departed peers are removed by the
+    // provider's presence removal and the awareness timeout.
     initLocalState(provider, name, color, true, { name, color });
     setLocalStateFocus(provider, name, color, true, { name, color });
+
+    // Upload placeholders sync to peers, but only this client can finish
+    // its own. Discards (pagehide, Turbo) remove ours; a lone client
+    // sweeps orphans.
+    const cancelUploadCleanup = registerUploadCleanup(this.editorElement, this.editor, provider, awareness);
 
     // Re-render remote cursors when presence changes or the document reflows.
     const renderCursors = () => syncCursorPositions(binding, provider);
@@ -168,14 +159,12 @@ export class Collaboration extends HTMLElement {
     this.binding = binding;
     this.#teardown = () => {
       this.#teardown = null;
+      cancelUploadCleanup();
       awareness.off('update', renderCursors);
       unsubscribeCursorRender();
       unsubscribeListeners();
       cancelBootstrap();
       cursorsContainer.remove();
-      // Only disconnect a provider we created. A host-supplied provider is the
-      // host's to disconnect; tearing it down here breaks DOM moves (which
-      // reconnect and reuse it) and disconnects a provider the host may reuse.
       if (ownsProvider) {
         provider.disconnect();
         this.provider = null;
@@ -197,71 +186,6 @@ export class Collaboration extends HTMLElement {
   }
 }
 
-// What stays local: `file` (yjs can't encode a File and throws mid-sync),
-// `editor` (live object reference), `previewSrc` (client-local object URL),
-// and `uploadUrl` / `blobUrlTemplate` (host config — and an absent
-// uploadUrl is what stops a peer from starting its own duplicate
-// DirectUpload). Everything else syncs on purpose: `progress` and
-// `uploadError` give peers a live progress bar and the error state, and
-// `pendingPreview` tells peers to render the poll-until-ready placeholder
-// for server-generated previews (PDFs and friends) instead of requesting a
-// preview that doesn't exist yet and giving up.
-const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
-  'editor',
-  'file',
-  'previewSrc',
-  'uploadUrl',
-  'blobUrlTemplate',
-]);
-
-// The Lexxy node types that carry those properties. Keyed by node type:
-// construction is upstream's job now (basecamp/lexxy#1196), but a raw File
-// still can't cross the sync boundary.
-const LEXXY_ATTACHMENT_NODE_TYPES = new Set([
-  'action_text_attachment',
-  'action_text_attachment_upload',
-  'custom_action_text_attachment',
-]);
-
-// The excluded-properties map for createBinding: every registered
-// attachment type keeps its client-local properties out of the shared doc.
-// @lexical/yjs's CollabElementNode.splice throws (dev) / appends `undefined`
-// (prod) when asked to insert at an index that has no existing child and no
-// collab node to insert -- which is exactly what the empty-collab-tree bootstrap
-// does. Make that one case a no-op so an empty document can bind. createBinding
-// builds binding.root without triggering this case, so patching the (unexported)
-// CollabElementNode prototype through the live binding root -- right after the
-// bind, before bootstrap/sync runs -- is in time. Guarded by a per-prototype
-// flag.
-//
-// Blast radius: this mutates the SHARED CollabElementNode prototype once, for
-// the whole page, and is never reverted -- every @lexical/yjs consumer on the
-// page sees the patched splice. It only narrows the one undefined-at-empty-index
-// no-op case, so it is safe, but it is a page-global side effect by design.
-function patchCollabElementSplice(binding) {
-  const proto = binding?.root?.constructor?.prototype;
-  if (!proto || typeof proto.splice !== 'function' || proto.__yrbySplicePatched) return;
-  const original = proto.splice;
-  proto.splice = function (b, index, delCount, collabNode) {
-    if (this._children[index] === undefined && collabNode === undefined) return;
-    return original.call(this, b, index, delCount, collabNode);
-  };
-  proto.__yrbySplicePatched = true;
-}
-
-function attachmentExclusions(editor) {
-  const excludedProperties = new Map();
-  const nodes = editor?._nodes;
-  if (!nodes || typeof nodes.forEach !== 'function') return excludedProperties;
-  nodes.forEach((info, type) => {
-    if (LEXXY_ATTACHMENT_NODE_TYPES.has(type)) {
-      excludedProperties.set(info.klass, UNSYNCABLE_ATTACHMENT_PROPERTIES);
-    }
-  });
-  return excludedProperties;
-}
-
-
 // True when an editor state holds no user content: no children, or a single
 // childless paragraph (Lexical's resting state). An attachment-only body has a
 // decorator child, so it counts as content.
@@ -274,25 +198,18 @@ function emptyEditorState(state) {
   });
 }
 
-// Once the provider reports its first sync, seed a brand-new (empty) document:
-// with the editor's captured initial content when there was any (an existing
-// Action Text body becomes the collaborative document), otherwise with a fresh
-// paragraph -- the equivalent of @lexical/react's CollaborationPlugin
-// bootstrap with initialEditorState. Doing it post-sync (not at bind time)
-// means an existing document is loaded by the Yjs->Lexical observer first, so
-// we never push stray content onto a doc that already has some.
-//
-// Two clients joining a still-empty document at the same instant can both
-// seed, duplicating the initial content. Lexical's CollaborationPlugin has
-// the same check-then-act race; its docs call client bootstrap dev-only
-// and recommend seeding server-side. We take the client path knowingly:
-// the window is one sync round trip on a document's first-ever open, and a
-// duplicate is visible and easily deleted. Server-side seeding needs
-// HTML-to-Yjs conversion on the server, which yrby doesn't have yet.
+// Seed only after the first sync, so an existing document loads through
+// the Yjs->Lexical observer and is never overwritten. A still-empty
+// document receives the captured Action Text body, or a fresh paragraph.
+// Two clients opening a new document together can both seed; Lexical's
+// CollaborationPlugin has the same check-then-act race, and its docs
+// recommend seeding server-side, which needs HTML-to-Yjs conversion on
+// the server. Local input before the first sync (typed text, an upload
+// placeholder) also suppresses the captured seed.
 // Repro: test/headless/bootstrap_race_repro.mjs.
 //
-// Returns a canceller for teardown before the first sync: it stops the
-// fallback poll and makes a late whenSynced resolution a no-op.
+// The returned canceller stops the fallback poll and makes a late
+// whenSynced resolution a no-op.
 function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
   let done = false;
   const seed = () => {
