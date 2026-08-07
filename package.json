@@ -42,14 +42,14 @@
     "test:browser": "node test/run.mjs --browser"
   },
   "peerDependencies": {
-    "@37signals/lexxy": "^0.9",
+    "@37signals/lexxy": "^0.9.29",
     "@lexical/yjs": "^0.44",
     "lexical": "^0.44",
     "y-protocols": "^1.0",
     "yjs": "^13.6"
   },
   "devDependencies": {
-    "@37signals/lexxy": "0.9.28",
+    "@37signals/lexxy": "0.9.29",
     "@lexical/yjs": "^0.44.0",
     "@rails/actioncable": "^8.1.300",
     "@rollup/plugin-terser": "^0.4.4",
