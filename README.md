@@ -199,31 +199,23 @@ import { YrbyProvider } from "lexxy-realtime";   // registers <lexxy-collaborati
 import * as Y from "yjs";
 import { createConsumer } from "@rails/actioncable"; // or "@anycable/web"
 
-const editor = document.querySelector("lexxy-editor");
+const doc = new Y.Doc();
+const consumer = createConsumer();
+const provider = new YrbyProvider(doc, consumer, "SyncChannel", { id: documentId });
 
-function startCollaborating() {
-  const doc = new Y.Doc();
-  const consumer = createConsumer();
-  const provider = new YrbyProvider(doc, consumer, "SyncChannel", { id: documentId });
+const collab = document.createElement("lexxy-collaboration");
+collab.setAttribute("doc-id", documentId);    // Yjs document id (defaults to "main")
+collab.setAttribute("name", currentUserName); // shown on your cursor to others
+collab.setAttribute("color", "#3b82f6");      // optional cursor color
+collab.doc = doc;
+collab.provider = provider;
+document.querySelector("lexxy-editor").appendChild(collab);
 
-  const collab = document.createElement("lexxy-collaboration");
-  collab.setAttribute("doc-id", documentId);       // Yjs document id (defaults to "main")
-  collab.setAttribute("name", currentUserName);    // shown on your cursor to others
-  collab.setAttribute("color", "#3b82f6");          // optional cursor color
-  collab.doc = doc;
-  collab.provider = provider;
-  editor.appendChild(collab);
-
-  provider.connect(); // YrbyProvider does not auto-connect
-}
-
-// Lexxy sets up its editor asynchronously; start once it's ready.
-if (editor.editor) {
-  startCollaborating();
-} else {
-  editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
-}
+provider.connect(); // YrbyProvider does not auto-connect
 ```
+
+The element waits for the editor to initialize on its own, so you can
+append it as soon as the `<lexxy-editor>` is in the DOM.
 
 ### Bring your own Yjs provider
 
@@ -236,22 +228,15 @@ import "lexxy-realtime"; // registers <lexxy-collaboration>
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 
-const editor = document.querySelector("lexxy-editor");
+const doc = new Y.Doc();
+const provider = new WebsocketProvider("wss://your-server", documentId, doc);
 
-function startCollaborating() {
-  const doc = new Y.Doc();
-  const provider = new WebsocketProvider("wss://your-server", documentId, doc);
-
-  const collab = document.createElement("lexxy-collaboration");
-  collab.setAttribute("name", currentUserName);
-  collab.doc = doc;
-  collab.provider = provider;
-  editor.appendChild(collab);
-  // y-websocket connects when it is created.
-}
-
-if (editor.editor) startCollaborating();
-else editor.addEventListener("lexxy:initialize", startCollaborating, { once: true });
+const collab = document.createElement("lexxy-collaboration");
+collab.setAttribute("name", currentUserName);
+collab.doc = doc;
+collab.provider = provider;
+document.querySelector("lexxy-editor").appendChild(collab);
+// y-websocket connects when it is created.
 ```
 
 Point the provider at its own backend. Nothing else in the client wiring changes.
