@@ -14,7 +14,7 @@ module LexxyRealtime
 
       identity = LexxyRealtime.identity.call(@template)
       collaborator = name || identity[:name]
-      lexxy_rich_textarea(method, options) do
+      public_send(lexxy_editor_method, method, options) do
         # The client-side Yjs binding key, shared by peers of this
         # attribute. The server never sees it.
         @template.content_tag("lexxy-collaboration", "",
@@ -28,5 +28,14 @@ module LexxyRealtime
     end
 
     alias collaborative_rich_text_area collaborative_rich_textarea
+
+    private
+
+    # Lexxy's explicit helper exists on Rails 8.0/8.1. On the
+    # ActionText::Editor adapter path in newer Rails, the standard
+    # rich_text_area renders Lexxy and accepts the block.
+    def lexxy_editor_method
+      respond_to?(:lexxy_rich_textarea) ? :lexxy_rich_textarea : :rich_text_area
+    end
   end
 end
