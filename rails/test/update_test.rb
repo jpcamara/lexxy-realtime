@@ -12,7 +12,7 @@ class UpdateTest < Minitest::Test
 
   def test_the_macro_binds_documents_with_a_deterministic_key
     post = Post.create!(title: "Doc")
-    document = post.collaborative_document!(:body)
+    document = post.find_or_create_collaborative_document(:body)
 
     assert_equal "post/#{post.id}/body", document.key
     assert_equal post, document.record
@@ -21,7 +21,7 @@ class UpdateTest < Minitest::Test
 
   def test_channel_appends_by_key_reach_the_bound_document
     post = Post.create!(title: "Doc")
-    document = post.collaborative_document!(:body)
+    document = post.find_or_create_collaborative_document(:body)
 
     Y::Document.append(document.key, lexxy_full_state)
 

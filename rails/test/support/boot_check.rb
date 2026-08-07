@@ -50,7 +50,9 @@ end
 
 abort "rich_text association missing" unless BootPost.reflect_on_association(:rich_text_body)
 abort "document association missing" unless BootPost.reflect_on_association(:collaborative_document_body)
-abort "instance API missing on declaring model" unless BootPost.method_defined?(:collaborative_document!)
-abort "instance API leaked to plain models" if ActiveRecord::Base.method_defined?(:collaborative_document!)
+abort "instance API missing on declaring model" unless BootPost.method_defined?(:find_or_create_collaborative_document)
+if ActiveRecord::Base.method_defined?(:find_or_create_collaborative_document)
+  abort "instance API leaked to plain models"
+end
 
 puts "ENGINE BOOT OK"
