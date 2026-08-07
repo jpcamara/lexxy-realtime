@@ -9,6 +9,7 @@ jobs:
   build:
     name: Build & bundle
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -16,9 +17,30 @@ jobs:
       - run: bun run build
       - run: bun run build:test
 
+  rails-gem:
+    name: Rails gem (Ruby ${{ matrix.ruby }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.4"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          working-directory: rails
+          bundler-cache: true
+      - name: Rails gem tests (unit + engine boot)
+        working-directory: rails
+        run: |
+          bundle exec rake test
+          bundle exec rubocop
+
   headless:
     name: Headless durability (Ruby ${{ matrix.ruby }})
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -75,6 +97,7 @@ jobs:
   browser:
     name: Browser e2e (real Chrome)
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       # Same sibling layout as the headless job: the test server's gems are
       # path-pinned to ../../../yrby.
