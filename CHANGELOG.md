@@ -6,7 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-08
+
 ### Added
+
+- The `lexxy-realtime` Rails gem, first release: `has_collaborative_rich_text`
+  (with `encrypted: true` through `Y::EncryptedDocument` and
+  `ActionText::EncryptedRichText`), `collaborative_rich_textarea`,
+  field-scoped signed tokens, write-through rendering to Action Text via
+  `Y::Lexxy`, and an install generator for the channel, tables, and
+  import-map pins. Storage comes from `yrby-rails`.
 
 - Import maps work with no bundler: the Rails gem ships pinnable builds
   (`lexxy_realtime/lexical.js`, `lexxy_realtime/lexxy.js`,
@@ -194,7 +203,8 @@ so the upstream packages are never modified on disk.
 
 - Standardized on a single lockfile (`bun.lock`); dropped `package-lock.json`.
 
-[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/jpcamara/lexxy-realtime/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.1.3...v0.2.0

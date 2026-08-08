@@ -21,3 +21,4 @@ demo/config/credentials.yml.enc
 
 # The import-map e2e copies the gem's built assets here.
 test/server/public/importmap-assets/
+rails/pkg/
