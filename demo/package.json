@@ -1,0 +1,18 @@
+{
+  "name": "app",
+  "private": true,
+  "devDependencies": {
+    "esbuild": "^0.28.1"
+  },
+  "scripts": {
+    "build": "npm --prefix .. run build && esbuild app/javascript/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets --alias:lexical=./node_modules/lexical --alias:@lexical/yjs=../node_modules/@lexical/yjs --alias:yjs=../node_modules/yjs --alias:y-protocols=../node_modules/y-protocols --alias:@37signals/lexxy=./node_modules/@37signals/lexxy --alias:@rails/actioncable=./node_modules/@rails/actioncable"
+  },
+  "dependencies": {
+    "@37signals/lexxy": "^0.9.29",
+    "@hotwired/stimulus": "^3.2.2",
+    "@hotwired/turbo-rails": "^8.0.23",
+    "@rails/actioncable": "^8.1.300",
+    "@rails/activestorage": "^8.1.300",
+    "lexxy-realtime": "file:.."
+  }
+}

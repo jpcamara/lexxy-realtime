@@ -1,0 +1,20 @@
+<h1><%= @post.title %></h1>
+
+<p>
+  Open this page in a second browser to edit together. Each update is saved
+  back to <code>@post.body</code> (regular Action Text) as it reaches the
+  server.
+</p>
+
+<%# Turbo removes this form before caching the page, so a snapshot never
+    restores a dead editor. Each field gets its own document and its own
+    field-scoped token; both editors share one Action Cable connection. %>
+<%= form_with model: @post, data: { turbo_temporary: true } do |form| %>
+  <h2>Body</h2>
+  <%= form.collaborative_rich_textarea :body %>
+
+  <h2>Notes (encrypted at rest)</h2>
+  <%= form.collaborative_rich_textarea :notes %>
+<% end %>
+
+<p><%= link_to "View saved post", post_path(@post) %></p>
