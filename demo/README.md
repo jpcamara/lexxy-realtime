@@ -6,6 +6,8 @@ to the record on the server. `body` is plain; `notes` is encrypted at rest
 (`ActionText::EncryptedRichText` for the rendered HTML, `Y::EncryptedDocument`
 for the collaborative document and its updates).
 
+![Two browser sessions editing the same post, keystroke by keystroke](docs/collab.gif)
+
 Key integration files:
 
 - `app/models/post.rb`: `has_collaborative_rich_text :body` and
@@ -41,10 +43,15 @@ build runs there as a watcher).
 Create a post, open its edit page in two browser windows, and type in both.
 The two fields sync independently: each has its own document and its own
 field-scoped token, and both editors share one Action Cable connection.
+
+![Both windows after the edit, remote cursors labeled](docs/edit.png)
+
 Then open the post's show page: each collaborative document has been rendered
 to HTML on the server (no Node) and saved as regular Action Text. The notes
 rows in `y_documents`, `y_document_updates`, and `action_text_rich_texts`
 hold ciphertext.
+
+![The saved post, notes decrypted on read](docs/show.png)
 
 ## Notes
 
