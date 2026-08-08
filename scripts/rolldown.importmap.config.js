@@ -12,16 +12,21 @@ import { defineConfig } from 'rolldown';
 // builds into the test server's public directory so test runs never
 // touch the committed gem assets. CI rebuilds with the default and
 // fails if the committed copies are stale.
-const ASSETS = process.env.IMPORTMAP_ASSETS_OUT || 'rails/app/assets/javascripts/lexxy_realtime';
+const ASSETS = process.env.IMPORTMAP_ASSETS_OUT || 'rails/app/assets/javascript/lexxy_realtime';
 
+// Like Lexxy's gem asset, each pin ships readable (with a sourcemap)
+// and minified; the pins reference the readable file.
 const build = (input, file, external = []) => ({
   input,
   external,
-  output: [{ file: `${ASSETS}/${file}`, format: 'esm', minify: true }],
+  output: [
+    { file: `${ASSETS}/${file}.js`, format: 'esm', sourcemap: true },
+    { file: `${ASSETS}/${file}.min.js`, format: 'esm', minify: true },
+  ],
 });
 
 export default defineConfig([
-  build('scripts/importmap/lexical.js', 'lexical.js'),
-  build('scripts/importmap/lexxy.js', 'lexxy.js', ['lexical', '@rails/activestorage']),
-  build('src/index.js', 'lexxy-realtime.js', ['lexical']),
+  build('scripts/importmap/lexical.js', 'lexical'),
+  build('scripts/importmap/lexxy.js', 'lexxy', ['lexical', '@rails/activestorage']),
+  build('src/index.js', 'lexxy-realtime', ['lexical']),
 ]);
