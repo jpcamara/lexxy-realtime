@@ -6,11 +6,10 @@ implementation of Yjs.
 
 ## Install
 
-Requires Ruby 3.4+, Rails 8.0.2+, and Lexxy 0.9+, with a working
+Requires Ruby 3.4+, Rails 8.0.2+, and a working
 [Lexxy](https://github.com/basecamp/lexxy) installation (its gem and
-editor JavaScript) and a bundler such as esbuild, Vite, or webpack. Import maps are not supported yet
-because Lexxy does not export pinnable `lexical` and `yjs`
-dependencies.
+editor JavaScript). Import maps and bundlers (esbuild, Vite, webpack)
+both work.
 
 ```ruby
 # Gemfile
@@ -20,14 +19,45 @@ gem "lexxy-realtime"
 ```bash
 bin/rails generate lexxy_realtime:install
 bin/rails db:migrate
-npm install lexxy-realtime   # JavaScript package; yarn, bun, and pnpm also work
 ```
 
 The generator creates `app/channels/document_channel.rb`, installs
 yrby's table migration, and adds the standard Action Cable files when
 they are missing. The `Y::Document` and `Y::DocumentUpdate` models come
-from `yrby-rails`. Add `import "lexxy-realtime"` next to your Lexxy
-import.
+from `yrby-rails`.
+
+With a bundler, install the JavaScript package and import it next to
+your Lexxy import:
+
+```bash
+npm install lexxy-realtime   # yarn, bun, and pnpm also work
+```
+
+With import maps, there is no npm install; the generator pins assets
+this gem ships:
+
+```ruby
+# config/importmap.rb, added by the generator
+pin "lexical", to: "lexxy_realtime/lexical.js"
+pin "@37signals/lexxy", to: "lexxy_realtime/lexxy.js"
+pin "lexxy-realtime", to: "lexxy_realtime/lexxy-realtime.js"
+pin "@rails/activestorage", to: "activestorage.esm.js"
+```
+
+`lexical` is the one module the Lexxy and lexxy-realtime bundles share,
+so both ship with it external and it resolves through its own pin. The
+`@37signals/lexxy` pin must point at this gem's build: Lexxy's own
+asset bundles a second copy of `lexical`, and two copies break the
+collaboration binding, so remove any pin of Lexxy's asset. Keep
+`stylesheet_link_tag "lexxy"` for the editor's CSS. These assets are a
+stopgap until Lexxy ships import-map-ready builds itself.
+
+Either way, your entrypoint imports both:
+
+```js
+import "@37signals/lexxy"
+import "lexxy-realtime"
+```
 
 ## Use
 

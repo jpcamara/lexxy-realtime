@@ -8,6 +8,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Import maps work with no bundler: the Rails gem ships pinnable builds
+  (`lexxy_realtime/lexical.js`, `lexxy_realtime/lexxy.js`,
+  `lexxy_realtime/lexxy-realtime.js`, each readable with a sourcemap
+  plus a `.min.js`, following Lexxy's gem asset layout), and the
+  install generator adds the pins when `config/importmap.rb` exists. `lexical` is the one
+  module the Lexxy and lexxy-realtime bundles share, so both are built
+  with it external and it resolves through its own pin; the
+  `@37signals/lexxy` pin must point at this gem's build, since Lexxy's
+  own asset bundles a second `lexical`. A stopgap until Lexxy ships
+  import-map-ready builds.
+
 - Zero-config element: with no consumer, doc, or provider assigned, the
   element creates a shared Action Cable consumer (from the standard
   `action-cable-url` meta tag, falling back to `/cable`), builds its own

@@ -13,7 +13,8 @@ class ReadmeExamplesTest < Minitest::Test
 
   # Blocks that are configuration fragments rather than runnable Ruby.
   SKIP = [
-    /\A# Gemfile/
+    /\A# Gemfile/,
+    %r{\A# config/importmap\.rb}
   ].freeze
 
   PRELUDE = <<~RUBY

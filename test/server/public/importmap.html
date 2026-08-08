@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>lexxy-realtime · import map</title>
+    <style>
+      body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem; }
+      lexxy-editor { display: block; border: 1px solid #ccc; border-radius: 6px; min-height: 8rem; padding: .5rem; }
+      [contenteditable] { outline: none; min-height: 6rem; }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "lexical": "/importmap-assets/lexical.js",
+          "@37signals/lexxy": "/importmap-assets/lexxy.js",
+          "lexxy-realtime": "/importmap-assets/lexxy-realtime.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <script>
+      window.__err = [];
+      addEventListener("error", (e) => window.__err.push(String((e.error && e.error.stack) || e.message)));
+      addEventListener("unhandledrejection", (e) => window.__err.push("unhandledrejection: " + String((e.reason && e.reason.stack) || e.reason)));
+    </script>
+    <h1>lexxy-realtime over an import map</h1>
+    <!-- The markup shape the Rails helper renders: the element declared in
+         HTML with attributes, upgraded when the modules register it. -->
+    <lexxy-editor id="editor" name="editor">
+      <lexxy-collaboration channel-name="DocumentChannel"></lexxy-collaboration>
+    </lexxy-editor>
+    <script>
+      // Test-harness dynamics (unique room per run, name per session), set
+      // before the deferred modules register and upgrade the element.
+      const params = new URLSearchParams(location.search);
+      const room = params.get("room") || "importmap-check";
+      const collabEl = document.querySelector("lexxy-collaboration");
+      collabEl.setAttribute("doc-id", room);
+      collabEl.setAttribute("name", params.get("name") || "User");
+      collabEl.setAttribute("channel-params", JSON.stringify({ id: room }));
+    </script>
+    <script type="module">
+      import "@37signals/lexxy";
+      import "lexxy-realtime";
+      import { $createActionTextAttachmentNode } from "@37signals/lexxy";
+      import { $getRoot } from "lexical";
+
+      const editor = document.getElementById("editor");
+      const collab = document.querySelector("lexxy-collaboration");
+
+      window.__test = {
+        synced: () => !!collab.provider?.synced,
+        text: () => editor.querySelector("[contenteditable]")?.innerText ?? "",
+        docRoot: () => (collab.doc?.share.get("root") ? collab.doc.share.get("root").toString() : ""),
+        peers: () => [...(collab.awareness?.getStates().values() ?? [])].map((s) => s.name).filter(Boolean),
+        errors: () => window.__err,
+        // Insert an attachment through the pinned modules: $getRoot from the
+        // lexical pin operating inside an editor built by the lexxy pin. A
+        // duplicate lexical copy fails here with a class identity error.
+        insertAttachment: (sgid) => {
+          try {
+            editor.editor.update(() => {
+              const node = $createActionTextAttachmentNode({
+                sgid,
+                src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+                contentType: "image/png",
+                fileName: "importmap.png",
+                previewable: true,
+              });
+              $getRoot().append(node);
+            }, { discrete: true });
+            return "ok";
+          } catch (e) {
+            return "ERR: " + e.message;
+          }
+        },
+        attachmentSgids: () => {
+          const json = JSON.stringify(editor.editor.getEditorState().toJSON());
+          return [...json.matchAll(/"sgid":"([^"]+)"/g)].map((m) => m[1]);
+        },
+      };
+    </script>
+  </body>
+</html>

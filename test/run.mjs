@@ -94,6 +94,18 @@ try {
     console.log("\n=== element lifecycle (agent-browser) ===");
     if (run("node", [join(here, "browser", "lifecycle.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
+    console.log("\n=== import-map assets e2e (agent-browser) ===");
+    // Build straight into the test server's public directory, so test
+    // runs never rewrite the committed gem assets.
+    const importmapAssets = join(serverDir, "public", "importmap-assets");
+    rmSync(importmapAssets, { recursive: true, force: true });
+    const importmapBuild = run("npm", ["run", "build:importmap"], {
+      cwd: root,
+      env: { ...process.env, PORT, IMPORTMAP_ASSETS_OUT: importmapAssets },
+    });
+    if (importmapBuild.status !== 0) exitCode = 1;
+    if (run("node", [join(here, "browser", "importmap.mjs")]).status !== 0) exitCode = 1;
+    spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
   }
 } finally {
   shutdown();
