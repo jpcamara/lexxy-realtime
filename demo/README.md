@@ -48,6 +48,9 @@ hold ciphertext.
 
 ## Notes
 
+- Action Cable runs on Solid Cable: broadcasts go through a separate
+  SQLite database (`storage/*_cable.sqlite3`, created by `db:prepare`),
+  so sync works across multiple server processes with no Redis.
 - The Gemfile loads `lexxy-realtime` from `../rails`. Bundler resolves its
   yrby dependencies from RubyGems. `package.json` loads the root JavaScript
   package through `file:..`, and `npm run build` compiles that package

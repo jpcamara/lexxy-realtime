@@ -14,8 +14,8 @@ gem "jsbundling-rails"
 gem "turbo-rails"
 # Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
 gem "stimulus-rails"
-# Use Redis adapter to run Action Cable in production
-# gem "redis", ">= 4.0.1"
+# Database-backed Action Cable, no Redis [https://github.com/rails/solid_cable]
+gem "solid_cable"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
