@@ -3,5 +3,9 @@
 <%# The channel saved this rendered HTML in @post.body through Action Text. %>
 <%= @post.body %>
 
+<h2>Notes</h2>
+<%# Stored as ActionText::EncryptedRichText; decrypted here on read. %>
+<%= @post.notes %>
+
 <p><%= link_to "Edit together", edit_post_path(@post) %></p>
 <p><%= link_to "All posts", posts_path %></p>

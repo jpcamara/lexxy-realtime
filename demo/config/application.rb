@@ -38,5 +38,12 @@ module Demo
 
     # Don't generate system test files.
     config.generators.system_tests = nil
+
+    # Post#notes is encrypted, and the demo commits no credentials. These
+    # keys are for the throwaway demo database only; a real app generates
+    # keys with bin/rails db:encryption:init and keeps them in credentials.
+    config.active_record.encryption.primary_key = "demo-primary-key"
+    config.active_record.encryption.deterministic_key = "demo-deterministic-key"
+    config.active_record.encryption.key_derivation_salt = "demo-key-derivation-salt"
   end
 end
