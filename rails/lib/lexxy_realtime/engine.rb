@@ -19,9 +19,8 @@ module LexxyRealtime
       app.config.to_prepare { ActionView::Helpers::FormBuilder.prepend(LexxyRealtime::FormBuilder) }
     end
 
-    # The import-map assets (lexxy_realtime/lexical.js and friends).
-    initializer "lexxy_realtime.assets" do |app|
-      app.config.assets.paths << root.join("app/assets/javascript") if app.config.respond_to?(:assets)
-    end
+    # The import-map assets under app/assets/javascript need no
+    # initializer: Rails adds every app/assets subdirectory of an engine
+    # to the asset paths itself.
   end
 end
