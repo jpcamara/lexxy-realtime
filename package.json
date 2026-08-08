@@ -53,10 +53,9 @@
     "@37signals/lexxy": "0.9.29",
     "@lexical/yjs": "^0.44.0",
     "@rails/actioncable": "^8.1.300",
-    "@rollup/plugin-terser": "^0.4.4",
     "agent-browser": "^0.28.0",
     "lexical": "^0.44.0",
-    "rolldown": "^1.0.0-beta.49",
+    "rolldown": "^1.2.1",
     "y-protocols": "*",
     "yjs": "^13.6.0",
     "yrby-client": "^0.5.0"

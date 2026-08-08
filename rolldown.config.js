@@ -1,5 +1,4 @@
 import { defineConfig } from 'rolldown';
-import terser from '@rollup/plugin-terser';
 
 export default defineConfig({
   input: 'src/index.js',
@@ -16,6 +15,6 @@ export default defineConfig({
   }, {
     file: 'dist/lexxy-realtime.min.js',
     format: 'esm',
-    plugins: [ terser() ]
+    minify: true
   }],
 });
