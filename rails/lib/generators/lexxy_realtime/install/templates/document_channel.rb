@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
-# Syncs clients with the record's collaborative document. Each stored
-# update is rendered back to the Action Text attribute.
+# Syncs clients with the record's collaborative document. After storing
+# each update, the Action Text attribute is refreshed from the full
+# document.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable
 
