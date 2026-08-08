@@ -371,9 +371,10 @@ setup). Open `/docs/demo/lexxy` in two windows and type.
 
 lexxy-realtime applies a temporary `@lexical/yjs` compatibility patch
 during binding. The patch lives in the package code; see
-[`CONTRIBUTING.md`](CONTRIBUTING.md) for details and upstream status. Lexxy itself needs the no-arg
-construction fix (basecamp/lexxy#1196), merged upstream and awaiting a
-release.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for details and upstream status.
+Lexxy 0.9.29 is the minimum version: it ships the no-arg construction
+fix (basecamp/lexxy#1196) this package relies on, and the peer
+dependency enforces the floor.
 
 ## License
 

@@ -60,19 +60,14 @@ supported `excludedProperties` option to keep browser-only values (a raw
 `File`, `editor`, `previewSrc`, upload config) out of the shared doc.
 
 The constructor shims are gone. Lexxy constructs attachment nodes bare as of
-[basecamp/lexxy#1196](https://github.com/basecamp/lexxy/pull/1196), merged
-but not yet in an npm release, so CI builds Lexxy's dist from the merge
-commit and lays it over the installed package (see the workflow step).
+[basecamp/lexxy#1196](https://github.com/basecamp/lexxy/pull/1196), shipped
+in Lexxy 0.9.29; the `@37signals/lexxy` peer floor requires that release.
 
 If you change the patch, revalidate with `bun run test:browser`; the browser
 suite is the only thing that exercises the real editor binding.
 
 ### Upstream tracking
 
-- `@37signals/lexxy`: no-arg construction is fixed on main (basecamp/lexxy#1196).
-  When a release ships it: bump the `@37signals/lexxy` dev dependency AND the
-  peer floor (`^0.9` admits releases that throw at bind), and delete the CI
-  overlay step.
 - `@lexical/yjs`: `CollabElementNode.splice` still needs the empty case
   tolerated, and a candidate for an upstream fix in facebook/lexical.
 
