@@ -26,24 +26,29 @@
       addEventListener("unhandledrejection", (e) => window.__err.push("unhandledrejection: " + String((e.reason && e.reason.stack) || e.reason)));
     </script>
     <h1>lexxy-realtime over an import map</h1>
-    <lexxy-editor id="editor" name="editor"></lexxy-editor>
+    <!-- The markup shape the Rails helper renders: the element declared in
+         HTML with attributes, upgraded when the modules register it. -->
+    <lexxy-editor id="editor" name="editor">
+      <lexxy-collaboration channel-name="DocumentChannel"></lexxy-collaboration>
+    </lexxy-editor>
+    <script>
+      // Test-harness dynamics (unique room per run, name per session), set
+      // before the deferred modules register and upgrade the element.
+      const params = new URLSearchParams(location.search);
+      const room = params.get("room") || "importmap-check";
+      const collabEl = document.querySelector("lexxy-collaboration");
+      collabEl.setAttribute("doc-id", room);
+      collabEl.setAttribute("name", params.get("name") || "User");
+      collabEl.setAttribute("channel-params", JSON.stringify({ id: room }));
+    </script>
     <script type="module">
       import "@37signals/lexxy";
       import "lexxy-realtime";
       import { $createActionTextAttachmentNode } from "@37signals/lexxy";
       import { $getRoot } from "lexical";
 
-      const params = new URLSearchParams(location.search);
-      const room = params.get("room") || "importmap-check";
-      const name = params.get("name") || "User";
-
       const editor = document.getElementById("editor");
-      const collab = document.createElement("lexxy-collaboration");
-      collab.setAttribute("doc-id", room);
-      collab.setAttribute("name", name);
-      collab.setAttribute("channel-name", "DocumentChannel");
-      collab.setAttribute("channel-params", JSON.stringify({ id: room }));
-      editor.appendChild(collab);
+      const collab = document.querySelector("lexxy-collaboration");
 
       window.__test = {
         synced: () => !!collab.provider?.synced,
