@@ -62,7 +62,9 @@ hold ciphertext.
   yrby dependencies from RubyGems. `package.json` loads the root JavaScript
   package through `file:..`, and `npm run build` compiles that package
   before bundling the app; the compiled `dist/` is never committed.
-- The esbuild `--alias` flags exist because a `file:` dependency is a symlink,
-  which would otherwise pull a second copy of `lexical`/`yjs` from the repo's
-  own node_modules. Registry installs normally deduplicate compatible peer
-  versions without these aliases.
+- The esbuild `--alias` flags exist because a `file:` dependency is a
+  symlink: it would otherwise pull second copies of `lexical`/`yjs` from
+  the repo's own node_modules, and npm does not install a linked package's
+  peer dependencies, so the Yjs family aliases point at the repo's copies.
+  Registry installs bring the peers in and deduplicate them without any of
+  this.
