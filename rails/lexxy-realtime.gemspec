@@ -22,7 +22,7 @@ Gem::Specification.new do |spec|
 
   # Resolve file globs from the gem directory so builds work from the
   # repository root.
-  spec.files = Dir.chdir(__dir__) { Dir["lib/**/*", "LICENSE", "README.md"] }
+  spec.files = Dir.chdir(__dir__) { Dir["lib/**/*", "app/**/*", "LICENSE", "README.md"] }
   spec.require_paths = ["lib"]
 
   spec.add_dependency "lexxy", ">= 0.9"

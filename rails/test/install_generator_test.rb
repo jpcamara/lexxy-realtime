@@ -39,4 +39,39 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match ":y_document_updates", migration
     end
   end
+
+  def test_no_pins_without_importmap
+    run_generator
+
+    assert_no_file "config/importmap.rb"
+  end
+
+  def test_pins_appended_to_importmap
+    FileUtils.mkdir_p(File.join(destination_root, "config"))
+    File.write(File.join(destination_root, "config/importmap.rb"), "pin \"application\"\n")
+
+    run_generator
+
+    assert_file "config/importmap.rb" do |importmap|
+      assert_match 'pin "application"', importmap
+      assert_match 'pin "lexical", to: "lexxy_realtime/lexical.js"', importmap
+      assert_match 'pin "@37signals/lexxy", to: "lexxy_realtime/lexxy.js"', importmap
+      assert_match 'pin "lexxy-realtime", to: "lexxy_realtime/lexxy-realtime.js"', importmap
+      assert_match 'pin "@rails/activestorage", to: "activestorage.esm.js"', importmap
+    end
+  end
+
+  def test_pins_not_duplicated
+    FileUtils.mkdir_p(File.join(destination_root, "config"))
+    File.write(
+      File.join(destination_root, "config/importmap.rb"),
+      "pin \"lexxy-realtime\", to: \"lexxy_realtime/lexxy-realtime.js\"\n"
+    )
+
+    run_generator
+
+    assert_file "config/importmap.rb" do |importmap|
+      assert_equal 1, importmap.scan("lexxy_realtime/lexxy-realtime.js").length
+    end
+  end
 end

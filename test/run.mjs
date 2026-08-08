@@ -8,7 +8,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { rmSync, mkdirSync, readdirSync } from "node:fs";
+import { rmSync, mkdirSync, readdirSync, cpSync } from "node:fs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -93,6 +93,14 @@ try {
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
     console.log("\n=== element lifecycle (agent-browser) ===");
     if (run("node", [join(here, "browser", "lifecycle.mjs")]).status !== 0) exitCode = 1;
+    spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
+    console.log("\n=== import-map assets e2e (agent-browser) ===");
+    if (run("npm", ["run", "build:importmap"], { cwd: root }).status !== 0) exitCode = 1;
+    // The static importmap.html page loads the gem's built assets.
+    const importmapAssets = join(serverDir, "public", "importmap-assets");
+    rmSync(importmapAssets, { recursive: true, force: true });
+    cpSync(join(root, "rails", "app", "assets", "javascripts", "lexxy_realtime"), importmapAssets, { recursive: true });
+    if (run("node", [join(here, "browser", "importmap.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
   }
 } finally {
