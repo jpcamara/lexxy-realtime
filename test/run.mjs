@@ -129,7 +129,23 @@ try {
     const explicit = args.includes("--anycable");
     const REDIS_URL = process.env.ANYCABLE_REDIS_URL || "redis://localhost:6379/9";
     const goOk = spawnSync("anycable-go", ["--version"], { stdio: "ignore" }).status === 0;
-    const redisOk = goOk && spawnSync("redis-cli", ["-u", REDIS_URL, "ping"], { stdio: "ignore" }).status === 0;
+    // Probe redis over TCP; redis-cli isn't a given (CI runners have the
+    // service but not the client binary).
+    const redisOk = goOk && (await (async () => {
+      try {
+        const u = new URL(REDIS_URL);
+        const net = await import("node:net");
+        return await new Promise((resolve) => {
+          const sock = net.connect({ host: u.hostname, port: Number(u.port) || 6379 });
+          const finish = (v) => { sock.destroy(); resolve(v); };
+          sock.once("connect", () => finish(true));
+          sock.once("error", () => finish(false));
+          setTimeout(() => finish(false), 1500);
+        });
+      } catch {
+        return false;
+      }
+    })());
     if (!goOk || !redisOk) {
       const why = goOk ? `redis not reachable at ${REDIS_URL}` : "anycable-go not on PATH";
       if (explicit) {
