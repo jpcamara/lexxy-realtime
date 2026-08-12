@@ -17,13 +17,14 @@
   "module": "dist/lexxy-realtime.js",
   "exports": {
     ".": {
-      "types": "./dist/lexxy-realtime.d.ts",
+      "types": "./types/lexxy-realtime.d.ts",
       "default": "./dist/lexxy-realtime.js"
     }
   },
   "files": [
     "dist",
     "src",
+    "types",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
@@ -56,11 +57,12 @@
     "agent-browser": "^0.28.0",
     "lexical": "^0.44.0",
     "rolldown": "^1.2.1",
+    "typescript": "^5.9.0",
     "y-protocols": "*",
     "yjs": "^13.6.0",
     "yrby-client": "^0.5.0"
   },
-  "types": "./dist/lexxy-realtime.d.ts",
+  "types": "./types/lexxy-realtime.d.ts",
   "sideEffects": true,
   "keywords": [
     "lexxy",

@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- The npm package ships real TypeScript declarations. `package.json` pointed
+  `types` at `dist/lexxy-realtime.d.ts`, a file the build never produced, so
+  strict TypeScript consumers failed with TS7016. A hand-maintained
+  `types/lexxy-realtime.d.ts` now covers the public API (`Collaboration`,
+  `setConsumer`, `YrbyProvider`) and the test suite compiles a consumer
+  against it.
+
 ## [0.4.0] - 2026-08-08
 
 ### Added
