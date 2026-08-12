@@ -4,6 +4,9 @@ require_relative "boot"
 require "rails"
 require "action_controller/railtie"
 require "action_cable/engine"
+# Loaded explicitly (this app skips Bundler.require): provides the AnyCable
+# connection factory when the harness boots the RPC server.
+require "anycable-rails"
 
 require "y"
 require "y/action_cable" # Y::ActionCable::Sync (companion gem)

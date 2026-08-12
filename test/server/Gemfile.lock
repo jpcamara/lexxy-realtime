@@ -88,6 +88,23 @@ GEM
       securerandom (>= 0.3)
       tzinfo (~> 2.0, >= 2.0.5)
       uri (>= 0.13.1)
+    anycable (1.6.4)
+      anycable-core (= 1.6.4)
+      grpc (~> 1.6)
+    anycable-core (1.6.4)
+      anyway_config (~> 2.2)
+      base64 (>= 0.2)
+      google-protobuf (~> 4)
+      stringio (~> 3)
+    anycable-rails (1.6.2)
+      anycable
+      anycable-rails-core (= 1.6.2)
+    anycable-rails-core (1.6.2)
+      actioncable (>= 7.0, < 9.0)
+      anycable-core (~> 1.6.0)
+      globalid
+    anyway_config (2.8.1)
+      ruby-next-core (~> 1.0)
     base64 (0.3.0)
     bigdecimal (4.1.2)
     builder (3.3.0)
@@ -100,6 +117,50 @@ GEM
     erubi (1.13.1)
     globalid (1.3.0)
       activesupport (>= 6.1)
+    google-protobuf (4.35.1)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.35.1-aarch64-linux-gnu)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.35.1-aarch64-linux-musl)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.35.1-arm64-darwin)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.35.1-x86_64-darwin)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.35.1-x86_64-linux-gnu)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.35.1-x86_64-linux-musl)
+      bigdecimal
+      rake (~> 13.3)
+    googleapis-common-protos-types (1.23.0)
+      google-protobuf (~> 4.26)
+    grpc (1.83.0)
+      google-protobuf (>= 3.25, < 5.0)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.83.0-aarch64-linux-gnu)
+      google-protobuf (>= 3.25, < 5.0)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.83.0-aarch64-linux-musl)
+      google-protobuf (>= 3.25, < 5.0)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.83.0-arm64-darwin)
+      google-protobuf (>= 3.25, < 5.0)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.83.0-x86_64-darwin)
+      google-protobuf (>= 3.25, < 5.0)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.83.0-x86_64-linux-gnu)
+      google-protobuf (>= 3.25, < 5.0)
+      googleapis-common-protos-types (~> 1.0)
+    grpc (1.83.0-x86_64-linux-musl)
+      google-protobuf (>= 3.25, < 5.0)
+      googleapis-common-protos-types (~> 1.0)
     i18n (1.15.2)
       concurrent-ruby (~> 1.0)
     io-console (0.9.2)
@@ -208,9 +269,15 @@ GEM
       prism (>= 1.6.0)
       rbs (>= 4.0.0)
       tsort
+    redis (6.0.0)
+      redis-client (= 0.30.1)
+    redis-client (0.30.1)
+      connection_pool
     reline (0.7.0)
       io-console (~> 0.5)
+    ruby-next-core (1.2.1)
     securerandom (0.4.1)
+    stringio (3.2.0)
     thor (1.5.0)
     timeout (0.6.1)
     tsort (0.2.0)
@@ -218,6 +285,7 @@ GEM
       concurrent-ruby (~> 1.0)
     uri (1.1.1)
     useragent (0.16.11)
+    webrick (1.9.2)
     websocket-driver (0.8.2)
       base64
       websocket-extensions (>= 0.1.0)
@@ -235,8 +303,11 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
+  anycable-rails (~> 1.6)
   puma
   rails (~> 8.0)
+  redis
+  webrick
   yrby!
   yrby-rails!
 
@@ -253,6 +324,11 @@ CHECKSUMS
   activerecord (8.1.3) sha256=8003be7b2466ba0a2a670e603eeb0a61dd66058fccecfc49901e775260ac70ab
   activestorage (8.1.3) sha256=0564ce9309143951a67615e1bb4e090ee54b8befed417133cae614479b46384d
   activesupport (8.1.3) sha256=21a5e0dfbd4c3ddd9e1317ec6a4d782fa226e7867dc70b0743acda81a1dca20e
+  anycable (1.6.4) sha256=a440dd44d4d8dc45b18751b041e775e0b98df458b1d8043b511903423a2f9118
+  anycable-core (1.6.4) sha256=17073a3c744d7057e43bc7ed2cbdc1d50f173bb0c874109c55a49c7b95819396
+  anycable-rails (1.6.2) sha256=954fd30f0f91825a06122da85abbf5b962d22fe0f4f3a2b5b262d4b98f5f3582
+  anycable-rails-core (1.6.2) sha256=868e31c1df0aa3096073fa59df5c9815cdaaf2e798578d874f598044418f6d13
+  anyway_config (2.8.1) sha256=541842b25117fac3e277670c32dc09d3b715b20404826a6538ac35527583624f
   base64 (0.3.0) sha256=27337aeabad6ffae05c265c450490628ef3ebd4b67be58257393227588f5a97b
   bigdecimal (4.1.2) sha256=53d217666027eab4280346fba98e7d5b66baaae1b9c3c1c0ffe89d48188a3fbd
   builder (3.3.0) sha256=497918d2f9dca528fdca4b88d84e4ef4387256d984b8154e9d5d3fe5a9c8835f
@@ -264,6 +340,21 @@ CHECKSUMS
   erb (6.0.7) sha256=c5ca6dc25b0ef974a44dc8f59fe847577122483b1968a38dec305c60bf91ee92
   erubi (1.13.1) sha256=a082103b0885dbc5ecf1172fede897f9ebdb745a4b97a5e8dc63953db1ee4ad9
   globalid (1.3.0) sha256=05c639ad6eb4594522a0b07983022f04aa7254626ab69445a0e493aa3786ff11
+  google-protobuf (4.35.1) sha256=a3a6471331d918f58dfa4d014a8f6286f0af2cf4840216bde52fcf2ea3fe3726
+  google-protobuf (4.35.1-aarch64-linux-gnu) sha256=50ca44d0eeff3f8475e630a1accdd974256f3510694d574e2c9d6119ea8bc9e1
+  google-protobuf (4.35.1-aarch64-linux-musl) sha256=d5c65cef6bd6498a9e5ed5f88cf6cf7e341c10b0a005e32137d5d1a2b6e8c18a
+  google-protobuf (4.35.1-arm64-darwin) sha256=d9c957df04fa89c749fa9a72a7b383eb4296efc9b2303dc6fd6fbe39c698ad6b
+  google-protobuf (4.35.1-x86_64-darwin) sha256=66b62b4df00931018a692806df66393efa960d6d2b7da69735187249f950d3ee
+  google-protobuf (4.35.1-x86_64-linux-gnu) sha256=c786439087512a3fbd199e9897d265b855f951d4027e218ea55e858d45969edd
+  google-protobuf (4.35.1-x86_64-linux-musl) sha256=91890eb0002934a339fdb7d77a147c46b7474b6799db27872b747b905837f744
+  googleapis-common-protos-types (1.23.0) sha256=992e740a523794d9fc5f29a504465d8fc737aaa16c930fe7228e3346860faf0a
+  grpc (1.83.0) sha256=38119e7f9f7cbc98e79145201da4be470a7542b0befad454651d35015ea55c59
+  grpc (1.83.0-aarch64-linux-gnu) sha256=11562efdded494b2277fd9c3c530dfdf90177faa111526ae9e748d0be29f1a9d
+  grpc (1.83.0-aarch64-linux-musl) sha256=ee745eab4f3922ed27d379cbc4bc0a99e58db367fa96312e9fe258aafd3afeb2
+  grpc (1.83.0-arm64-darwin) sha256=25dd772aa80529f014d70da069787cd39b469c9edacbe493da4ff19952a147e2
+  grpc (1.83.0-x86_64-darwin) sha256=cfad91d559d1907159a5247fb12dc112a8ea0ebe2027ca7f5ab648d01a645716
+  grpc (1.83.0-x86_64-linux-gnu) sha256=25d66bfa3cb1b05258b3f9632478c7e7ceb52cb16ccc0b4b26d7df36be7158b1
+  grpc (1.83.0-x86_64-linux-musl) sha256=a5023264dbb8038c23b147bbf80adb06932ef11b5ab493412e9e37a43114fa8c
   i18n (1.15.2) sha256=00f9eb62412fe593b2a65a97daa75300d37abb8f7202ec748e94b6d46a9dd1b5
   io-console (0.9.2) sha256=efa74f891dd03c0939a931dfc6e74c2813d904763d456ea9762b0525e748db08
   irb (1.18.0) sha256=de9454a0703a54704b9811a5ef31a60c86949fbf4013fcf244fabc7c775248e3
@@ -305,14 +396,19 @@ CHECKSUMS
   rb_sys (0.9.128) sha256=9ab81f4d6d4e1895de18762232362d1264475aa7035756b50441e442130538fd
   rbs (4.1.3) sha256=0c4474a9751cdc14364bfad0b3e53678323bbdc2c31683b0445932867dbab8c4
   rdoc (8.0.0) sha256=03bf8c08a9639658855a0cfd77c0abca8325c227693f7f33f82957811348c469
+  redis (6.0.0) sha256=de71c10edd106986b759ec7ecdd08b63b9c0ee7414a0d0c1da73d31ba2bccda6
+  redis-client (0.30.1) sha256=5151bc5c7bbfe48623732cdae3b900d8a22dc691cc7cdfacfb351ac55116522d
   reline (0.7.0) sha256=5b012d8e55dbf9d450f12bde2cf7d15ff546ae80b3f8f3b30e570d431815583d
+  ruby-next-core (1.2.1) sha256=ddba3e986e127143299a26bde8bdbeedd4bc738a1a765e499f9634f361551f79
   securerandom (0.4.1) sha256=cc5193d414a4341b6e225f0cb4446aceca8e50d5e1888743fac16987638ea0b1
+  stringio (3.2.0) sha256=c37cb2e58b4ffbd33fe5cd948c05934af997b36e0b6ca6fdf43afa234cf222e1
   thor (1.5.0) sha256=e3a9e55fe857e44859ce104a84675ab6e8cd59c650a49106a05f55f136425e73
   timeout (0.6.1) sha256=78f57368a7e7bbadec56971f78a3f5ecbcfb59b7fcbb0a3ed6ddc08a5094accb
   tsort (0.2.0) sha256=9650a793f6859a43b6641671278f79cfead60ac714148aabe4e3f0060480089f
   tzinfo (2.0.6) sha256=8daf828cc77bcf7d63b0e3bdb6caa47e2272dcfaf4fbfe46f8c3a9df087a829b
   uri (1.1.1) sha256=379fa58d27ffb1387eaada68c749d1426738bd0f654d812fcc07e7568f5c57c6
   useragent (0.16.11) sha256=700e6413ad4bb954bb63547fa098dddf7b0ebe75b40cc6f93b8d54255b173844
+  webrick (1.9.2) sha256=beb4a15fc474defed24a3bda4ffd88a490d517c9e4e6118c3edce59e45864131
   websocket-driver (0.8.2) sha256=97c556b019bf3410b4961002ac501621e9322d3f8a7bc02161a09301cc4c4146
   websocket-extensions (0.1.5) sha256=1c6ba63092cda343eb53fc657110c71c754c56484aad42578495227d717a8241
   yrby (0.7.0)

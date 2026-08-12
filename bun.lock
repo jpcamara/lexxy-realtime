@@ -9,6 +9,7 @@
       },
       "devDependencies": {
         "@37signals/lexxy": "0.9.29",
+        "@anycable/core": "^1.1.1",
         "@anycable/web": "^1.1.1",
         "@lexical/yjs": "^0.44.0",
         "@rails/actioncable": "^8.1.300",

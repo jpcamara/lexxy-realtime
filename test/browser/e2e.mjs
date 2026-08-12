@@ -23,7 +23,10 @@ const ab = (session, ...args) => {
   }
 };
 
-const open = (session, name) => ab(session, "open", `http://localhost:${PORT}/?room=${ROOM}&name=${name}`);
+// CABLE_WS_URL (the AnyCable leg) rides every page open, pointing all
+// three consumer paths at the gateway.
+const CABLE = process.env.CABLE_WS_URL ? `&cable=${encodeURIComponent(process.env.CABLE_WS_URL)}` : "";
+const open = (session, name) => ab(session, "open", `http://localhost:${PORT}/?room=${ROOM}&name=${name}${CABLE}`);
 const ready = (session) => waitEval(session, "!!(window.__test && window.__test.synced())", "ready+synced");
 
 async function waitEval(session, js, label, ms = 10000) {
@@ -189,7 +192,7 @@ ab("carol", "close");
 // Zero-config: attributes only, no host wiring at all. The element creates its
 // own shared consumer (defaulting to /cable), doc, and provider, and connects
 // itself. It must sync the same durable document.
-ab("zara", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Zara&mode=zero`);
+ab("zara", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Zara&mode=zero${CABLE}`);
 check("zero-config element connected and synced", await ready("zara"));
 const zaraHasBoth = await waitEval(
   "zara",
@@ -202,7 +205,7 @@ ab("zara", "close");
 
 // The app-wide consumer (setConsumer, the @anycable/web path): the element
 // must ride the configured consumer instead of auto-creating one.
-ab("uma", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Uma&mode=setconsumer`);
+ab("uma", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Uma&mode=setconsumer${CABLE}`);
 check("setConsumer element connected and synced", await ready("uma"));
 check(
   "element used the configured consumer",
@@ -215,13 +218,13 @@ ab("uma", "close");
 // collaborative document: visible to the seeder, durable, and delivered to a
 // later peer who has no local value.
 const SEEDROOM = `${ROOM}-seed`;
-ab("sam", "open", `http://localhost:${PORT}/?room=${SEEDROOM}&name=Sam&seedHtml=${encodeURIComponent("<p>EXISTING-BODY</p>")}`);
+ab("sam", "open", `http://localhost:${PORT}/?room=${SEEDROOM}&name=Sam&seedHtml=${encodeURIComponent("<p>EXISTING-BODY</p>")}${CABLE}`);
 check("seeder synced", await ready("sam"));
 check(
   "seeder kept the pre-existing content",
   await waitEval("sam", 'window.__test.text().includes("EXISTING-BODY")', "sam sees EXISTING-BODY")
 );
-ab("tia", "open", `http://localhost:${PORT}/?room=${SEEDROOM}&name=Tia`);
+ab("tia", "open", `http://localhost:${PORT}/?room=${SEEDROOM}&name=Tia${CABLE}`);
 check("peer synced into the seeded doc", await ready("tia"));
 check(
   "peer received the seeded content from the document (not a local value)",

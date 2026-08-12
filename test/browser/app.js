@@ -11,6 +11,7 @@ import "@37signals/lexxy";
 import { YrbyProvider, setConsumer } from "../../src/index.js"; // also registers <lexxy-collaboration>
 import * as Y from "yjs";
 import { createConsumer } from "@rails/actioncable";
+import { createConsumer as createAnycableConsumer } from "@anycable/web";
 import { $getRoot } from "lexical";
 
 // Collaboration errors are logged, not thrown (a bad remote update must not
@@ -28,6 +29,17 @@ const name = params.get("name") || "User";
 const color = params.get("color") || "#3b82f6";
 const zeroConfig = params.get("mode") === "zero";
 const setConsumerMode = params.get("mode") === "setconsumer";
+
+// `cable` points every consumer path at a different gateway (the AnyCable
+// leg passes the anycable-go ws URL). The meta tag is what a Rails layout
+// renders, so zero-config elements ride it exactly the way an app's would.
+const cableUrl = params.get("cable");
+if (cableUrl) {
+  const meta = document.createElement("meta");
+  meta.name = "action-cable-url";
+  meta.content = cableUrl;
+  document.head.appendChild(meta);
+}
 
 const editor = document.getElementById("editor");
 
@@ -189,12 +201,17 @@ function start() {
 
   if (setConsumerMode) {
     // The app-wide default (the @anycable/web path): one boot-time call,
-    // attribute-only element. It must ride exactly this consumer.
-    window.__configuredConsumer = createConsumer(`ws://${location.host}/cable`);
+    // attribute-only element. It must ride exactly this consumer. With a
+    // cable URL this is the real @anycable/web client, not the compat
+    // default, so the documented setConsumer(() => createConsumer())
+    // pairing runs against a live gateway.
+    window.__configuredConsumer = cableUrl
+      ? createAnycableConsumer(cableUrl)
+      : createConsumer(`ws://${location.host}/cable`);
     setConsumer(() => window.__configuredConsumer);
     editor.appendChild(collab);
   } else if (!zeroConfig) {
-    const consumer = createConsumer(`ws://${location.host}/cable`);
+    const consumer = createConsumer(cableUrl || `ws://${location.host}/cable`);
     const doc = new Y.Doc();
     const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: room });
     collab.consumer = consumer;

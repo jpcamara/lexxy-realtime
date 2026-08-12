@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- AnyCable is covered end to end. The suite gains an AnyCable leg
+  (`npm run test:anycable`, run automatically in full runs when
+  anycable-go and redis are present, plus a CI job): the headless
+  durability suites, the full browser editor e2e, and a runtime
+  `@anycable/web` consumer check all go through a real anycable-go
+  gateway and RPC server, including presence over AnyCable whispers.
+  The README documents the server pair and both client paths.
+
 ## [0.5.0] - 2026-08-12
 
 ### Changed

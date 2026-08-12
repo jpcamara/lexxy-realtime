@@ -286,6 +286,48 @@ The hooks accept any store that can return and append update bytes. See
 [`yrby`](https://github.com/jpcamara/yrby) for the full protocol
 (reliable delivery, causal-gap handling).
 
+### AnyCable
+
+Everything above runs unchanged on [AnyCable](https://anycable.io): the
+channel is the same `Y::ActionCable` concern, and the CI suite runs the
+full editor e2e through a real anycable-go gateway.
+
+Server side, run the standard AnyCable pair next to your app (the RPC
+server executes the channel; anycable-go terminates the sockets):
+
+```ruby
+# Gemfile
+gem "anycable-rails"
+```
+
+```yaml
+# config/cable.yml
+production:
+  adapter: any_cable
+```
+
+```bash
+bundle exec anycable   # channel logic (RPC)
+anycable-go            # WebSocket gateway
+```
+
+Client side, point the page at the gateway. The stock setup needs nothing
+else: the element reads the `action-cable-url` meta tag, so set
+`config.action_cable.url` to the anycable-go URL and every
+`<lexxy-collaboration>` connects through it. To use the `@anycable/web`
+client instead (its ActionCable-compat mode), configure it once at boot:
+
+```js
+import { createConsumer } from "@anycable/web";
+import { setConsumer } from "lexxy-realtime";
+
+setConsumer(() => createConsumer());
+```
+
+Presence gets faster under AnyCable: yrby's provider sends awareness
+(cursors, selections) as client-to-client whispers, relayed entirely by
+anycable-go, so cursor traffic never touches the Ruby server.
+
 ## Provider API (yrby)
 
 `YrbyProvider` is a thin alias for `yrby-client`'s `ActionCableProvider`:
