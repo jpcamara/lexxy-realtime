@@ -25,7 +25,10 @@ Gem::Specification.new do |spec|
   spec.files = Dir.chdir(__dir__) { Dir["lib/**/*", "app/**/*", "LICENSE", "README.md"] }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "lexxy", ">= 0.9"
+  # 0.9.29 is the floor the editor JS is built against (attachments
+  # construct bare, basecamp/lexxy#1196); the gem floor matches so an
+  # import-map app riding the lexxy gem's own asset gets a compatible one.
+  spec.add_dependency "lexxy", ">= 0.9.29"
   # lexxy 0.9 requires Rails >= 8.0.2.
   spec.add_dependency "rails", ">= 8.0.2"
   spec.add_dependency "yrby", ">= 0.6.0"
