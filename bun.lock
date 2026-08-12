@@ -9,6 +9,7 @@
       },
       "devDependencies": {
         "@37signals/lexxy": "0.9.29",
+        "@anycable/web": "^1.1.1",
         "@lexical/yjs": "^0.44.0",
         "@rails/actioncable": "^8.1.300",
         "agent-browser": "^0.28.0",
@@ -29,6 +30,10 @@
   },
   "packages": {
     "@37signals/lexxy": ["@37signals/lexxy@0.9.29", "", { "dependencies": { "@lexical/clipboard": "^0.44.0", "@lexical/code": "^0.44.0", "@lexical/extension": "^0.44.0", "@lexical/history": "^0.44.0", "@lexical/html": "^0.44.0", "@lexical/link": "^0.44.0", "@lexical/list": "^0.44.0", "@lexical/markdown": "^0.44.0", "@lexical/plain-text": "^0.44.0", "@lexical/rich-text": "^0.44.0", "@lexical/selection": "^0.44.0", "@lexical/table": "^0.44.0", "@lexical/utils": "^0.44.0", "dompurify": "^3.3.0", "lexical": "^0.44.0", "marked": "^16.4.1", "prismjs": "^1.30.0" }, "peerDependencies": { "@rails/activestorage": ">= 7.0.0" }, "optionalPeers": ["@rails/activestorage"] }, "sha512-xekobv7/0L0/nSt6BaP6U5TClN3n4U9BBEdytiHTGVN/TRdo9vO7uqLYSqtoWLg+1S5Mj/SD7aPFFqEJcVo5Xg=="],
+
+    "@anycable/core": ["@anycable/core@1.1.6", "", { "dependencies": { "nanoevents": "^9.1.0" } }, "sha512-nXhYQJHELug7ew8V5HLzRV7Savr+9Tu7gmK2hD9+uUJ2BVfnlF147sRk8kwO1/AmR5gAYJz3jjwQyeNUwXH2kQ=="],
+
+    "@anycable/web": ["@anycable/web@1.1.1", "", { "dependencies": { "@anycable/core": "^1.1.5" } }, "sha512-ImNEZ0TC8DiqcrDIXNuQcXM4Z4E+b8NuN8pssokhAiYI1vcShhvML/VuRNAHOCjlN4HNwZ9i26ji/fPUF3e9ag=="],
 
     "@emnapi/core": ["@emnapi/core@2.0.0-alpha.3", "", { "dependencies": { "@emnapi/wasi-threads": "2.0.1", "tslib": "^2.4.0" } }, "sha512-AZypUeJ/yByuxyS7BlSNRDOMLMlROYtjYdIAuBmJssVz1UJDSeYxLrdizhXCFYhedC5bqd/ASy8EuNXbVVXp9g=="],
 
@@ -127,6 +132,8 @@
     "lib0": ["lib0@0.2.117", "", { "dependencies": { "isomorphic.js": "^0.2.4" }, "bin": { "0serve": "bin/0serve.js", "0gentesthtml": "bin/gentesthtml.js", "0ecdsa-generate-keypair": "bin/0ecdsa-generate-keypair.js" } }, "sha512-DeXj9X5xDCjgKLU/7RR+/HQEVzuuEUiwldwOGsHK/sfAfELGWEyTcf0x+uOvCvK3O2zPmZePXWL85vtia6GyZw=="],
 
     "marked": ["marked@16.4.2", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-TI3V8YYWvkVf3KJe1dRkpnjs68JUPyEa5vjKrp1XEEJUAOaQc+Qj+L1qWbPd0SJuAdQkFU0h73sXXqwDYxsiDA=="],
+
+    "nanoevents": ["nanoevents@9.1.0", "", {}, "sha512-Jd0fILWG44a9luj8v5kED4WI+zfkkgwKyRQKItTtlPfEsh7Lznfi1kr8/iZ+XAIss4Qq5GqRB0qtWbaz9ceO/A=="],
 
     "prismjs": ["prismjs@1.30.0", "", {}, "sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw=="],
 
