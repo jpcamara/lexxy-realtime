@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+    "lib": ["es2022", "dom"],
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "lexxy-realtime": ["../../types/lexxy-realtime.d.ts"]
+    }
+  },
+  "include": ["consumer.ts"]
+}

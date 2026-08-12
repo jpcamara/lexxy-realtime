@@ -74,6 +74,9 @@ try {
     console.log("\n=== README JS examples ===");
     if (run("node", [join(here, "docs", "readme_js_examples.mjs")]).status !== 0) exitCode = 1;
 
+    console.log("\n=== type declarations (tsc) ===");
+    if (run("npx", ["tsc", "-p", join(here, "types")]).status !== 0) exitCode = 1;
+
     console.log("\n=== headless durability suite ===");
     for (const name of ["convergence", "durability", "loss"]) {
       console.log(`\n--- ${name} ---`);

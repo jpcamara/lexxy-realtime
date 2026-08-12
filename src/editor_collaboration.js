@@ -25,9 +25,9 @@ let configuredConsumer;
 // itself: call once at boot, before editors mount. Accepts the consumer or
 // a function returning one, resolved lazily on first use.
 //
-//   import { createCable } from "@anycable/web";
+//   import { createConsumer } from "@anycable/web";
 //   import { setConsumer } from "lexxy-realtime";
-//   setConsumer(() => createCable());
+//   setConsumer(() => createConsumer());
 //
 // A consumer assigned directly on an element still wins.
 export function setConsumer(consumerOrFactory) {

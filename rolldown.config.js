@@ -7,7 +7,8 @@ export default defineConfig({
     '@lexical/yjs',
     'lexical',
     'y-protocols',
-    '@37signals/lexxy'
+    '@37signals/lexxy',
+    'yrby-client'
   ],
   output: [{
     file: 'dist/lexxy-realtime.js',

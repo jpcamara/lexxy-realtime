@@ -180,10 +180,10 @@ To use a specific transport (for example `@anycable/web`), set the app-wide
 consumer once at boot; every element without one of its own uses it:
 
 ```js
-import { createCable } from "@anycable/web";
+import { createConsumer } from "@anycable/web";
 import { setConsumer } from "lexxy-realtime";
 
-setConsumer(() => createCable());
+setConsumer(() => createConsumer());
 ```
 
 Assigning `collab.consumer` on an element before it initializes still wins,

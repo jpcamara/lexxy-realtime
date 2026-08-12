@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- `yrby-client` is a regular dependency instead of being bundled into the
+  npm package's dist. Consumers resolve one copy of the provider (shared
+  with any direct yrby-client use), and the version relationship is an
+  explicit `^0.5.0` instead of whatever was inlined at build time. The
+  Rails gem's import-map asset still bakes everything in and is unchanged.
+
+### Fixed
+
+- The npm package ships real TypeScript declarations. `package.json` pointed
+  `types` at `dist/lexxy-realtime.d.ts`, a file the build never produced, so
+  strict TypeScript consumers failed with TS7016. `types/lexxy-realtime.d.ts`
+  now declares `Collaboration` and `setConsumer` and re-exports
+  `YrbyProvider`'s types from yrby-client. The test suite compiles a strict
+  consumer against the declarations, including an `@anycable/web` consumer.
+- The AnyCable example calls `createConsumer` from `@anycable/web`. The
+  README and the `setConsumer` docs showed `createCable()`, whose native
+  `Cable` has no `subscriptions` and fails as a consumer when an editor
+  mounts. The ActionCable-compat `createConsumer()` is the supported shape,
+  pinned by a compile-time check.
+
 ## [0.4.0] - 2026-08-08
 
 ### Added
