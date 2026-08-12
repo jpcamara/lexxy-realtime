@@ -279,7 +279,7 @@ GEM
     yrby (0.7.0-x86_64-darwin)
     yrby (0.7.0-x86_64-linux)
     yrby (0.7.0-x86_64-linux-musl)
-    yrby-rails (0.6.0)
+    yrby-rails (0.6.1)
       actioncable (>= 7.1)
       activerecord (>= 7.1)
       activesupport (>= 7.1)
@@ -428,7 +428,7 @@ CHECKSUMS
   yrby (0.7.0-x86_64-darwin) sha256=197dd5be1b71681ffc54c17d0853e7b3f778e9fb910052e7a7416e988842bcb0
   yrby (0.7.0-x86_64-linux) sha256=e1ef3f5bbce635d4a6329802d06dad7f5aaa797c81091a5d5a1bf0611554d0f7
   yrby (0.7.0-x86_64-linux-musl) sha256=268467b0ae4d6386fa9e93c532b10acfbe7071a70d9d1f29a5d1eaa9fd2b3f48
-  yrby-rails (0.6.0) sha256=ffd7247e3dcd2849e63b040c2a2ee82d17c16514e2c332954cc81ac7c698ae1a
+  yrby-rails (0.6.1) sha256=14cd88c872ab969397f58079589d3939b1effe1c735bf0aa722cb939df79d4a3
   zeitwerk (2.8.3) sha256=2c85125a8467ce069e20123d1e709a08955c9d29c118c25b46b7b7fafdbb92e5
 
 BUNDLED WITH
