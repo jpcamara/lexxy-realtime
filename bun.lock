@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "lexxy-realtime",
+      "dependencies": {
+        "yrby-client": "^0.5.0",
+      },
       "devDependencies": {
         "@37signals/lexxy": "0.9.29",
         "@lexical/yjs": "^0.44.0",
@@ -14,7 +17,6 @@
         "typescript": "^5.9.0",
         "y-protocols": "*",
         "yjs": "^13.6.0",
-        "yrby-client": "^0.5.0",
       },
       "peerDependencies": {
         "@37signals/lexxy": "^0.9.29",

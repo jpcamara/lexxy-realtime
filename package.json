@@ -39,10 +39,12 @@
     "build:watch": "rolldown --watch -c",
     "build:test": "rolldown -c test/browser/rolldown.config.mjs",
     "test": "node test/run.mjs",
-    "vendor:types": "node scripts/vendor_types.mjs",
     "test:headless": "node test/run.mjs --headless",
     "test:browser": "node test/run.mjs --browser",
     "build:importmap": "rolldown -c scripts/rolldown.importmap.config.js"
+  },
+  "dependencies": {
+    "yrby-client": "^0.5.0"
   },
   "peerDependencies": {
     "@37signals/lexxy": "^0.9.29",
@@ -60,8 +62,7 @@
     "rolldown": "^1.2.1",
     "typescript": "^5.9.0",
     "y-protocols": "*",
-    "yjs": "^13.6.0",
-    "yrby-client": "^0.5.0"
+    "yjs": "^13.6.0"
   },
   "types": "./types/lexxy-realtime.d.ts",
   "sideEffects": true,

@@ -1,23 +1,18 @@
 // Declarations for lexxy-realtime. The package source is plain JavaScript,
-// so this file is the type surface.
-//
-// YrbyProvider is yrby-client's ActionCableProvider bundled into dist, and
-// its declarations come from yrby-client too: scripts/vendor_types.mjs
-// copies the installed version's .d.ts files into types/vendor/ (the test
-// suite fails if they drift), and this file re-exports them.
+// so this file is the type surface. YrbyProvider is yrby-client's
+// ActionCableProvider re-exported under this package's name, and its types
+// come from the yrby-client dependency the same way.
 
-export {
-  ActionCableProvider as YrbyProvider,
-} from "./vendor/yrby-client/actioncable_provider.js";
+export { ActionCableProvider as YrbyProvider } from "yrby-client";
 export type {
   ActionCableProviderOptions as YrbyProviderOptions,
   CableConsumer,
   CableSubscription,
   ProviderStatus,
   StatusEvent,
-} from "./vendor/yrby-client/actioncable_provider.js";
+} from "yrby-client";
 
-import type { CableConsumer } from "./vendor/yrby-client/actioncable_provider.js";
+import type { CableConsumer } from "yrby-client";
 
 /**
  * Register the shared Action Cable consumer for every <lexxy-collaboration>
