@@ -105,6 +105,9 @@ try {
     console.log("\n=== browser editor e2e (agent-browser) ===");
     if (run("node", [join(here, "browser", "e2e.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
+    console.log("\n=== real uploads e2e (agent-browser) ===");
+    if (run("node", [join(here, "browser", "uploads.mjs")]).status !== 0) exitCode = 1;
+    spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
     console.log("\n=== browser cursor edge cases (agent-browser) ===");
     if (run("node", [join(here, "browser", "cursors.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
@@ -223,6 +226,11 @@ try {
           if (run("npm", ["run", "build:test"], { cwd: root }).status !== 0) exitCode = 1;
           const be = run("node", [join(here, "browser", "e2e.mjs")], { env: { ...process.env, PORT, CABLE_WS_URL: CABLE_URL } });
           if (be.status !== 0) exitCode = 1;
+          spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
+
+          console.log("\n--- real uploads e2e over anycable-go (agent-browser) ---");
+          const bu = run("node", [join(here, "browser", "uploads.mjs")], { env: { ...process.env, PORT, CABLE_WS_URL: CABLE_URL } });
+          if (bu.status !== 0) exitCode = 1;
           spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
         }
       } finally {

@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Real uploads are covered end to end. The test server gains ActiveStorage
+  (sqlite + disk service, tables created at boot), and a browser e2e drives
+  a PNG through Lexxy's own upload pipeline: DirectUpload to the real
+  direct-upload endpoint, the attachment lands in the shared document with
+  its signed sgid, a live peer and a late joiner both render actual pixels
+  from the served blob URL, and no upload placeholder survives. Runs in the
+  Action Cable and AnyCable phases both. The test bundle now includes the
+  real @rails/activestorage (the stub that disabled uploads is gone).
 - AnyCable is covered end to end. The suite gains an AnyCable leg
   (`npm run test:anycable`, run automatically in full runs when
   anycable-go and redis are present, plus a CI job): the headless

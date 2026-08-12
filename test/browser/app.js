@@ -92,6 +92,23 @@ function installTestHooks(collab) {
         $getRoot().append(node);
       });
     },
+    // A real upload through Lexxy's own pipeline: build a PNG File and hand
+    // it to contents.uploadFiles, the same entry the drop handler uses.
+    // DirectUpload posts to the server's ActiveStorage endpoint for real.
+    uploadPng: (name) => {
+      const b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const file = new File([bytes], name, { type: "image/png" });
+      editor.contents.uploadFiles([file], { selectLast: true });
+      return "uploading";
+    },
+    // The rendered image on the page for an uploaded attachment: its served
+    // src and whether the browser actually decoded pixels from it.
+    renderedImage: () => {
+      const img = editor.querySelector("[contenteditable] img, action-text-attachment img, img");
+      if (!img) return null;
+      return { src: img.getAttribute("src") || img.src, naturalWidth: img.naturalWidth, complete: img.complete };
+    },
     // The attachment sgids present in the editor's own state.
     attachmentSgids: () => {
       const json = JSON.stringify(editor.editor.getEditorState().toJSON());

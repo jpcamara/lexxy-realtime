@@ -56,16 +56,17 @@
   },
   "devDependencies": {
     "@37signals/lexxy": "0.9.29",
+    "@anycable/core": "^1.1.1",
     "@anycable/web": "^1.1.1",
     "@lexical/yjs": "^0.44.0",
     "@rails/actioncable": "^8.1.300",
+    "@rails/activestorage": "^7.2.302",
     "agent-browser": "^0.28.0",
     "lexical": "^0.44.0",
     "rolldown": "^1.2.1",
     "typescript": "^5.9.0",
     "y-protocols": "*",
-    "yjs": "^13.6.0",
-    "@anycable/core": "^1.1.1"
+    "yjs": "^13.6.0"
   },
   "types": "./types/lexxy-realtime.d.ts",
   "sideEffects": true,
