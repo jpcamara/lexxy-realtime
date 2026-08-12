@@ -35,4 +35,18 @@ provider.destroy();
 
 const element: HTMLElement = new Collaboration();
 
+// @anycable/web works through its ActionCable-compat consumer.
+import { createCable, createConsumer } from "@anycable/web";
+
+const anycable: CableConsumer = createConsumer("ws://localhost:8080/cable");
+setConsumer(anycable);
+setConsumer(() => createConsumer());
+void new YrbyProvider(new Y.Doc(), anycable, "SyncChannel");
+
+// createCable() returns AnyCable's native Cable, which has no
+// `subscriptions`; the compat createConsumer() is the supported shape.
+// @ts-expect-error
+const notAConsumer: CableConsumer = createCable("ws://localhost:8080/cable");
+void notAConsumer;
+
 export { element, settle, status, synced };
