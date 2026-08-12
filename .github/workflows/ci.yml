@@ -158,7 +158,7 @@ jobs:
       # Pinned binary from releases (no extra action dependency).
       - name: Install anycable-go
         run: |
-          curl -fsSL https://github.com/anycable/anycable-go/releases/download/v1.6.14/anycable-go-linux-amd64 -o /tmp/anycable-go
+          curl -fsSL https://github.com/anycable/anycable/releases/download/v1.6.14/anycable-go-linux-amd64 -o /tmp/anycable-go
           sudo install -m 0755 /tmp/anycable-go /usr/local/bin/anycable-go
           anycable-go --version
 
