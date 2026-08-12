@@ -74,7 +74,8 @@ try {
     console.log("\n=== README JS examples ===");
     if (run("node", [join(here, "docs", "readme_js_examples.mjs")]).status !== 0) exitCode = 1;
 
-    console.log("\n=== type declarations (tsc) ===");
+    console.log("\n=== type declarations (tsc + vendor drift) ===");
+    if (run("node", [join(root, "scripts", "vendor_types.mjs"), "--check"]).status !== 0) exitCode = 1;
     if (run("npx", ["tsc", "-p", join(here, "types")]).status !== 0) exitCode = 1;
 
     console.log("\n=== headless durability suite ===");

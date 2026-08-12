@@ -10,10 +10,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - The npm package ships real TypeScript declarations. `package.json` pointed
   `types` at `dist/lexxy-realtime.d.ts`, a file the build never produced, so
-  strict TypeScript consumers failed with TS7016. A hand-maintained
-  `types/lexxy-realtime.d.ts` now covers the public API (`Collaboration`,
-  `setConsumer`, `YrbyProvider`) and the test suite compiles a consumer
-  against it.
+  strict TypeScript consumers failed with TS7016. `types/lexxy-realtime.d.ts`
+  now declares `Collaboration` and `setConsumer`, and `YrbyProvider`'s
+  declarations are yrby-client's own, vendored from the installed version
+  the build bundles. The test suite compiles a strict consumer against the
+  declarations and fails if the vendored files drift from yrby-client.
 
 ## [0.4.0] - 2026-08-08
 

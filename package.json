@@ -39,6 +39,7 @@
     "build:watch": "rolldown --watch -c",
     "build:test": "rolldown -c test/browser/rolldown.config.mjs",
     "test": "node test/run.mjs",
+    "vendor:types": "node scripts/vendor_types.mjs",
     "test:headless": "node test/run.mjs --headless",
     "test:browser": "node test/run.mjs --browser",
     "build:importmap": "rolldown -c scripts/rolldown.importmap.config.js"

@@ -1,91 +1,23 @@
-// Hand-maintained declarations for lexxy-realtime. The package source is
-// plain JavaScript and the build emits no .d.ts, so this file is the type
-// surface. YrbyProvider is yrby-client's ActionCableProvider bundled into
-// the package, which is why its declarations are inlined here instead of
-// imported from yrby-client.
+// Declarations for lexxy-realtime. The package source is plain JavaScript,
+// so this file is the type surface.
+//
+// YrbyProvider is yrby-client's ActionCableProvider bundled into dist, and
+// its declarations come from yrby-client too: scripts/vendor_types.mjs
+// copies the installed version's .d.ts files into types/vendor/ (the test
+// suite fails if they drift), and this file re-exports them.
 
-import type { Doc } from "yjs";
-import type { Awareness } from "y-protocols/awareness";
+export {
+  ActionCableProvider as YrbyProvider,
+} from "./vendor/yrby-client/actioncable_provider.js";
+export type {
+  ActionCableProviderOptions as YrbyProviderOptions,
+  CableConsumer,
+  CableSubscription,
+  ProviderStatus,
+  StatusEvent,
+} from "./vendor/yrby-client/actioncable_provider.js";
 
-/**
- * Connection lifecycle, folded into one signal: connecting (subscription
- * created, transport not up yet), connected (transport up, exchanging sync
- * steps), synced (caught up), and disconnected (torn down via
- * disconnect()/destroy()). A dropped transport that ActionCable will retry
- * shows as "connecting", not "disconnected".
- */
-export type ProviderStatus = "connecting" | "connected" | "synced" | "disconnected";
-
-/** Payload passed to onStatusChange listeners. */
-export interface StatusEvent {
-  status: ProviderStatus;
-}
-
-/** The minimal slice of an ActionCable/AnyCable subscription the provider uses. */
-export interface CableSubscription {
-  send(data: unknown): unknown;
-  /** AnyCable client-to-client broadcast; absent on plain ActionCable. */
-  whisper?(data: unknown): unknown;
-  /** Teardown. Present on both @rails/actioncable and @anycable/web. */
-  unsubscribe?(): void;
-}
-
-/**
- * The minimal slice of an ActionCable/AnyCable consumer the provider uses.
- * Deliberately loose so the consumers from both @rails/actioncable and
- * @anycable/web are directly assignable.
- */
-export interface CableConsumer {
-  subscriptions: {
-    create(channel: string | object, mixin?: object): CableSubscription;
-  };
-}
-
-export interface YrbyProviderOptions {
-  resendInterval?: number;
-  onError?: (error: unknown, context: string) => void;
-}
-
-/**
- * yrby-client's ActionCableProvider under this package's name: syncs a Y.Doc
- * over Action Cable with at-least-once, ack-tracked delivery.
- */
-export declare class YrbyProvider {
-  readonly doc: Doc;
-  readonly consumer: CableConsumer;
-  readonly channelName: string;
-  readonly channelParams: object;
-  readonly awareness: Awareness;
-  constructor(
-    doc: Doc,
-    consumer: CableConsumer,
-    channelName: string,
-    channelParams?: object,
-    opts?: YrbyProviderOptions,
-  );
-  /** True once the document has caught up with the server. */
-  get synced(): boolean;
-  /**
-   * Resolves once the document has first caught up with the server. Bind the
-   * editor after this resolves; binding earlier makes each client seed its
-   * own top-level node. Stays resolved across later reconnects.
-   */
-  get whenSynced(): Promise<void>;
-  /** True while there are unacknowledged local document updates in flight. */
-  get hasPending(): boolean;
-  /**
-   * Apply a bootstrap/restore update (initial HTTP state, a server snapshot)
-   * without re-sending it to the server as a local edit.
-   */
-  applyRemoteUpdate(update: Uint8Array): void;
-  /** Current connection status. */
-  get status(): ProviderStatus;
-  /** Subscribe to status changes. Returns an unsubscribe function. */
-  onStatusChange(listener: (event: StatusEvent) => void): () => void;
-  connect(): void;
-  disconnect(): void;
-  destroy(): void;
-}
+import type { CableConsumer } from "./vendor/yrby-client/actioncable_provider.js";
 
 /**
  * Register the shared Action Cable consumer for every <lexxy-collaboration>
