@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The README leads with a quick start (gem, generator, model, form, and
+  the JavaScript for import-map and bundler apps both), followed by a
+  table of contents and the reference sections. The import-map install
+  path is documented for the first time; the old README required a
+  bundler even though the generator pins the gem's own import-map
+  builds.
+
 ### Added
 
 - Real uploads are covered end to end. The test server gains ActiveStorage
