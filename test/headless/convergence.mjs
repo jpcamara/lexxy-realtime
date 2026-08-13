@@ -2,7 +2,6 @@
 // YrbyProvider: edits propagate both ways and a late joiner is brought up to
 // date by the server.
 import * as Y from "yjs";
-import { Awareness } from "y-protocols/awareness";
 import { YrbyProvider } from "../../src/yrby_provider.js";
 import { rawConsumer, URL, waitFor, sleep, resetDoc, check, done } from "./support.mjs";
 
@@ -11,8 +10,7 @@ await resetDoc(ROOM);
 
 function client() {
   const doc = new Y.Doc();
-  const awareness = new Awareness(doc);
-  const provider = new YrbyProvider(doc, rawConsumer(URL), "DocumentChannel", { id: ROOM }, { awareness });
+  const provider = new YrbyProvider(doc, rawConsumer(URL), "DocumentChannel", { id: ROOM });
   provider.connect();
   return { doc, provider, text: () => doc.getText("body").toString() };
 }

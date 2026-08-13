@@ -4,6 +4,13 @@ source "https://rubygems.org"
 gem "rails", "~> 8.0"
 gem "puma"
 
+# The AnyCable leg of the harness: RPC server (bundle exec anycable) for
+# channel logic behind an anycable-go gateway.
+gem "anycable-rails", "~> 1.6"
+gem "redis"   # AnyCable broadcast adapter (rails -> anycable-go)
+gem "webrick" # AnyCable RPC health endpoint the harness gates boot on
+gem "sqlite3"  # ActiveStorage blobs for the real-upload e2e
+
 # The library under test. Path-pinned to the local checkout so tests exercise
 # the latest yrby (reliable delivery + causal-gap protection), not a
 # published version. The ActionCable concern (Y::ActionCable::Sync) lives

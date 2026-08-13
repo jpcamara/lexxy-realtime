@@ -41,7 +41,8 @@
     "test": "node test/run.mjs",
     "test:headless": "node test/run.mjs --headless",
     "test:browser": "node test/run.mjs --browser",
-    "build:importmap": "rolldown -c scripts/rolldown.importmap.config.js && node scripts/build_cursor_css.mjs"
+    "build:importmap": "rolldown -c scripts/rolldown.importmap.config.js && node scripts/build_cursor_css.mjs",
+    "test:anycable": "node test/run.mjs --anycable"
   },
   "dependencies": {
     "yrby-client": "^0.5.0"
@@ -55,9 +56,11 @@
   },
   "devDependencies": {
     "@37signals/lexxy": "0.9.29",
+    "@anycable/core": "^1.1.1",
     "@anycable/web": "^1.1.1",
     "@lexical/yjs": "^0.44.0",
     "@rails/actioncable": "^8.1.300",
+    "@rails/activestorage": "^7.2.302",
     "agent-browser": "^0.28.0",
     "lexical": "^0.44.0",
     "rolldown": "^1.2.1",
