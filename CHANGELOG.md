@@ -19,7 +19,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   design tokens, so a customized Lexxy theme carries into the
   collaboration UI. Override by styling those classes, or keep full
   control by defining `theme.collaboration` on the editor yourself; the
-  peer color arrives as `--lexical-cursor-color`.
+  peer color arrives as `--lexical-cursor-color`. The rules also ship as
+  a real stylesheet (`dist/lexxy-realtime.css` on npm, `lexxy_realtime.css`
+  in the gem's assets) for apps whose Content-Security-Policy blocks
+  injected style tags; when the file is loaded, the element skips its
+  runtime injection.
 
 ## [0.5.0] - 2026-08-12
 

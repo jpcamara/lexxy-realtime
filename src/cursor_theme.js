@@ -19,7 +19,7 @@ export const CURSOR_THEME = Object.freeze({
 
 const STYLE_ID = 'lexxy-realtime-cursor-styles';
 
-const CSS = `
+export const CURSOR_CSS = `
 .lexxy-collab-cursor {
   background-color: var(--lexical-cursor-color);
   width: 2px;
@@ -61,10 +61,20 @@ export function registerCursorTheme(editor) {
   if (theme.collaboration) return; // the app themed cursors itself; keep its look
 
   theme.collaboration = { ...CURSOR_THEME };
-  if (!document.getElementById(STYLE_ID)) {
-    const style = document.createElement('style');
-    style.id = STYLE_ID;
-    style.textContent = CSS;
-    document.head.appendChild(style);
-  }
+  if (stylesheetLoaded() || document.getElementById(STYLE_ID)) return;
+
+  const style = document.createElement('style');
+  style.id = STYLE_ID;
+  style.textContent = CURSOR_CSS;
+  document.head.appendChild(style);
+}
+
+// The same rules ship as a real stylesheet (dist/lexxy-realtime.css on npm,
+// lexxy_realtime.css in the gem's assets) for apps whose Content-Security-
+// Policy blocks injected style tags. The file stamps a marker property on
+// :root; when it is present the runtime injection stays out of the way.
+function stylesheetLoaded() {
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue('--lexxy-realtime-cursor-styles')
+    .trim() !== '';
 }
