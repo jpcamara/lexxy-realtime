@@ -15193,6 +15193,64 @@ function removePendingUploadNodes(editor) {
 	});
 }
 //#endregion
+//#region src/cursor_theme.js
+const CURSOR_THEME = Object.freeze({
+	cursor: "lexxy-collab-cursor",
+	cursorName: "lexxy-collab-cursor__name",
+	selection: "lexxy-collab-selection",
+	selectionBg: "lexxy-collab-selection__bg"
+});
+const STYLE_ID = "lexxy-realtime-cursor-styles";
+const CURSOR_CSS = `
+.lexxy-collab-cursor {
+  background-color: var(--lexical-cursor-color);
+  width: 2px;
+  border-radius: 1px;
+  z-index: 10;
+}
+
+.lexxy-collab-cursor__name {
+  position: absolute;
+  top: 0;
+  left: -2px;
+  transform: translateY(calc(-100% - 3px));
+  background-color: var(--lexical-cursor-color);
+  color: white;
+  font-family: var(--lexxy-font-base, system-ui, sans-serif);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.3em 0.7em;
+  border-radius: calc(var(--lexxy-radius, 0.5ch) * 1.5);
+  white-space: nowrap;
+  box-shadow: 0 1px 3px oklch(0% 0 0 / 0.25);
+  z-index: 11;
+}
+
+.lexxy-collab-selection {
+  z-index: 5;
+}
+
+.lexxy-collab-selection__bg {
+  background-color: var(--lexical-cursor-color);
+  opacity: 0.2;
+  border-radius: 2px;
+}
+`;
+function registerCursorTheme(editor) {
+	const theme = editor._config.theme;
+	if (theme.collaboration) return;
+	theme.collaboration = { ...CURSOR_THEME };
+	if (stylesheetLoaded() || document.getElementById(STYLE_ID)) return;
+	const style = document.createElement("style");
+	style.id = STYLE_ID;
+	style.textContent = CURSOR_CSS;
+	document.head.appendChild(style);
+}
+function stylesheetLoaded() {
+	return getComputedStyle(document.documentElement).getPropertyValue("--lexxy-realtime-cursor-styles").trim() !== "";
+}
+//#endregion
 //#region src/editor_collaboration.js
 let sharedConsumer;
 let configuredConsumer;
@@ -15252,6 +15310,7 @@ var Collaboration = class extends HTMLElement {
 		patchCollabElementSplice(binding);
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
 		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
+		registerCursorTheme(this.editor);
 		const cursorsContainer = this.#createCursorsContainer();
 		binding.cursorsContainer = cursorsContainer;
 		initLocalState(provider, name, color, true, {
