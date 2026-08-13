@@ -5,7 +5,9 @@ import * as Y from "yjs";
 
 export const PORT = process.env.PORT || 4111;
 export const BASE = `http://localhost:${PORT}`;
-export const URL = `ws://localhost:${PORT}/cable`;
+// CABLE_URL points the suite at a different gateway (the AnyCable leg
+// sets it to anycable-go); default is the test server's own /cable.
+export const URL = process.env.CABLE_URL || `ws://localhost:${PORT}/cable`;
 
 // Minimal ActionCable consumer over a raw WebSocket. `net` is a mutable knob the
 // tests use to simulate loss: { loss: 0..1, blackhole: bool } drop OUTBOUND
