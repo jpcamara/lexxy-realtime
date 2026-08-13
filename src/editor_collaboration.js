@@ -12,6 +12,7 @@ import { createConsumer } from '@rails/actioncable';
 import { YrbyProvider } from './yrby_provider';
 import { attachmentExclusions, patchCollabElementSplice } from './attachment_sync';
 import { registerUploadCleanup } from './upload_cleanup';
+import { registerCursorTheme } from './cursor_theme';
 
 // One shared Action Cable consumer for every element that isn't handed one.
 // createConsumer() reads the standard `action-cable-url` meta tag (rendered by
@@ -129,6 +130,7 @@ export class Collaboration extends HTMLElement {
 
     // Remote cursors/selections are rendered by @lexical/yjs (syncCursorPositions)
     // into a positioned overlay it manages via `binding.cursorsContainer`.
+    registerCursorTheme(this.editor);
     const cursorsContainer = this.#createCursorsContainer();
     binding.cursorsContainer = cursorsContainer;
 

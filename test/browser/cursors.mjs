@@ -67,6 +67,21 @@ check("Bob sees Alice's named caret", await waitBool("bob", overlayHas("Alice"),
 check("Bob sees Carol's named caret", await waitBool("bob", overlayHas("Carol"), "bob sees Carol"));
 check("Bob does NOT render its own caret", !evalBool("bob", overlayHas("Bob")));
 
+// The cursor theme is registered and its stylesheet applies: the caret
+// carries our class (not @lexical/yjs's inline-styled fallback) and the
+// name label renders as the styled pill.
+check(
+  "remote caret uses the lexxy-collab cursor theme",
+  evalBool("bob", '!!document.querySelector(".lexxy-collab-cursors .lexxy-collab-cursor")')
+);
+check(
+  "name label is the styled pill (rounded, themed font)",
+  evalBool(
+    "bob",
+    '(() => { const n = document.querySelector(".lexxy-collab-cursor__name"); if (!n) return false; const cs = getComputedStyle(n); return parseFloat(cs.borderRadius) > 0 && cs.fontFamily !== "Arial"; })()'
+  )
+);
+
 // 2) A real range selection renders a wide highlight (not a ~0px caret).
 // Extend a selection leftward from Alice's caret over the text she just typed
 // (Lexical reliably handles Shift+Arrow; Control+a doesn't select-all here).

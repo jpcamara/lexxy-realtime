@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Remote cursors match Lexxy's design. The name label is a rounded pill
+  in Lexxy's font, the caret is a clean 2px bar, and selections render
+  as soft rounded highlights, all in the peer's color. @lexical/yjs
+  renders its hardcoded inline styles (an Arial label on a square color
+  block) unless the editor's Lexical theme has a `collaboration` entry;
+  the element now registers one (`lexxy-collab-cursor`,
+  `lexxy-collab-cursor__name`, `lexxy-collab-selection`,
+  `lexxy-collab-selection__bg`) with a small stylesheet built on Lexxy's
+  design tokens, so a customized Lexxy theme carries into the
+  collaboration UI. Override by styling those classes, or keep full
+  control by defining `theme.collaboration` on the editor yourself; the
+  peer color arrives as `--lexical-cursor-color`.
+
 ## [0.5.0] - 2026-08-12
 
 ### Changed
