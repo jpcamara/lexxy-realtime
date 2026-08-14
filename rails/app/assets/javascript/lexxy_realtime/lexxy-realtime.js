@@ -15194,13 +15194,6 @@ function removePendingUploadNodes(editor) {
 }
 //#endregion
 //#region src/cursor_theme.js
-const CURSOR_THEME = Object.freeze({
-	cursor: "lexxy-collab-cursor",
-	cursorName: "lexxy-collab-cursor__name",
-	selection: "lexxy-collab-selection",
-	selectionBg: "lexxy-collab-selection__bg"
-});
-const STYLE_ID = "lexxy-realtime-cursor-styles";
 const CURSOR_CSS = `
 .lexxy-collab-cursor {
   background-color: var(--lexical-cursor-color);
@@ -15240,15 +15233,17 @@ const CURSOR_CSS = `
 function registerCursorTheme(editor) {
 	const theme = editor._config.theme;
 	if (theme.collaboration) return;
-	theme.collaboration = { ...CURSOR_THEME };
-	if (stylesheetLoaded() || document.getElementById(STYLE_ID)) return;
+	theme.collaboration = {
+		cursor: "lexxy-collab-cursor",
+		cursorName: "lexxy-collab-cursor__name",
+		selection: "lexxy-collab-selection",
+		selectionBg: "lexxy-collab-selection__bg"
+	};
+	if (getComputedStyle(document.documentElement).getPropertyValue("--lexxy-realtime-cursor-styles").trim() !== "" || document.getElementById("lexxy-realtime-cursor-styles")) return;
 	const style = document.createElement("style");
-	style.id = STYLE_ID;
+	style.id = "lexxy-realtime-cursor-styles";
 	style.textContent = CURSOR_CSS;
 	document.head.appendChild(style);
-}
-function stylesheetLoaded() {
-	return getComputedStyle(document.documentElement).getPropertyValue("--lexxy-realtime-cursor-styles").trim() !== "";
 }
 //#endregion
 //#region src/editor_collaboration.js

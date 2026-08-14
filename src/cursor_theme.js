@@ -1,23 +1,16 @@
-// Remote cursor and selection styling. @lexical/yjs renders remote carets,
-// name labels, and selection highlights with hardcoded inline styles (Arial
-// labels on square color blocks) unless the editor's Lexical theme has a
-// `collaboration` entry; with one, it applies these class names instead and
-// exposes the peer's color as `--lexical-cursor-color`. The stylesheet leans
-// on Lexxy's design tokens with fallbacks, so a customized Lexxy theme
-// (radius, font) carries into the collaboration UI.
+// Remote cursor and selection styling. Without a `collaboration` entry in
+// the editor's Lexical theme, @lexical/yjs renders remote carets and name
+// labels with hardcoded inline styles (an Arial label on a color block).
+// With one, it applies the theme's class names instead and exposes each
+// peer's color as `--lexical-cursor-color`. These rules build on Lexxy's
+// design tokens, so a customized Lexxy theme carries into the
+// collaboration UI.
 //
-// An app that defines its own `collaboration` theme on the editor keeps it:
-// the theme is only registered when the editor has none, and this stylesheet
-// only ships alongside this theme's class names.
-
-export const CURSOR_THEME = Object.freeze({
-  cursor: 'lexxy-collab-cursor',
-  cursorName: 'lexxy-collab-cursor__name',
-  selection: 'lexxy-collab-selection',
-  selectionBg: 'lexxy-collab-selection__bg',
-});
-
-const STYLE_ID = 'lexxy-realtime-cursor-styles';
+// The same rules also ship as a real stylesheet (dist/lexxy-realtime.css
+// on npm, lexxy_realtime.css in the gem) for apps whose
+// Content-Security-Policy blocks injected style tags. The file stamps a
+// :root marker; when it is present the runtime injection stays out of the
+// way.
 
 export const CURSOR_CSS = `
 .lexxy-collab-cursor {
@@ -60,21 +53,19 @@ export function registerCursorTheme(editor) {
   const theme = editor._config.theme;
   if (theme.collaboration) return; // the app themed cursors itself; keep its look
 
-  theme.collaboration = { ...CURSOR_THEME };
-  if (stylesheetLoaded() || document.getElementById(STYLE_ID)) return;
+  theme.collaboration = {
+    cursor: 'lexxy-collab-cursor',
+    cursorName: 'lexxy-collab-cursor__name',
+    selection: 'lexxy-collab-selection',
+    selectionBg: 'lexxy-collab-selection__bg',
+  };
+
+  const fromFile = getComputedStyle(document.documentElement)
+    .getPropertyValue('--lexxy-realtime-cursor-styles').trim() !== '';
+  if (fromFile || document.getElementById('lexxy-realtime-cursor-styles')) return;
 
   const style = document.createElement('style');
-  style.id = STYLE_ID;
+  style.id = 'lexxy-realtime-cursor-styles';
   style.textContent = CURSOR_CSS;
   document.head.appendChild(style);
-}
-
-// The same rules ship as a real stylesheet (dist/lexxy-realtime.css on npm,
-// lexxy_realtime.css in the gem's assets) for apps whose Content-Security-
-// Policy blocks injected style tags. The file stamps a marker property on
-// :root; when it is present the runtime injection stays out of the way.
-function stylesheetLoaded() {
-  return getComputedStyle(document.documentElement)
-    .getPropertyValue('--lexxy-realtime-cursor-styles')
-    .trim() !== '';
 }
