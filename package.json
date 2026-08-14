@@ -19,7 +19,8 @@
     ".": {
       "types": "./types/lexxy-realtime.d.ts",
       "default": "./dist/lexxy-realtime.js"
-    }
+    },
+    "./lexxy-realtime.css": "./dist/lexxy-realtime.css"
   },
   "files": [
     "dist",
@@ -35,13 +36,13 @@
   },
   "scripts": {
     "prepare": "npm run build",
-    "build": "rolldown -c",
+    "build": "rolldown -c && node scripts/build_cursor_css.mjs",
     "build:watch": "rolldown --watch -c",
     "build:test": "rolldown -c test/browser/rolldown.config.mjs",
     "test": "node test/run.mjs",
     "test:headless": "node test/run.mjs --headless",
     "test:browser": "node test/run.mjs --browser",
-    "build:importmap": "rolldown -c scripts/rolldown.importmap.config.js",
+    "build:importmap": "rolldown -c scripts/rolldown.importmap.config.js && node scripts/build_cursor_css.mjs",
     "test:anycable": "node test/run.mjs --anycable"
   },
   "dependencies": {

@@ -6,17 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Changed
-
-- The README leads with a quick start (gem, generator, model, form, and
-  the JavaScript for import-map and bundler apps both), followed by a
-  table of contents and the reference sections. The import-map install
-  path is documented for the first time; the old README required a
-  bundler even though the generator pins the gem's own import-map
-  builds.
-
 ### Added
 
+- Remote cursors match Lexxy's design. The name label is a rounded pill
+  in Lexxy's font, the caret is a clean 2px bar, and selections render
+  as soft rounded highlights, all in the peer's color. @lexical/yjs
+  renders its hardcoded inline styles (an Arial label on a square color
+  block) unless the editor's Lexical theme has a `collaboration` entry;
+  the element now registers one (`lexxy-collab-cursor`,
+  `lexxy-collab-cursor__name`, `lexxy-collab-selection`,
+  `lexxy-collab-selection__bg`) with a small stylesheet built on Lexxy's
+  design tokens, so a customized Lexxy theme carries into the
+  collaboration UI. Override by styling those classes, or keep full
+  control by defining `theme.collaboration` on the editor yourself; the
+  peer color arrives as `--lexical-cursor-color`. The rules also ship as
+  a real stylesheet for apps whose Content-Security-Policy blocks
+  injected style tags: `import "lexxy-realtime/lexxy-realtime.css"` on
+  npm, or the gem's `lexxy_realtime.css` asset. When the file is loaded,
+  the element skips its runtime injection.
 - Real uploads are covered end to end. The test server gains ActiveStorage
   (sqlite + disk service, tables created at boot), and a browser e2e drives
   a PNG through Lexxy's own upload pipeline: DirectUpload to the real
@@ -29,9 +36,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`npm run test:anycable`, run automatically in full runs when
   anycable-go and redis are present, plus a CI job): the headless
   durability suites, the full browser editor e2e, and a runtime
-  `@anycable/web` consumer check all go through a real anycable-go
-  gateway and RPC server, including presence over AnyCable whispers.
-  The README documents the server pair and both client paths.
+  AnyCable consumer check all go through a real anycable-go gateway
+  and RPC server, including presence over AnyCable whispers. The
+  browser leg runs the real `@anycable/web` client; the headless
+  check uses the same ActionCable-compat consumer through
+  `@anycable/core`, the class `@anycable/web` re-exports. The README
+  documents the server pair and both client paths.
+
+### Changed
+
+- The README leads with a quick start (gem, generator, model, form, and
+  the JavaScript for import-map and bundler apps both), followed by a
+  table of contents and the reference sections. The import-map install
+  path is documented for the first time; the old README required a
+  bundler even though the generator pins the gem's own import-map
+  builds.
 
 ## [0.5.0] - 2026-08-12
 

@@ -218,7 +218,7 @@ try {
             if (r.status !== 0) exitCode = 1;
           }
 
-          console.log("\n--- @anycable/web consumer, runtime (headless) ---");
+          console.log("\n--- AnyCable consumer, runtime (headless) ---");
           const ac = run("bun", [join(here, "headless", "anycable_client.mjs")], { env: { ...process.env, PORT, CABLE_URL } });
           if (ac.status !== 0) exitCode = 1;
 
