@@ -36,9 +36,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`npm run test:anycable`, run automatically in full runs when
   anycable-go and redis are present, plus a CI job): the headless
   durability suites, the full browser editor e2e, and a runtime
-  `@anycable/web` consumer check all go through a real anycable-go
-  gateway and RPC server, including presence over AnyCable whispers.
-  The README documents the server pair and both client paths.
+  AnyCable consumer check all go through a real anycable-go gateway
+  and RPC server, including presence over AnyCable whispers. The
+  browser leg runs the real `@anycable/web` client; the headless
+  check uses the same ActionCable-compat consumer through
+  `@anycable/core`, the class `@anycable/web` re-exports. The README
+  documents the server pair and both client paths.
 
 ### Changed
 
