@@ -19,7 +19,8 @@
     ".": {
       "types": "./types/lexxy-realtime.d.ts",
       "default": "./dist/lexxy-realtime.js"
-    }
+    },
+    "./lexxy-realtime.css": "./dist/lexxy-realtime.css"
   },
   "files": [
     "dist",

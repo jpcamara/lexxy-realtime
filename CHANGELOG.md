@@ -20,10 +20,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   collaboration UI. Override by styling those classes, or keep full
   control by defining `theme.collaboration` on the editor yourself; the
   peer color arrives as `--lexical-cursor-color`. The rules also ship as
-  a real stylesheet (`dist/lexxy-realtime.css` on npm, `lexxy_realtime.css`
-  in the gem's assets) for apps whose Content-Security-Policy blocks
-  injected style tags; when the file is loaded, the element skips its
-  runtime injection.
+  a real stylesheet for apps whose Content-Security-Policy blocks
+  injected style tags: `import "lexxy-realtime/lexxy-realtime.css"` on
+  npm, or the gem's `lexxy_realtime.css` asset. When the file is loaded,
+  the element skips its runtime injection.
 - Real uploads are covered end to end. The test server gains ActiveStorage
   (sqlite + disk service, tables created at boot), and a browser e2e drives
   a PNG through Lexxy's own upload pipeline: DirectUpload to the real
