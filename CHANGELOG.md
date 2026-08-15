@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-08-14
 
 ### Added
 
@@ -273,7 +273,8 @@ so the upstream packages are never modified on disk.
 
 - Standardized on a single lockfile (`bun.lock`); dropped `package-lock.json`.
 
-[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.2.1...v0.3.0
