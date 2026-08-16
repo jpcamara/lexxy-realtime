@@ -71,10 +71,8 @@ Finally, authorize access: implement `authorized?` in the generated channel
 
 ## Try it
 
-A working app using this exact setup lives in [`demo/`](demo/). The
-[yrby demo](https://github.com/jpcamara/yrby/tree/main/examples/actioncable-demo)
-also runs a Lexxy editor on lexxy-realtime end to end, with a one-command
-Docker setup: open `/docs/demo/lexxy` in two windows and type.
+A working app using this exact setup lives in [`demo/`](demo/): run
+`bin/setup`, create a post, and open its edit page in two windows.
 
 ## Contents
 
