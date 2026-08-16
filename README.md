@@ -58,10 +58,12 @@ import "lexxy-realtime"
 ```
 
 **With a JavaScript bundler** (esbuild, webpack, bun), install the npm
-package and its peers, then use the same imports:
+package and use the same imports. npm and bun install its peers
+(`lexical`, `yjs`, and friends) automatically; yarn only warns, so add
+`@lexical/yjs yjs y-protocols` yourself there:
 
 ```bash
-npm install lexxy-realtime @lexical/yjs yjs y-protocols
+npm install lexxy-realtime
 ```
 
 Finally, authorize access: implement `authorized?` in the generated channel
@@ -207,10 +209,11 @@ can instead supply a consumer or your own document and provider (see
 `@37signals/lexxy`, and `lexxy-realtime`, pointing at builds the gem ships.
 Nothing to install; import the packages in your entry point.
 
-**Bundlers**: install the npm package and its peers:
+**Bundlers**: install the npm package. npm and bun install its peers
+automatically; with yarn, add `@lexical/yjs yjs y-protocols` yourself:
 
 ```bash
-npm install lexxy-realtime @lexical/yjs yjs y-protocols
+npm install lexxy-realtime
 ```
 
 You also need a Lexxy editor and `lexical` (`^0.44`), which your app already
