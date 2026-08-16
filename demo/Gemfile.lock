@@ -1,8 +1,8 @@
 PATH
   remote: ../rails
   specs:
-    lexxy-realtime (0.4.0)
-      lexxy (>= 0.9)
+    lexxy-realtime (0.6.0)
+      lexxy (>= 0.9.29)
       rails (>= 8.0.2)
       yrby (>= 0.6.0)
       yrby-rails (>= 0.5)
@@ -358,7 +358,7 @@ CHECKSUMS
   jsbundling-rails (1.3.1) sha256=0fa03f6d051c694cbf55a022d8be53399879f2c4cf38b2968f86379c62b1c2ca
   json (2.21.2) sha256=1f1d3b7cf2b3ba1a69beca0bb6db13d5438b80bff3cd54cdaaa620b9b07c1c6a
   lexxy (0.9.29) sha256=67421fef9a72c303189780cb419287e2a5aa550b492dee7a153a582add00e29c
-  lexxy-realtime (0.4.0)
+  lexxy-realtime (0.6.0)
   logger (1.7.0) sha256=196edec7cc44b66cfb40f9755ce11b392f21f7967696af15d274dde7edff0203
   loofah (2.25.2) sha256=2007f746959ac65552456e04b433e83deb22759ab38c838b4445c70e43425918
   mail (2.9.1) sha256=06574eca475253d6c18145dd70af80d0eb970182d55053497c5f4d797ea160e8

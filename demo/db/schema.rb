@@ -60,7 +60,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_234613) do
     t.integer "document_id", null: false
     t.binary "payload", limit: 16777215, null: false
     t.boolean "pending", default: false, null: false
-    t.index ["document_id"], name: "index_y_document_updates_on_document_id"
+    t.index ["document_id", "pending"], name: "index_y_document_updates_on_document_id_and_pending"
   end
 
   create_table "y_documents", force: :cascade do |t|
