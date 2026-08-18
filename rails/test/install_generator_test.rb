@@ -54,10 +54,11 @@ class InstallGeneratorTest < Rails::Generators::TestCase
 
     assert_file "config/importmap.rb" do |importmap|
       assert_match 'pin "application"', importmap
-      assert_match 'pin "lexical", to: "lexxy_realtime/lexical.js"', importmap
-      assert_match 'pin "@37signals/lexxy", to: "lexxy_realtime/lexxy.js"', importmap
+      assert_match 'pin "@37signals/lexxy", to: "lexxy.js"', importmap
       assert_match 'pin "lexxy-realtime", to: "lexxy_realtime/lexxy-realtime.js"', importmap
       assert_match 'pin "@rails/activestorage", to: "activestorage.esm.js"', importmap
+      refute_match "lexxy_realtime/lexical.js", importmap
+      refute_match "lexxy_realtime/lexxy.js", importmap
     end
   end
 
