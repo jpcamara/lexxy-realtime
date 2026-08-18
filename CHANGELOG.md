@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- The import-map bundle borrows Lexxy's embedded lexical instead of
+  shipping its own. Bare `lexical` imports in the bundle resolve through
+  a build-time shim to Lexxy's documented `Lexical` re-export, so the
+  page runs exactly one lexical: the editor's. The gem no longer ships
+  its own Lexxy and lexical builds, and the generator now adds two pins
+  (`@37signals/lexxy` aliasing the app's own Lexxy asset, and
+  `lexxy-realtime`) instead of three pointing at gem copies. Upgrading
+  import-map apps: remove the old `lexxy_realtime/lexical.js` and
+  `lexxy_realtime/lexxy.js` pins and re-run the install generator, or
+  apply the two pins by hand. Bundler apps are unaffected.
+
 ## [0.6.0] - 2026-08-14
 
 ### Added

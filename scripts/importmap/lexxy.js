@@ -1,5 +1,3 @@
-// Import-map pin target: the Lexxy editor with everything except
-// `lexical` (shared with lexxy-realtime through its own pin) and
-// `@rails/activestorage` (the Rails-provided pin, loaded on upload)
-// bundled in.
+// Test-only stand-in for the Lexxy gem's own import-map asset:
+// self-contained, lexical embedded, as the real gem ships it.
 export * from "@37signals/lexxy";
