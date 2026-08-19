@@ -1,6 +1,6 @@
 {
   "name": "lexxy-realtime",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Collaborative editing for the Lexxy editor. Syncs over Yjs through yrby's ActionCable/AnyCable provider, or any Yjs provider.",
   "homepage": "https://github.com/jpcamara/lexxy-realtime#readme",
   "bugs": {
