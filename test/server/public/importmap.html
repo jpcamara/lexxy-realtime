@@ -12,7 +12,7 @@
     <script type="importmap">
       {
         "imports": {
-          "lexical": "/importmap-assets/lexical.js",
+          "lexxy": "/importmap-assets/lexxy.js",
           "@37signals/lexxy": "/importmap-assets/lexxy.js",
           "lexxy-realtime": "/importmap-assets/lexxy-realtime.js"
         }
@@ -44,8 +44,8 @@
     <script type="module">
       import "@37signals/lexxy";
       import "lexxy-realtime";
-      import { $createActionTextAttachmentNode } from "@37signals/lexxy";
-      import { $getRoot } from "lexical";
+      import { $createActionTextAttachmentNode, Lexical } from "@37signals/lexxy";
+      const { $getRoot } = Lexical;
 
       const editor = document.getElementById("editor");
       const collab = document.querySelector("lexxy-collaboration");
@@ -56,9 +56,11 @@
         docRoot: () => (collab.doc?.share.get("root") ? collab.doc.share.get("root").toString() : ""),
         peers: () => [...(collab.awareness?.getStates().values() ?? [])].map((s) => s.name).filter(Boolean),
         errors: () => window.__err,
-        // Insert an attachment through the pinned modules: $getRoot from the
-        // lexical pin operating inside an editor built by the lexxy pin. A
-        // duplicate lexical copy fails here with a class identity error.
+        // Insert an attachment through the pinned modules: $getRoot from
+        // Lexxy's Lexical re-export operating inside an editor built by the
+        // same pin. lexxy-realtime's bundle reaches the identical copy
+        // through its shim; a duplicate lexical fails here with a class
+        // identity error.
         insertAttachment: (sgid) => {
           try {
             editor.editor.update(() => {

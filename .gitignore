@@ -25,3 +25,5 @@ rails/pkg/
 
 # Lexxy stylesheets copied from node_modules by build:test.
 test/server/public/lexxy-css/
+
+scripts/importmap/lexical_shim.js

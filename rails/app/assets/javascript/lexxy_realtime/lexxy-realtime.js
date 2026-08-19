@@ -1,4 +1,4 @@
-import { $addUpdateTag, $caretFromPoint, $caretRangeFromSelection, $cloneWithProperties as $cloneWithProperties$1, $cloneWithPropertiesEphemeral, $createChildrenArray, $createParagraphNode, $createRangeSelection, $createTextNode, $extendCaretToRange, $findMatchingParent, $getCharacterOffsets, $getEditor, $getNodeByKey, $getNodeByKeyOrThrow, $getPreviousSelection, $getRoot, $getSelection, $getState, $getWritableNodeState, $hasAncestor, $isChildCaret, $isDecoratorNode, $isElementNode, $isExtendableTextPointCaret, $isLeafNode, $isLineBreakNode, $isRangeSelection, $isRootNode, $isRootOrShadowRoot, $isTextNode, $isTokenOrSegmented, $nodesOfType, $selectAll as $selectAll$1, $setSelection, COLLABORATION_TAG, ElementNode, HISTORIC_TAG, HISTORY_MERGE_TAG, INTERNAL_$isBlock, RootNode, SKIP_SCROLL_INTO_VIEW_TAG, TextNode, createCommand, createEditor, createState, getStyleObjectFromCSS, removeFromParent, setDOMStyleObject } from "lexical";
+import { Lexical } from "@37signals/lexxy";
 //#region \0rolldown/runtime.js
 var __defProp = Object.defineProperty;
 var __exportAll = (all, no_symbols) => {
@@ -10,6 +10,242 @@ var __exportAll = (all, no_symbols) => {
 	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
 	return target;
 };
+//#endregion
+//#region scripts/importmap/lexical_shim.js
+const $addUpdateTag = Lexical.$addUpdateTag;
+Lexical.$applyNodeReplacement;
+const $caretFromPoint = Lexical.$caretFromPoint;
+const $caretRangeFromSelection = Lexical.$caretRangeFromSelection;
+const $cloneWithProperties$1 = Lexical.$cloneWithProperties;
+const $cloneWithPropertiesEphemeral = Lexical.$cloneWithPropertiesEphemeral;
+Lexical.$comparePointCaretNext;
+Lexical.$copyNode;
+Lexical.$create;
+const $createChildrenArray = Lexical.$createChildrenArray;
+Lexical.$createLineBreakNode;
+Lexical.$createNodeSelection;
+const $createParagraphNode = Lexical.$createParagraphNode;
+Lexical.$createPoint;
+const $createRangeSelection = Lexical.$createRangeSelection;
+Lexical.$createRangeSelectionFromDom;
+Lexical.$createTabNode;
+const $createTextNode = Lexical.$createTextNode;
+const $extendCaretToRange = Lexical.$extendCaretToRange;
+const $findMatchingParent = Lexical.$findMatchingParent;
+Lexical.$getAdjacentChildCaret;
+Lexical.$getAdjacentNode;
+Lexical.$getAdjacentSiblingOrParentSiblingCaret;
+Lexical.$getCaretInDirection;
+Lexical.$getCaretRange;
+Lexical.$getCaretRangeInDirection;
+const $getCharacterOffsets = Lexical.$getCharacterOffsets;
+Lexical.$getChildCaret;
+Lexical.$getChildCaretAtIndex;
+Lexical.$getChildCaretOrSelf;
+Lexical.$getCollapsedCaretRange;
+Lexical.$getCommonAncestor;
+Lexical.$getCommonAncestorResultBranchOrder;
+const $getEditor = Lexical.$getEditor;
+Lexical.$getEditorDOMRenderConfig;
+Lexical.$getNearestNodeFromDOMNode;
+Lexical.$getNearestRootOrShadowRoot;
+const $getNodeByKey = Lexical.$getNodeByKey;
+const $getNodeByKeyOrThrow = Lexical.$getNodeByKeyOrThrow;
+Lexical.$getNodeFromDOMNode;
+const $getPreviousSelection = Lexical.$getPreviousSelection;
+const $getRoot = Lexical.$getRoot;
+const $getSelection = Lexical.$getSelection;
+Lexical.$getSiblingCaret;
+const $getState = Lexical.$getState;
+Lexical.$getStateChange;
+Lexical.$getTextContent;
+Lexical.$getTextNodeOffset;
+Lexical.$getTextPointCaret;
+Lexical.$getTextPointCaretSlice;
+const $getWritableNodeState = Lexical.$getWritableNodeState;
+const $hasAncestor = Lexical.$hasAncestor;
+Lexical.$hasUpdateTag;
+Lexical.$insertNodes;
+Lexical.$isBlockElementNode;
+const $isChildCaret = Lexical.$isChildCaret;
+const $isDecoratorNode = Lexical.$isDecoratorNode;
+Lexical.$isEditorState;
+const $isElementNode = Lexical.$isElementNode;
+const $isExtendableTextPointCaret = Lexical.$isExtendableTextPointCaret;
+Lexical.$isInlineElementOrDecoratorNode;
+const $isLeafNode = Lexical.$isLeafNode;
+Lexical.$isLexicalNode;
+const $isLineBreakNode = Lexical.$isLineBreakNode;
+Lexical.$isNodeCaret;
+Lexical.$isNodeSelection;
+Lexical.$isParagraphNode;
+const $isRangeSelection = Lexical.$isRangeSelection;
+const $isRootNode = Lexical.$isRootNode;
+const $isRootOrShadowRoot = Lexical.$isRootOrShadowRoot;
+Lexical.$isSiblingCaret;
+Lexical.$isTabNode;
+const $isTextNode = Lexical.$isTextNode;
+Lexical.$isTextPointCaret;
+Lexical.$isTextPointCaretSlice;
+const $isTokenOrSegmented = Lexical.$isTokenOrSegmented;
+Lexical.$isTokenOrTab;
+const $nodesOfType = Lexical.$nodesOfType;
+Lexical.$normalizeCaret;
+Lexical.$normalizeSelection__EXPERIMENTAL;
+Lexical.$onUpdate;
+Lexical.$parseSerializedNode;
+Lexical.$removeTextFromCaretRange;
+Lexical.$rewindSiblingCaret;
+const $selectAll$1 = Lexical.$selectAll;
+Lexical.$setCompositionKey;
+Lexical.$setPointFromCaret;
+const $setSelection = Lexical.$setSelection;
+Lexical.$setSelectionFromCaretRange;
+Lexical.$setState;
+Lexical.$splitAtPointCaretNext;
+Lexical.$splitNode;
+Lexical.$updateRangeSelectionFromCaretRange;
+Lexical.ArtificialNode__DO_NOT_USE;
+Lexical.BEFORE_INPUT_COMMAND;
+Lexical.BLUR_COMMAND;
+Lexical.CAN_REDO_COMMAND;
+Lexical.CAN_UNDO_COMMAND;
+Lexical.CLEAR_EDITOR_COMMAND;
+Lexical.CLEAR_HISTORY_COMMAND;
+Lexical.CLICK_COMMAND;
+const COLLABORATION_TAG = Lexical.COLLABORATION_TAG;
+Lexical.COMMAND_PRIORITY_BEFORE_CRITICAL;
+Lexical.COMMAND_PRIORITY_BEFORE_EDITOR;
+Lexical.COMMAND_PRIORITY_BEFORE_HIGH;
+Lexical.COMMAND_PRIORITY_BEFORE_LOW;
+Lexical.COMMAND_PRIORITY_BEFORE_NORMAL;
+Lexical.COMMAND_PRIORITY_CRITICAL;
+Lexical.COMMAND_PRIORITY_EDITOR;
+Lexical.COMMAND_PRIORITY_HIGH;
+Lexical.COMMAND_PRIORITY_LOW;
+Lexical.COMMAND_PRIORITY_NORMAL;
+Lexical.COMPOSITION_END_COMMAND;
+Lexical.COMPOSITION_END_TAG;
+Lexical.COMPOSITION_START_COMMAND;
+Lexical.COMPOSITION_START_TAG;
+Lexical.CONTROLLED_TEXT_INSERTION_COMMAND;
+Lexical.COPY_COMMAND;
+Lexical.CUT_COMMAND;
+Lexical.DEFAULT_EDITOR_DOM_CONFIG;
+Lexical.DELETE_CHARACTER_COMMAND;
+Lexical.DELETE_LINE_COMMAND;
+Lexical.DELETE_WORD_COMMAND;
+Lexical.DRAGEND_COMMAND;
+Lexical.DRAGOVER_COMMAND;
+Lexical.DRAGSTART_COMMAND;
+Lexical.DROP_COMMAND;
+Lexical.DecoratorNode;
+const ElementNode = Lexical.ElementNode;
+Lexical.FOCUS_COMMAND;
+Lexical.FORMAT_ELEMENT_COMMAND;
+Lexical.FORMAT_TEXT_COMMAND;
+const HISTORIC_TAG = Lexical.HISTORIC_TAG;
+const HISTORY_MERGE_TAG = Lexical.HISTORY_MERGE_TAG;
+Lexical.HISTORY_PUSH_TAG;
+Lexical.INDENT_CONTENT_COMMAND;
+Lexical.INPUT_COMMAND;
+Lexical.INSERT_LINE_BREAK_COMMAND;
+Lexical.INSERT_PARAGRAPH_COMMAND;
+Lexical.INSERT_TAB_COMMAND;
+const INTERNAL_$isBlock = Lexical.INTERNAL_$isBlock;
+Lexical.IS_ALL_FORMATTING;
+Lexical.IS_BOLD;
+Lexical.IS_CODE;
+Lexical.IS_HIGHLIGHT;
+Lexical.IS_ITALIC;
+Lexical.IS_STRIKETHROUGH;
+Lexical.IS_SUBSCRIPT;
+Lexical.IS_SUPERSCRIPT;
+Lexical.IS_UNDERLINE;
+Lexical.KEY_ARROW_DOWN_COMMAND;
+Lexical.KEY_ARROW_LEFT_COMMAND;
+Lexical.KEY_ARROW_RIGHT_COMMAND;
+Lexical.KEY_ARROW_UP_COMMAND;
+Lexical.KEY_BACKSPACE_COMMAND;
+Lexical.KEY_DELETE_COMMAND;
+Lexical.KEY_DOWN_COMMAND;
+Lexical.KEY_ENTER_COMMAND;
+Lexical.KEY_ESCAPE_COMMAND;
+Lexical.KEY_MODIFIER_COMMAND;
+Lexical.KEY_SPACE_COMMAND;
+Lexical.KEY_TAB_COMMAND;
+Lexical.LineBreakNode;
+Lexical.MOVE_TO_END;
+Lexical.MOVE_TO_START;
+Lexical.NODE_STATE_KEY;
+Lexical.OUTDENT_CONTENT_COMMAND;
+Lexical.PASTE_COMMAND;
+Lexical.PASTE_TAG;
+Lexical.ParagraphNode;
+Lexical.REDO_COMMAND;
+Lexical.REMOVE_TEXT_COMMAND;
+const RootNode = Lexical.RootNode;
+Lexical.SELECTION_CHANGE_COMMAND;
+Lexical.SELECTION_INSERT_CLIPBOARD_NODES_COMMAND;
+Lexical.SELECT_ALL_COMMAND;
+Lexical.SKIP_COLLAB_TAG;
+Lexical.SKIP_DOM_SELECTION_TAG;
+const SKIP_SCROLL_INTO_VIEW_TAG = Lexical.SKIP_SCROLL_INTO_VIEW_TAG;
+Lexical.SKIP_SELECTION_FOCUS_TAG;
+Lexical.TEXT_TYPE_TO_FORMAT;
+Lexical.TabNode;
+const TextNode = Lexical.TextNode;
+Lexical.UNDO_COMMAND;
+Lexical.addClassNamesToElement;
+Lexical.buildImportMap;
+Lexical.configExtension;
+const createCommand = Lexical.createCommand;
+const createEditor = Lexical.createEditor;
+Lexical.createSharedNodeState;
+const createState = Lexical.createState;
+Lexical.declarePeerDependency;
+Lexical.defineExtension;
+Lexical.flipDirection;
+Lexical.getDOMOwnerDocument;
+Lexical.getDOMSelection;
+Lexical.getDOMSelectionFromTarget;
+Lexical.getDOMTextNode;
+Lexical.getEditorPropertyFromDOMNode;
+Lexical.getNearestEditorFromDOMNode;
+Lexical.getRegisteredNode;
+Lexical.getRegisteredNodeOrThrow;
+Lexical.getStaticNodeConfig;
+const getStyleObjectFromCSS$2 = Lexical.getStyleObjectFromCSS;
+Lexical.getTextDirection;
+Lexical.getTransformSetFromKlass;
+Lexical.isBlockDomNode;
+Lexical.isCurrentlyReadOnlyMode;
+Lexical.isDOMDocumentNode;
+Lexical.isDOMNode;
+Lexical.isDOMTextNode;
+Lexical.isDOMUnmanaged;
+Lexical.isDocumentFragment;
+Lexical.isExactShortcutMatch;
+Lexical.isHTMLAnchorElement;
+Lexical.isHTMLElement;
+Lexical.isInlineDomNode;
+Lexical.isLexicalEditor;
+Lexical.isModifierMatch;
+Lexical.isSelectionCapturedInDecoratorInput;
+Lexical.isSelectionWithinEditor;
+Lexical.makeStepwiseIterator;
+Lexical.mergeRegister;
+Lexical.normalizeClassNames;
+Lexical.removeClassNamesFromElement;
+const removeFromParent = Lexical.removeFromParent;
+Lexical.resetRandomKey;
+Lexical.safeCast;
+Lexical.setDOMStyleFromCSS;
+const setDOMStyleObject = Lexical.setDOMStyleObject;
+Lexical.setDOMUnmanaged;
+Lexical.setNodeIndentFromDOM;
+Lexical.shallowMergeConfig;
+Lexical.toggleTextFormatType;
 //#endregion
 //#region node_modules/lib0/map.js
 /**
@@ -11025,7 +11261,7 @@ var LexicalSelection_dev_exports = /* @__PURE__ */ __exportAll({
 	createDOMRange: () => createDOMRange$1,
 	createRectsFromDOMRange: () => createRectsFromDOMRange$1,
 	getCSSFromStyleObject: () => getCSSFromStyleObject$1,
-	getStyleObjectFromCSS: () => getStyleObjectFromCSS$2,
+	getStyleObjectFromCSS: () => getStyleObjectFromCSS$1,
 	trimTextContentFromAnchor: () => trimTextContentFromAnchor$1
 });
 /**
@@ -11339,7 +11575,7 @@ const $addNodeStyle$1 = warnOnlyOnce("$addNodeStyle is a deprecated no-op and ca
 */
 function $patchStyle(target, patch) {
 	if (!($isRangeSelection(target) ? target.isCollapsed() : $isTextNode(target) || $isElementNode(target))) formatDevErrorMessage$1(`$patchStyle must only be called with a TextNode, ElementNode, or collapsed RangeSelection`);
-	const prevStyles = getStyleObjectFromCSS($isRangeSelection(target) ? target.style : $isTextNode(target) ? target.getStyle() : target.getTextStyle());
+	const prevStyles = getStyleObjectFromCSS$2($isRangeSelection(target) ? target.style : $isTextNode(target) ? target.getStyle() : target.getTextStyle());
 	const newCSSText = getCSSFromStyleObject$1(Object.entries(patch).reduce((styles, [key, value]) => {
 		if (typeof value === "function") styles[key] = value(prevStyles[key], target);
 		else if (value === null) delete styles[key];
@@ -11688,7 +11924,7 @@ function $moveCharacter$1(selection, isHoldingShift, isBackward) {
 */
 function $getNodeStyleValueForProperty(node, styleProperty, defaultValue) {
 	const css = node.getStyle();
-	const styleObject = getStyleObjectFromCSS(css);
+	const styleObject = getStyleObjectFromCSS$2(css);
 	if (styleObject !== null) return styleObject[styleProperty] || defaultValue;
 	return defaultValue;
 }
@@ -11712,7 +11948,7 @@ function $getSelectionStyleValueForProperty$1(selection, styleProperty, defaultV
 	const endOffset = isBackward ? anchor.offset : focus.offset;
 	if ($isRangeSelection(selection) && selection.isCollapsed() && selection.style !== "") {
 		const css = selection.style;
-		const styleObject = getStyleObjectFromCSS(css);
+		const styleObject = getStyleObjectFromCSS$2(css);
 		if (styleObject !== null && styleProperty in styleObject) return styleObject[styleProperty];
 	}
 	for (let i = 0; i < nodes.length; i++) {
@@ -11738,7 +11974,7 @@ function $getSelectionStyleValueForProperty$1(selection, styleProperty, defaultV
 *
 */
 /** @deprecated moved to the `lexical` package */
-const getStyleObjectFromCSS$2 = getStyleObjectFromCSS;
+const getStyleObjectFromCSS$1 = getStyleObjectFromCSS$2;
 /** @deprecated renamed to {@link $trimTextContentFromAnchor} by @lexical/eslint-plugin rules-of-lexical */
 const trimTextContentFromAnchor$1 = $trimTextContentFromAnchor$1;
 //#endregion

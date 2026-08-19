@@ -48,8 +48,9 @@ Render the collaborative editor in your form:
 <%= form.collaborative_rich_textarea :body %>
 ```
 
-Load the JavaScript. **With import maps** (propshaft + importmap-rails), the
-generator already added the pins; just import it:
+Load the JavaScript. **With import maps** (propshaft + importmap-rails),
+the generator already added the pins, and the bundle shares the lexical
+copy embedded in Lexxy's own asset; just import it:
 
 ```js
 // app/javascript/application.js
@@ -203,8 +204,11 @@ can instead supply a consumer or your own document and provider (see
 
 ### Install
 
-**Import maps**: the install generator adds pins for `lexical`,
-`@37signals/lexxy`, and `lexxy-realtime`, pointing at builds the gem ships.
+**Import maps**: the install generator adds two pins: `lexxy-realtime`
+(a build the gem ships) and `@37signals/lexxy` as an alias of the app's
+own Lexxy asset (the same file as Lexxy's `lexxy` pin; one URL, one
+module). The bundle reaches lexical through Lexxy's documented `Lexical`
+re-export, so the page runs exactly one copy of lexical: the editor's.
 Nothing to install; import the packages in your entry point.
 
 **Bundlers**: install the npm package. npm and bun install its peers

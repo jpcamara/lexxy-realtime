@@ -42,7 +42,7 @@
     "test": "node test/run.mjs",
     "test:headless": "node test/run.mjs --headless",
     "test:browser": "node test/run.mjs --browser",
-    "build:importmap": "rolldown -c scripts/rolldown.importmap.config.js && node scripts/build_cursor_css.mjs",
+    "build:importmap": "node scripts/gen_lexical_shim.mjs && rolldown -c scripts/rolldown.importmap.config.js && node scripts/build_cursor_css.mjs",
     "test:anycable": "node test/run.mjs --anycable"
   },
   "dependencies": {

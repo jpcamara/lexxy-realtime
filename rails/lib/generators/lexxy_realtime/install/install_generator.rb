@@ -49,11 +49,10 @@ module LexxyRealtime
 
         append_to_file "config/importmap.rb", <<~RUBY
 
-          # lexxy-realtime. lexical is shared between the Lexxy and
-          # lexxy-realtime bundles; @37signals/lexxy must point at the
-          # lexxy_realtime build, not Lexxy's own asset.
-          pin "lexical", to: "lexxy_realtime/lexical.js"
-          pin "@37signals/lexxy", to: "lexxy_realtime/lexxy.js"
+          # lexxy-realtime. @37signals/lexxy aliases the app's own Lexxy
+          # asset (same file as the "lexxy" pin; one URL, one module), so
+          # the bundle shares the editor's embedded lexical.
+          pin "@37signals/lexxy", to: "lexxy.js"
           pin "lexxy-realtime", to: "lexxy_realtime/lexxy-realtime.js"
           pin "@rails/activestorage", to: "activestorage.esm.js"
         RUBY
