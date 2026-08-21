@@ -8,6 +8,7 @@ CI.run do
 
   step "Build: JavaScript bundle", "npm run build"
   step "Boot: application loads", "bin/rails runner 'Post.first; puts :boot_ok'"
+  step "Custom nodes: render rules against a captured document", "bin/rails runner script/check_custom_nodes.rb"
 
 
   # Optional: set a green GitHub commit status to unblock PR merge.

@@ -19,6 +19,9 @@ Key integration files:
   authorization opened up, since the demo has no users. The models ship in
   the yrby-rails gem.
 - `app/javascript/application.js`: `import "lexxy-realtime"`
+- `app/javascript/custom_nodes/index.js`: ecosystem Lexical nodes
+  (hashtags, comment marks) registered with every editor, paired with
+  `nodes:` render rules on `Post` (see [Custom nodes](#custom-nodes))
 - `config/initializers/lexxy_realtime.rb`: guest identity for cursors.
   Without it, the default reads `current_user.name`, `username`, or
   `handle`.
@@ -52,6 +55,41 @@ rows in `y_documents`, `y_document_updates`, and `action_text_rich_texts`
 hold ciphertext.
 
 ![The saved post, notes decrypted on read](docs/show.png)
+
+## Custom nodes
+
+The demo registers two Lexical node packages with every editor, through
+Lexxy's extension API: subclass its `Extension`, return a Lexical extension
+from `lexicalExtension`, and pass the class to `configure()`. The nodes join
+the editor's node list, which is also where the collaboration binding picks
+them up — so they sync between clients like any built-in node. The wiring is
+`app/javascript/custom_nodes/index.js`.
+
+- `@lexical/hashtag`: typing `#word` creates a `HashtagNode`, styled through
+  the editor theme.
+- `@lexical/mark`: the toolbar's comment button wraps the selection in a
+  `MarkNode` (`<mark>`), the building block for comment threads.
+
+The server renders the stored document without running any of that
+JavaScript, so `Post` declares a render rule for the mark:
+
+```ruby
+has_collaborative_rich_text :body, nodes: {
+  "mark" => { tag: "mark", attrs: { "class" => "comment-mark" } }
+}
+```
+
+Without the rule, `MarkNode` is an unknown element node: the marked text
+survives in the saved body, but as plain text — the `<mark>` wrapper is
+lost while both live editors keep showing it. There is no rule for
+hashtags, deliberately: a `HashtagNode` is a `TextNode` subclass, which
+syncs as a plain text run, and text runs materialize as their text (rules
+can't target them). `#word` survives in the saved body as plain text, just
+without the span.
+
+`script/check_custom_nodes.rb` (a `bin/ci` step) replays a document the two
+live editors produced — `script/fixtures/custom_nodes_body.update.b64` —
+through the model and asserts both behaviors.
 
 ## Notes
 

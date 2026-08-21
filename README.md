@@ -177,6 +177,46 @@ before either finishes syncing, which duplicates the initial content.
 Lexical's `CollaborationPlugin` behaves the same way. The duplicate is
 visible and can be deleted.
 
+### Custom Lexical nodes
+
+The live editors render your custom nodes with your JavaScript; the stored
+HTML comes from `Y::Lexxy` on the server, which knows core Lexical and
+Lexxy's own nodes. A custom node type it doesn't know **degrades instead of
+erroring**: a container or inline wrapper renders its children without its
+own markup (text is never dropped), and a decorator-style node (an embed, a
+poll, a widget whose content lives in its attributes) renders as nothing. The editors keep showing the node while it
+is missing from `post.body` — and from everything downstream: mailers,
+search, read-only views. Subclassing a built-in node through Lexical's node
+replacement counts too, because the replacement's type name is what syncs.
+One kind degrades differently: a `TextNode` subclass (a hashtag, a mention
+rendered as styled text) syncs as a plain text run and materializes as its
+text — nothing is lost, but rules can't target text runs, so its markup
+can't be restored either.
+
+Give the field render rules for your node types:
+
+```ruby
+has_collaborative_rich_text :body, nodes: {
+  "poll" => ->(node) {
+    %(<div class="poll" data-poll-id="#{Y::RenderRules.escape_attr(node.attrs["__pollId"])}"></div>)
+  }
+}
+```
+
+The rules are `Y::Lexxy` rules — declarative hashes or callables; see
+[yrby's rendering docs](https://github.com/jpcamara/yrby#rendering) for the
+forms. Escape every attribute value you interpolate
+(`Y::RenderRules.escape_attr` / `escape_text`): stored attributes are
+written by collaborators, and a crafted value could otherwise break out
+into markup that lands in every reader's page.
+
+When a document materializes containing node types with no rule,
+lexxy-realtime logs a warning naming them, once per class/field/type set.
+The warning needs yrby 0.8+; older yrby renders identically but can't
+report. To catch a missing rule in CI instead of the logs, render a real
+document from your editor in a test and assert
+`Y::Lexxy.new(doc, nodes: rules).unknown_types` is empty.
+
 ### Cursor identity
 
 The helper uses the first available `current_user` value from `name`,
