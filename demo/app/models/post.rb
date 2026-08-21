@@ -2,9 +2,9 @@ class Post < ApplicationRecord
   # Render rules for the custom Lexical nodes the demo editors register
   # (app/javascript/custom_nodes/index.js). Y::Lexxy applies them when the
   # document materializes into the attribute. Without the "mark" rule,
-  # @lexical/mark's MarkNode is an unknown element node and the marked
-  # text is dropped from the stored HTML entirely -- while both live
-  # editors keep showing it.
+  # @lexical/mark's MarkNode is an unknown element node: the marked text
+  # survives in the stored HTML, but its <mark> wrapper is lost -- while
+  # both live editors keep showing it.
   #
   # There is no rule for @lexical/hashtag: a HashtagNode is a TextNode
   # subclass, which syncs as a plain text run and materializes as its

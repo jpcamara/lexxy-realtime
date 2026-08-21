@@ -15,7 +15,7 @@ begin
   html = post.reload.body.to_s
   failures = []
   # The "mark" rule materializes @lexical/mark's MarkNode. Without it the
-  # marked text would be dropped from the stored HTML.
+  # marked text would survive as plain text, losing the <mark> wrapper.
   failures << "comment mark markup missing" unless html.include?(%(<mark class="comment-mark">rocks</mark>))
   # Hashtags are text runs: they materialize as their plain text.
   failures << "hashtag text missing" unless html.include?("#ruby")

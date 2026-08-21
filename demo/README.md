@@ -79,12 +79,13 @@ has_collaborative_rich_text :body, nodes: {
 }
 ```
 
-Without the rule, `MarkNode` is an unknown element node and the marked text
-is dropped from the saved body entirely — while both live editors keep
-showing it. There is no rule for hashtags, deliberately: a `HashtagNode` is
-a `TextNode` subclass, which syncs as a plain text run, and text runs
-materialize as their text (rules can't target them). `#word` survives in
-the saved body as plain text, just without the span.
+Without the rule, `MarkNode` is an unknown element node: the marked text
+survives in the saved body, but as plain text — the `<mark>` wrapper is
+lost while both live editors keep showing it. There is no rule for
+hashtags, deliberately: a `HashtagNode` is a `TextNode` subclass, which
+syncs as a plain text run, and text runs materialize as their text (rules
+can't target them). `#word` survives in the saved body as plain text, just
+without the span.
 
 `script/check_custom_nodes.rb` (a `bin/ci` step) replays a document the two
 live editors produced — `script/fixtures/custom_nodes_body.update.b64` —

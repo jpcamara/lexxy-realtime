@@ -182,9 +182,9 @@ visible and can be deleted.
 The live editors render your custom nodes with your JavaScript; the stored
 HTML comes from `Y::Lexxy` on the server, which knows core Lexical and
 Lexxy's own nodes. A custom node type it doesn't know **degrades instead of
-erroring**: a container renders its children without its own markup, and a
-decorator-style node (an embed, a poll, a widget whose content lives in its
-attributes) renders as nothing. The editors keep showing the node while it
+erroring**: a container or inline wrapper renders its children without its
+own markup (text is never dropped), and a decorator-style node (an embed, a
+poll, a widget whose content lives in its attributes) renders as nothing. The editors keep showing the node while it
 is missing from `post.body` — and from everything downstream: mailers,
 search, read-only views. Subclassing a built-in node through Lexical's node
 replacement counts too, because the replacement's type name is what syncs.
