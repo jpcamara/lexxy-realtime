@@ -12,8 +12,13 @@ module LexxyRealtime
     class_methods do
       def has_collaborative_rich_text(name, **options) # rubocop:disable Naming/PredicatePrefix
         include Model unless include?(Model)
+        # nodes: is ours, not Action Text's — Y::Lexxy render rules for the
+        # app's custom Lexical nodes, applied when the document materializes.
+        nodes = options.delete(:nodes)
         has_rich_text(name, **options) if respond_to?(:has_rich_text)
         self.collaborative_rich_text_names = (collaborative_rich_text_names + [name.to_sym]).freeze
+        self.collaborative_rich_text_rules =
+          collaborative_rich_text_rules.merge(name.to_sym => (nodes || {}).freeze).freeze
 
         # encrypted: true encrypts both halves: has_rich_text gets the
         # option (an encrypted body), and the document stores CRDT state
@@ -31,6 +36,7 @@ module LexxyRealtime
 
       included do
         class_attribute :collaborative_rich_text_names, instance_writer: false, default: [].freeze
+        class_attribute :collaborative_rich_text_rules, instance_writer: false, default: {}.freeze
       end
 
       def collaborative_rich_text?(name) = collaborative_rich_text_names.include?(name.to_sym)
@@ -63,9 +69,11 @@ module LexxyRealtime
 
           doc = Y::Doc.new
           doc.apply_update(state)
-          html = Y::Lexxy.new(doc).to_html
+          renderer = Y::Lexxy.new(doc, nodes: collaborative_rich_text_rules[name.to_sym] || {})
+          html = renderer.to_html
           break false if html.nil?
 
+          report_unknown_node_types(name, renderer)
           public_send("#{name}=", html)
           save!(validate: false) # collaboration updates should not run unrelated model validations
           true
@@ -78,6 +86,32 @@ module LexxyRealtime
         return if collaborative_rich_text?(name)
 
         raise ArgumentError, "#{name.inspect} is not collaborative on #{self.class.name}"
+      end
+
+      # A custom Lexical node with no render rule degrades in the stored
+      # HTML — a decorator-style node renders as nothing — while live
+      # editors keep showing it. Instrument every occurrence so apps can
+      # alert, and log once per class/field/type set so the first
+      # materialization makes the divergence visible. unknown_types arrived
+      # in yrby 0.8; an older yrby renders identically but can't report.
+      def report_unknown_node_types(name, renderer)
+        return unless renderer.respond_to?(:unknown_types)
+
+        types = renderer.unknown_types
+        return if types.empty?
+
+        ActiveSupport::Notifications.instrument(
+          "unknown_node_types.lexxy_realtime",
+          record: self, field: name.to_s, types: types
+        )
+        return unless LexxyRealtime.first_sighting_of_unknown_types?([self.class.name, name.to_s, types])
+
+        Rails.logger&.warn(
+          "#{self.class.name}##{name} contains Lexical node types with no Y::Lexxy render rule: " \
+          "#{types.join(', ')}. They degrade in the stored HTML (a decorator-style node renders as " \
+          "nothing) while live editors still show them. Declare rules with " \
+          "has_collaborative_rich_text :#{name}, nodes: { ... }."
+        )
       end
     end
   end

@@ -34,5 +34,14 @@ module LexxyRealtime
     def collaborator_color(name)
       "hsl(#{name.to_s.each_byte.reduce(0) { |acc, b| ((acc * 31) + b) % 360 }}, 70%, 45%)"
     end
+
+    # Gates the unknown-node-type log line to once per class/field/type
+    # set per process; the notification fires every materialization.
+    def first_sighting_of_unknown_types?(key)
+      @unknown_types_mutex.synchronize { !@unknown_types_seen.add?(key).nil? }
+    end
   end
+
+  @unknown_types_seen = Set.new
+  @unknown_types_mutex = Mutex.new
 end

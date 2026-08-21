@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `has_collaborative_rich_text` accepts `nodes:` — `Y::Lexxy` render rules
+  for the app's custom Lexical nodes, applied when the document
+  materializes into the attribute. Without a rule, a custom node degrades
+  in the stored HTML (a decorator-style node renders as nothing) while
+  live editors keep showing it.
+- Materialization reports node types that have no render rule: a log
+  warning once per class/field/type set, and an
+  `unknown_node_types.lexxy_realtime` notification (`record:`, `field:`,
+  `types:`) on every occurrence. Reporting needs yrby 0.8+; older yrby
+  renders identically without the report.
+
 ## [0.7.0] - 2026-08-18
 
 ### Changed

@@ -156,4 +156,74 @@ class CollaborativeTest < Minitest::Test
     assert @post.refresh_collaborative_rich_text(:body)
     assert_equal first, @post.reload.body
   end
+
+  # Stand-ins for Y::Lexxy: current yrby reports unknown node types; an
+  # older yrby has no unknown_types and reporting stays silent.
+  ReportingRenderer = Data.define(:html, :types) do
+    def to_html = html
+    def unknown_types = types
+  end
+
+  LegacyRenderer = Data.define(:html) do
+    def to_html = html
+  end
+
+  # Materialize with Y::Lexxy.new swapped for a stand-in renderer.
+  def with_renderer(renderer)
+    Y::Lexxy.singleton_class.alias_method :__real_new, :new
+    Y::Lexxy.define_singleton_method(:new) { |*, **| renderer }
+    yield
+  ensure
+    Y::Lexxy.singleton_class.alias_method :new, :__real_new
+    Y::Lexxy.singleton_class.remove_method :__real_new
+  end
+
+  def test_materialize_reports_unknown_node_types
+    append(lexxy_full_state)
+    renderer = ReportingRenderer.new(html: "<p>x</p>", types: ["poll"])
+    events = []
+    subscriber = ->(*, payload) { events << payload }
+
+    ActiveSupport::Notifications.subscribed(subscriber, "unknown_node_types.lexxy_realtime") do
+      with_renderer(renderer) do
+        assert @post.refresh_collaborative_rich_text(:body)
+      end
+    end
+
+    assert_equal 1, events.length
+    payload = events.first
+
+    assert_equal @post, payload[:record]
+    assert_equal "body", payload[:field]
+    assert_equal ["poll"], payload[:types]
+    assert_equal "<p>x</p>", @post.reload.body, "the report is advisory; materialization proceeds"
+  end
+
+  def test_materialize_stays_silent_when_yrby_cannot_report
+    append(lexxy_full_state)
+    renderer = LegacyRenderer.new(html: "<p>x</p>")
+    events = []
+    subscriber = ->(*, payload) { events << payload }
+
+    ActiveSupport::Notifications.subscribed(subscriber, "unknown_node_types.lexxy_realtime") do
+      with_renderer(renderer) do
+        assert @post.refresh_collaborative_rich_text(:body)
+      end
+    end
+
+    assert_empty events
+    assert_equal "<p>x</p>", @post.reload.body
+  end
+
+  def test_macro_rules_reach_materialization
+    klass = Class.new(Post) do
+      def self.name = "Post"
+      has_collaborative_rich_text :body, nodes: { "paragraph" => { tag: "section" } }
+    end
+    record = klass.find(@post.id)
+    append(lexxy_full_state, record)
+
+    assert record.refresh_collaborative_rich_text(:body)
+    assert_includes record.reload.body, "<section>", "the field's rules apply to the materialized render"
+  end
 end
