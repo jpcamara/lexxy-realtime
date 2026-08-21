@@ -210,14 +210,12 @@ forms. Escape every attribute value you interpolate
 written by collaborators, and a crafted value could otherwise break out
 into markup that lands in every reader's page.
 
-When a document materializes containing node types with no rule, lexxy-realtime
-logs a warning (once per class/field/type set) and instruments
-`unknown_node_types.lexxy_realtime` with `record:`, `field:`, and `types:`
-on every occurrence, so you can alert on it in production. Reporting needs
-yrby 0.8+; older yrby renders identically but can't report. To catch a
-missing rule in CI instead of the logs, render a real document from your
-editor in a test and assert `Y::Lexxy.new(doc, nodes: rules).unknown_types`
-is empty.
+When a document materializes containing node types with no rule,
+lexxy-realtime logs a warning naming them, once per class/field/type set.
+The warning needs yrby 0.8+; older yrby renders identically but can't
+report. To catch a missing rule in CI instead of the logs, render a real
+document from your editor in a test and assert
+`Y::Lexxy.new(doc, nodes: rules).unknown_types` is empty.
 
 ### Cursor identity
 

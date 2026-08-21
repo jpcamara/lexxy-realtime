@@ -13,11 +13,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   materializes into the attribute. Without a rule, a custom node degrades
   in the stored HTML (a decorator-style node renders as nothing) while
   live editors keep showing it.
-- Materialization reports node types that have no render rule: a log
-  warning once per class/field/type set, and an
-  `unknown_node_types.lexxy_realtime` notification (`record:`, `field:`,
-  `types:`) on every occurrence. Reporting needs yrby 0.8+; older yrby
-  renders identically without the report.
+- Materialization logs a warning naming node types that have no render
+  rule, once per class/field/type set. The warning needs yrby 0.8+; older
+  yrby renders identically without it.
 
 ## [0.7.0] - 2026-08-18
 

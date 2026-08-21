@@ -90,20 +90,15 @@ module LexxyRealtime
 
       # A custom Lexical node with no render rule degrades in the stored
       # HTML — a decorator-style node renders as nothing — while live
-      # editors keep showing it. Instrument every occurrence so apps can
-      # alert, and log once per class/field/type set so the first
-      # materialization makes the divergence visible. unknown_types arrived
-      # in yrby 0.8; an older yrby renders identically but can't report.
+      # editors keep showing it. Log once per class/field/type set so the
+      # first materialization makes the divergence visible. unknown_types
+      # arrived in yrby 0.8; an older yrby renders identically but can't
+      # report.
       def report_unknown_node_types(name, renderer)
         return unless renderer.respond_to?(:unknown_types)
 
         types = renderer.unknown_types
         return if types.empty?
-
-        ActiveSupport::Notifications.instrument(
-          "unknown_node_types.lexxy_realtime",
-          record: self, field: name.to_s, types: types
-        )
         return unless LexxyRealtime.first_sighting_of_unknown_types?([self.class.name, name.to_s, types])
 
         Rails.logger&.warn(

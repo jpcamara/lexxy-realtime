@@ -178,40 +178,45 @@ class CollaborativeTest < Minitest::Test
     Y::Lexxy.singleton_class.remove_method :__real_new
   end
 
-  def test_materialize_reports_unknown_node_types
+  # Capture Rails.logger output for the duration of the block.
+  def capture_log
+    io = StringIO.new
+    original = Rails.logger
+    Rails.logger = Logger.new(io)
+    yield
+    io.string
+  ensure
+    Rails.logger = original
+  end
+
+  def test_materialize_warns_once_about_unknown_node_types
     append(lexxy_full_state)
     renderer = ReportingRenderer.new(html: "<p>x</p>", types: ["poll"])
-    events = []
-    subscriber = ->(*, payload) { events << payload }
 
-    ActiveSupport::Notifications.subscribed(subscriber, "unknown_node_types.lexxy_realtime") do
+    log = capture_log do
       with_renderer(renderer) do
+        assert @post.refresh_collaborative_rich_text(:body)
         assert @post.refresh_collaborative_rich_text(:body)
       end
     end
 
-    assert_equal 1, events.length
-    payload = events.first
-
-    assert_equal @post, payload[:record]
-    assert_equal "body", payload[:field]
-    assert_equal ["poll"], payload[:types]
-    assert_equal "<p>x</p>", @post.reload.body, "the report is advisory; materialization proceeds"
+    assert_equal 1, log.scan("no Y::Lexxy render rule").length,
+                 "one warning per class/field/type set, not per materialization"
+    assert_includes log, "poll"
+    assert_equal "<p>x</p>", @post.reload.body, "the warning is advisory; materialization proceeds"
   end
 
   def test_materialize_stays_silent_when_yrby_cannot_report
     append(lexxy_full_state)
     renderer = LegacyRenderer.new(html: "<p>x</p>")
-    events = []
-    subscriber = ->(*, payload) { events << payload }
 
-    ActiveSupport::Notifications.subscribed(subscriber, "unknown_node_types.lexxy_realtime") do
+    log = capture_log do
       with_renderer(renderer) do
         assert @post.refresh_collaborative_rich_text(:body)
       end
     end
 
-    assert_empty events
+    refute_includes log, "render rule"
     assert_equal "<p>x</p>", @post.reload.body
   end
 
