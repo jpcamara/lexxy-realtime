@@ -188,6 +188,10 @@ attributes) renders as nothing. The editors keep showing the node while it
 is missing from `post.body` — and from everything downstream: mailers,
 search, read-only views. Subclassing a built-in node through Lexical's node
 replacement counts too, because the replacement's type name is what syncs.
+One kind degrades differently: a `TextNode` subclass (a hashtag, a mention
+rendered as styled text) syncs as a plain text run and materializes as its
+text — nothing is lost, but rules can't target text runs, so its markup
+can't be restored either.
 
 Give the field render rules for your node types:
 

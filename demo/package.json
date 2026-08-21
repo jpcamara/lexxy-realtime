@@ -11,6 +11,8 @@
     "@37signals/lexxy": "^0.9.29",
     "@hotwired/stimulus": "^3.2.2",
     "@hotwired/turbo-rails": "^8.0.23",
+    "@lexical/hashtag": "^0.44.0",
+    "@lexical/mark": "^0.44.0",
     "@rails/actioncable": "^8.1.300",
     "@rails/activestorage": "^8.1.300",
     "lexxy-realtime": "file:.."
