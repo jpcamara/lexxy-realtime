@@ -8,3 +8,21 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+/* Custom node styling, shared by the editors (theme classes set in
+   app/javascript/custom_nodes/index.js) and the saved body (markup from
+   the nodes: rules on Post). */
+.hashtag {
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-radius: 3px;
+}
+
+.comment-mark {
+  background: #fef08a;
+  padding-block: 1px;
+}
+
+.comment-mark--overlap {
+  background: #fde047;
+}

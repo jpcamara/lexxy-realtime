@@ -156,4 +156,79 @@ class CollaborativeTest < Minitest::Test
     assert @post.refresh_collaborative_rich_text(:body)
     assert_equal first, @post.reload.body
   end
+
+  # Stand-ins for Y::Lexxy: current yrby reports unknown node types; an
+  # older yrby has no unknown_types and reporting stays silent.
+  ReportingRenderer = Data.define(:html, :types) do
+    def to_html = html
+    def unknown_types = types
+  end
+
+  LegacyRenderer = Data.define(:html) do
+    def to_html = html
+  end
+
+  # Materialize with Y::Lexxy.new swapped for a stand-in renderer.
+  def with_renderer(renderer)
+    Y::Lexxy.singleton_class.alias_method :__real_new, :new
+    Y::Lexxy.define_singleton_method(:new) { |*, **| renderer }
+    yield
+  ensure
+    Y::Lexxy.singleton_class.alias_method :new, :__real_new
+    Y::Lexxy.singleton_class.remove_method :__real_new
+  end
+
+  # Capture Rails.logger output for the duration of the block.
+  def capture_log
+    io = StringIO.new
+    original = Rails.logger
+    Rails.logger = Logger.new(io)
+    yield
+    io.string
+  ensure
+    Rails.logger = original
+  end
+
+  def test_materialize_warns_once_about_unknown_node_types
+    append(lexxy_full_state)
+    renderer = ReportingRenderer.new(html: "<p>x</p>", types: ["poll"])
+
+    log = capture_log do
+      with_renderer(renderer) do
+        assert @post.refresh_collaborative_rich_text(:body)
+        assert @post.refresh_collaborative_rich_text(:body)
+      end
+    end
+
+    assert_equal 1, log.scan("no Y::Lexxy render rule").length,
+                 "one warning per class/field/type set, not per materialization"
+    assert_includes log, "poll"
+    assert_equal "<p>x</p>", @post.reload.body, "the warning is advisory; materialization proceeds"
+  end
+
+  def test_materialize_stays_silent_when_yrby_cannot_report
+    append(lexxy_full_state)
+    renderer = LegacyRenderer.new(html: "<p>x</p>")
+
+    log = capture_log do
+      with_renderer(renderer) do
+        assert @post.refresh_collaborative_rich_text(:body)
+      end
+    end
+
+    refute_includes log, "render rule"
+    assert_equal "<p>x</p>", @post.reload.body
+  end
+
+  def test_macro_rules_reach_materialization
+    klass = Class.new(Post) do
+      def self.name = "Post"
+      has_collaborative_rich_text :body, nodes: { "paragraph" => { tag: "section" } }
+    end
+    record = klass.find(@post.id)
+    append(lexxy_full_state, record)
+
+    assert record.refresh_collaborative_rich_text(:body)
+    assert_includes record.reload.body, "<section>", "the field's rules apply to the materialized render"
+  end
 end
