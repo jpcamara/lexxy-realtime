@@ -11,27 +11,16 @@ class InstallGeneratorTest < Rails::Generators::TestCase
   destination File.expand_path("../tmp/generator-destination", __dir__)
   setup :prepare_destination
 
-  def test_generates_channel_and_migration
+  def test_generates_only_the_migration
     run_generator
 
-    assert_file "app/channels/document_channel.rb" do |channel|
-      assert_match "include Y::ActionCable", channel
-      assert_match "GlobalID::Locator.locate_signed", channel
-      assert_match "LexxyRealtime.sgid_purpose(field)", channel,
-                   "the token is scoped to the record and the field"
-      assert_match "collaborative_rich_text?", channel, "the field must be a declared collaborative attribute"
-      assert_match "find_or_create_collaborative_document", channel
-      assert_match "refresh_collaborative_rich_text", channel,
-                   "the channel materializes updates through the record API"
-      assert_match "record.find_or_create_collaborative_document(field).append", channel,
-                   "storage routes through the record so encrypted attributes decrypt"
-      assert_match "def authorized?\n    false", channel,
-                   "authorization defaults to false"
-    end
+    # The channel ships in the gem (LexxyRealtime::DocumentChannel);
+    # install lands only the migration.
+    assert_no_file "app/channels/document_channel.rb"
+    assert_no_file "app/channels/application_cable/channel.rb"
+    assert_no_file "app/channels/application_cable/connection.rb"
     assert_no_file "app/models/yrby_document_store.rb"
     assert_no_file "app/models/yrby_document_update.rb"
-    assert_file "app/channels/application_cable/channel.rb"
-    assert_file "app/channels/application_cable/connection.rb"
     # Storage migration comes from yrby's tables generator.
     assert_migration "db/migrate/create_y_tables.rb" do |migration|
       assert_match ":y_documents", migration

@@ -41,6 +41,9 @@ class ReadmeExamplesTest < Minitest::Test
 
   def teardown
     LexxyRealtime.identity = @identity_before
+    # The access-control example assigns a channel_name; examples must not
+    # leak configuration into other tests.
+    LexxyRealtime.channel_name = nil
   end
 
   def ruby_blocks(path)

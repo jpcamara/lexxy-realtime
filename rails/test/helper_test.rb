@@ -63,7 +63,7 @@ class HelperTest < Minitest::Test
 
     assert_equal "post-#{@post.id}-body", attrs["doc-id"]
     assert_equal "Ada", attrs["name"]
-    assert_equal LexxyRealtime::CHANNEL_NAME, attrs["channel-name"]
+    assert_equal "LexxyRealtime::DocumentChannel", attrs["channel-name"]
 
     params = JSON.parse(attrs["channel-params"])
 

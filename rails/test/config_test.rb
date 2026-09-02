@@ -13,8 +13,16 @@ class ConfigTest < Minitest::Test
   end
 
   def test_defaults
-    assert_equal "DocumentChannel", LexxyRealtime::CHANNEL_NAME
+    assert_equal "LexxyRealtime::DocumentChannel", LexxyRealtime.channel_name
     assert_equal :lexxy_realtime, LexxyRealtime::SGID_PURPOSE
+  end
+
+  def test_channel_name_is_assignable_for_subclassing_apps
+    LexxyRealtime.channel_name = "MyDocumentChannel"
+
+    assert_equal "MyDocumentChannel", LexxyRealtime.channel_name
+  ensure
+    LexxyRealtime.channel_name = nil
   end
 
   def test_default_identity_reads_current_user

@@ -28,7 +28,10 @@ Gem::Specification.new do |spec|
   # 0.9.29 is the floor the editor JS is built against (attachments
   # construct bare, basecamp/lexxy#1196); the gem floor matches so an
   # import-map app riding the lexxy gem's own asset gets a compatible one.
-  spec.add_dependency "lexxy", ">= 0.9.29"
+  # The ceiling exists because the collaboration bundle executes against
+  # Lexxy's re-exported Lexical namespace at runtime — a Lexxy 1.0 that
+  # reshapes it would fail in the browser, not at bundle time.
+  spec.add_dependency "lexxy", ">= 0.9.29", "< 1.0"
   # lexxy 0.9 requires Rails >= 8.0.2.
   spec.add_dependency "rails", ">= 8.0.2"
   spec.add_dependency "yrby", ">= 0.6.0"

@@ -21,10 +21,10 @@ bin/rails generate lexxy_realtime:install
 bin/rails db:migrate
 ```
 
-The generator creates `app/channels/document_channel.rb`, installs
-yrby's table migration, and adds the standard Action Cable files when
-they are missing. The `Y::Document` and `Y::DocumentUpdate` models come
-from `yrby-rails`.
+The generator installs yrby's table migration — that is the whole
+install. The channel ships in the gem (`LexxyRealtime::DocumentChannel`),
+and the `Y::Document` and `Y::DocumentUpdate` models come from
+`yrby-rails`.
 
 With a bundler, install the JavaScript package and import it next to
 your Lexxy import:
@@ -73,10 +73,13 @@ end
 <% end %>
 ```
 
-Add your app's access check to `authorized?` in the generated channel,
-then open the page in two browsers and edit together. The record must be persisted
-(the document key derives from it). A record with an existing body works: the
-first collaborative open seeds the document from it.
+Render that form only where the request is already authorized to edit the
+record, then open the page in two browsers and edit together. There is no
+channel to write: the helper mints a signed, field-scoped token, and the
+gem-shipped `LexxyRealtime::DocumentChannel` accepts nothing else. The
+record must be persisted (the document key derives from it). A record with
+an existing body works: the first collaborative open seeds the document
+from it.
 
 Encryption works the way Action Text's does:
 
@@ -112,9 +115,26 @@ The next successful update renders the full document again. Until then,
 ## Access control
 
 The form helper gives clients a signed GlobalID scoped to one record and
-field. `DocumentChannel` uses it to locate the record. Put the user
-access check in `authorized?` (for example,
-`record.editable_by?(current_user)`).
+field — the way `turbo_stream_from` signs its stream names. Possession of
+the token is the authorization: your app minted it by rendering the form,
+and `LexxyRealtime::DocumentChannel` rejects a missing, tampered,
+wrong-field, or dead-record token. To layer further checks (say, revoking
+access after the page was rendered), subclass the channel and point the
+helper at it:
+
+```ruby
+# app/channels/my_document_channel.rb
+class MyDocumentChannel < LexxyRealtime::DocumentChannel
+  private
+
+  def authorized?(key = nil)
+    super && record.editable_by?(connection.current_user)
+  end
+end
+
+# config/initializers/lexxy_realtime.rb
+LexxyRealtime.channel_name = "MyDocumentChannel"
+```
 
 ## Configuration
 
