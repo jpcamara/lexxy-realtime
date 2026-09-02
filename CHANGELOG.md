@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- A throw inside the Yjs->Lexical apply no longer silently desyncs the
+  editor. The remote-update observer fires from inside `Y.applyUpdate`,
+  which y-protocols wraps in a catch-and-log — so an exception during
+  Lexical's apply left the Y.Doc holding content the editor never showed,
+  permanently (reconnecting is a doc no-op, so nothing ever re-fired), and
+  poisoned collab offset caches could delete further visible text later.
+  The apply is now wrapped: on failure the element dispatches a bubbling
+  `lexxy-realtime:desync` event and, when it owns its document and
+  provider, rebuilds itself against a fresh Y.Doc so the server's state
+  repopulates a fresh binding (unacked local edits at the moment of
+  failure are lost; consistency wins). Host-supplied documents get the
+  event only — recreate the element to recover. Rebuilds are rate-limited
+  to avoid thrashing on a permanent fault.
+
 ### Added
 
 - `LexxyRealtime::DocumentChannel`, shipped in the gem the way Turbo

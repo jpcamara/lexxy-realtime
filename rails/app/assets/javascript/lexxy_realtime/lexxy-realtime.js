@@ -1902,31 +1902,33 @@ let params;
 const args = [];
 /* c8 ignore start */
 const computeParams = () => {
-	if (params === void 0) if (isNode) {
-		params = create$5();
-		const pargs = process.argv;
-		let currParamName = null;
-		for (let i = 0; i < pargs.length; i++) {
-			const parg = pargs[i];
-			if (parg[0] === "-") {
-				if (currParamName !== null) params.set(currParamName, "");
-				currParamName = parg;
-			} else if (currParamName !== null) {
-				params.set(currParamName, parg);
-				currParamName = null;
-			} else args.push(parg);
-		}
-		if (currParamName !== null) params.set(currParamName, "");
-	} else if (typeof location === "object") {
-		params = create$5();
-		(location.search || "?").slice(1).split("&").forEach((kv) => {
-			if (kv.length !== 0) {
-				const [key, value] = kv.split("=");
-				params.set(`--${fromCamelCase(key, "-")}`, value);
-				params.set(`-${fromCamelCase(key, "-")}`, value);
+	if (params === void 0) {
+		if (isNode) {
+			params = create$5();
+			const pargs = process.argv;
+			let currParamName = null;
+			for (let i = 0; i < pargs.length; i++) {
+				const parg = pargs[i];
+				if (parg[0] === "-") {
+					if (currParamName !== null) params.set(currParamName, "");
+					currParamName = parg;
+				} else if (currParamName !== null) {
+					params.set(currParamName, parg);
+					currParamName = null;
+				} else args.push(parg);
 			}
-		});
-	} else params = create$5();
+			if (currParamName !== null) params.set(currParamName, "");
+		} else if (typeof location === "object") {
+			params = create$5();
+			(location.search || "?").slice(1).split("&").forEach((kv) => {
+				if (kv.length !== 0) {
+					const [key, value] = kv.split("=");
+					params.set(`--${fromCamelCase(key, "-")}`, value);
+					params.set(`-${fromCamelCase(key, "-")}`, value);
+				}
+			});
+		} else params = create$5();
+	}
 	return params;
 };
 /* c8 ignore stop */
@@ -3315,7 +3317,7 @@ const sortAndMergeDeleteSet = (ds) => {
 		for (i = 1, j = 1; i < dels.length; i++) {
 			const left = dels[j - 1];
 			const right = dels[i];
-			if (left.clock + left.len >= right.clock) dels[j - 1] = new DeleteItem(left.clock, max(left.len, right.clock + right.len - left.clock));
+			if (left.clock + left.len >= right.clock) left.len = max(left.len, right.clock + right.len - left.clock);
 			else {
 				if (j < i) dels[j] = right;
 				j++;
@@ -3675,22 +3677,24 @@ var Doc = class Doc extends ObservableV2 {
 			return t;
 		});
 		const Constr = type.constructor;
-		if (TypeConstructor !== AbstractType && Constr !== TypeConstructor) if (Constr === AbstractType) {
-			const t = new TypeConstructor();
-			t._map = type._map;
-			type._map.forEach(
-				/** @param {Item?} n */
-				(n) => {
-					for (; n !== null; n = n.left) n.parent = t;
-				}
-			);
-			t._start = type._start;
-			for (let n = t._start; n !== null; n = n.right) n.parent = t;
-			t._length = type._length;
-			this.share.set(name, t);
-			t._integrate(this, null);
-			return t;
-		} else throw new Error(`Type with the name ${name} has already been defined with a different constructor`);
+		if (TypeConstructor !== AbstractType && Constr !== TypeConstructor) {
+			if (Constr === AbstractType) {
+				const t = new TypeConstructor();
+				t._map = type._map;
+				type._map.forEach(
+					/** @param {Item?} n */
+					(n) => {
+						for (; n !== null; n = n.left) n.parent = t;
+					}
+				);
+				t._start = type._start;
+				for (let n = t._start; n !== null; n = n.right) n.parent = t;
+				t._length = type._length;
+				this.share.set(name, t);
+				t._integrate(this, null);
+				return t;
+			} else throw new Error(`Type with the name ${name} has already been defined with a different constructor`);
+		}
 		return type;
 	}
 	/**
@@ -5655,17 +5659,13 @@ const cleanupTransactions = (transactionCleanups, i) => {
 							event._path = null;
 						});
 						events.sort((event1, event2) => event1.path.length - event2.path.length);
-						fs.push(() => {
-							callEventHandlerListeners(type._dEH, events, transaction);
-						});
+						callEventHandlerListeners(type._dEH, events, transaction);
 					}
 				});
-				fs.push(() => doc.emit("afterTransaction", [transaction, doc]));
-				fs.push(() => {
-					if (transaction._needFormattingCleanup) cleanupYTextAfterTransaction(transaction);
-				});
 			});
+			fs.push(() => doc.emit("afterTransaction", [transaction, doc]));
 			callAll(fs, []);
+			if (transaction._needFormattingCleanup) cleanupYTextAfterTransaction(transaction);
 		} finally {
 			if (doc.gc) tryGcDeleteSet(ds, store, doc.gcFilter);
 			tryMergeDeleteSet(ds, store);
@@ -6256,19 +6256,22 @@ const mergeUpdatesV2 = (updates, YDecoder = UpdateDecoderV2, YEncoder = UpdateEn
 					offset: 0
 				};
 				currDecoder.next();
-			} else if (currWrite.struct.id.clock + currWrite.struct.length < curr.id.clock) if (currWrite.struct.constructor === Skip) currWrite.struct.length = curr.id.clock + curr.length - currWrite.struct.id.clock;
-			else {
-				writeStructToLazyStructWriter(lazyStructEncoder, currWrite.struct, currWrite.offset);
-				const diff = curr.id.clock - currWrite.struct.id.clock - currWrite.struct.length;
-				currWrite = {
-					struct: new Skip(createID(firstClient, currWrite.struct.id.clock + currWrite.struct.length), diff),
-					offset: 0
-				};
-			}
-			else {
+			} else if (currWrite.struct.id.clock + currWrite.struct.length < curr.id.clock) {
+				if (currWrite.struct.constructor === Skip) currWrite.struct.length = curr.id.clock + curr.length - currWrite.struct.id.clock;
+				else {
+					writeStructToLazyStructWriter(lazyStructEncoder, currWrite.struct, currWrite.offset);
+					const diff = curr.id.clock - currWrite.struct.id.clock - currWrite.struct.length;
+					currWrite = {
+						struct: new Skip(createID(firstClient, currWrite.struct.id.clock + currWrite.struct.length), diff),
+						offset: 0
+					};
+				}
+			} else {
 				const diff = currWrite.struct.id.clock + currWrite.struct.length - curr.id.clock;
-				if (diff > 0) if (currWrite.struct.constructor === Skip) currWrite.struct.length -= diff;
-				else curr = sliceStruct(curr, diff);
+				if (diff > 0) {
+					if (currWrite.struct.constructor === Skip) currWrite.struct.length -= diff;
+					else curr = sliceStruct(curr, diff);
+				}
 				if (!currWrite.struct.mergeWith(curr)) {
 					writeStructToLazyStructWriter(lazyStructEncoder, currWrite.struct, currWrite.offset);
 					currWrite = {
@@ -6441,7 +6444,7 @@ var YEvent = class {
 		*/
 		this._changes = null;
 		/**
-		* @type {null | Map<string, { action: 'add' | 'update' | 'delete', oldValue: any }>}
+		* @type {null | Map<string, { action: 'add' | 'update' | 'delete', oldValue: any, newValue: any }>}
 		*/
 		this._keys = null;
 		/**
@@ -6481,7 +6484,7 @@ var YEvent = class {
 		return isDeleted(this.transaction.deleteSet, struct.id);
 	}
 	/**
-	* @type {Map<string, { action: 'add' | 'update' | 'delete', oldValue: any }>}
+	* @type {Map<string, { action: 'add' | 'update' | 'delete', oldValue: any, newValue: any }>}
 	*/
 	get keys() {
 		if (this._keys === null) {
@@ -6499,11 +6502,12 @@ var YEvent = class {
 					if (this.adds(item)) {
 						let prev = item.left;
 						while (prev !== null && this.adds(prev)) prev = prev.left;
-						if (this.deletes(item)) if (prev !== null && this.deletes(prev)) {
-							action = "delete";
-							oldValue = last(prev.content.getContent());
-						} else return;
-						else if (prev !== null && this.deletes(prev)) {
+						if (this.deletes(item)) {
+							if (prev !== null && this.deletes(prev)) {
+								action = "delete";
+								oldValue = last(prev.content.getContent());
+							} else return;
+						} else if (prev !== null && this.deletes(prev)) {
 							action = "update";
 							oldValue = last(prev.content.getContent());
 						} else {
@@ -8148,8 +8152,10 @@ const cleanupFormattingGap = (transaction, start, curr, startAttributes, currAtt
 					if (endFormats.get(key) !== content || startAttrValue === value) {
 						start.delete(transaction);
 						cleanups++;
-						if (!reachedCurr && (currAttributes.get(key) ?? null) === value && startAttrValue !== value) if (startAttrValue === null) currAttributes.delete(key);
-						else currAttributes.set(key, startAttrValue);
+						if (!reachedCurr && (currAttributes.get(key) ?? null) === value && startAttrValue !== value) {
+							if (startAttrValue === null) currAttributes.delete(key);
+							else currAttributes.set(key, startAttrValue);
+						}
 					}
 					if (!reachedCurr && !start.deleted) updateCurrentAttributes(currAttributes, content);
 					break;
@@ -9339,9 +9345,9 @@ var YXmlElement = class YXmlElement extends YXmlFragment {
 		const el = new YXmlElement(this.nodeName);
 		const attrs = this.getAttributes();
 		forEach(attrs, (value, key) => {
-			el.setAttribute(key, value);
+			if (typeof value === "string") el.setAttribute(key, value);
 		});
-		el.insert(0, this.toArray().map((v) => v instanceof AbstractType ? v.clone() : v));
+		el.insert(0, this.toArray().map((item) => item instanceof AbstractType ? item.clone() : item));
 		return el;
 	}
 	/**
@@ -10799,7 +10805,6 @@ const redoItem = (transaction, item, redoitems, itemsToDelete, ignoreRemoteMapCh
 			}
 			if (left && left.right !== null) return null;
 		} else left = parentType._map.get(item.parentSub) || null;
-		if (left !== null && left.parent._item !== parentItem) left = parentType._map.get(item.parentSub) || null;
 	}
 	const nextClock = getState(store, ownClientID);
 	const nextId = createID(ownClientID, nextClock);
@@ -11811,28 +11816,31 @@ function $wrapNodesImpl(selection, nodes, nodesLength, createElement, wrappingEl
 		wrappingElement.append(element);
 	}
 	let lastElement = null;
-	if ($isRootOrShadowRoot(target)) if (targetIsPrevSibling) if (wrappingElement !== null) target.insertAfter(wrappingElement);
-	else for (let i = elements.length - 1; i >= 0; i--) {
-		const element = elements[i];
-		target.insertAfter(element);
-	}
-	else {
-		const firstChild = target.getFirstChild();
-		if ($isElementNode(firstChild)) target = firstChild;
-		if (firstChild === null) if (wrappingElement) target.append(wrappingElement);
-		else for (let i = 0; i < elements.length; i++) {
-			const element = elements[i];
-			target.append(element);
-			lastElement = element;
+	if ($isRootOrShadowRoot(target)) {
+		if (targetIsPrevSibling) {
+			if (wrappingElement !== null) target.insertAfter(wrappingElement);
+			else for (let i = elements.length - 1; i >= 0; i--) {
+				const element = elements[i];
+				target.insertAfter(element);
+			}
+		} else {
+			const firstChild = target.getFirstChild();
+			if ($isElementNode(firstChild)) target = firstChild;
+			if (firstChild === null) {
+				if (wrappingElement) target.append(wrappingElement);
+				else for (let i = 0; i < elements.length; i++) {
+					const element = elements[i];
+					target.append(element);
+					lastElement = element;
+				}
+			} else if (wrappingElement !== null) firstChild.insertBefore(wrappingElement);
+			else for (let i = 0; i < elements.length; i++) {
+				const element = elements[i];
+				firstChild.insertBefore(element);
+				lastElement = element;
+			}
 		}
-		else if (wrappingElement !== null) firstChild.insertBefore(wrappingElement);
-		else for (let i = 0; i < elements.length; i++) {
-			const element = elements[i];
-			firstChild.insertBefore(element);
-			lastElement = element;
-		}
-	}
-	else if (wrappingElement) target.insertAfter(wrappingElement);
+	} else if (wrappingElement) target.insertAfter(wrappingElement);
 	else for (let i = elements.length - 1; i >= 0; i--) {
 		const element = elements[i];
 		target.insertAfter(element);
@@ -12330,35 +12338,38 @@ var CollabElementNode = class CollabElementNode {
 						if (offset === 0 && length === nodeSize) {
 							children.splice(nodeIndex, 1);
 							const danglingText = spliceString(node._text, offset, delCount - 1, "");
-							if (danglingText.length > 0) if (prevCollabNode instanceof CollabTextNode) prevCollabNode._text += danglingText;
-							else this._xmlText.delete(offset, danglingText.length);
+							if (danglingText.length > 0) {
+								if (prevCollabNode instanceof CollabTextNode) prevCollabNode._text += danglingText;
+								else this._xmlText.delete(offset, danglingText.length);
+							}
 						} else node._text = spliceString(node._text, offset, delCount, "");
 						deletionSize -= delCount;
 					} else break;
 				}
-			} else if (insertDelta != null) if (typeof insertDelta === "string") {
-				const { node, offset } = getPositionFromElementAndOffset(this, currIndex, true);
-				if (node instanceof CollabTextNode) node._text = spliceString(node._text, offset, 0, insertDelta);
-				else this._xmlText.delete(offset, insertDelta.length);
-				currIndex += insertDelta.length;
-			} else {
-				const sharedType = insertDelta;
-				const { node, nodeIndex, length } = getPositionFromElementAndOffset(this, currIndex, false);
-				const collabNode = $getOrInitCollabNodeFromSharedType(binding, sharedType, this);
-				if (node instanceof CollabTextNode && length > 0 && length < node._text.length) {
-					const text = node._text;
-					const splitIdx = text.length - length;
-					node._text = spliceString(text, splitIdx, length, "");
-					children.splice(nodeIndex + 1, 0, collabNode);
-					pendingSplitText = spliceString(text, 0, splitIdx, "");
-				} else children.splice(nodeIndex, 0, collabNode);
-				if (pendingSplitText !== null && collabNode instanceof CollabTextNode) {
-					collabNode._text = pendingSplitText + collabNode._text;
-					pendingSplitText = null;
+			} else if (insertDelta != null) {
+				if (typeof insertDelta === "string") {
+					const { node, offset } = getPositionFromElementAndOffset(this, currIndex, true);
+					if (node instanceof CollabTextNode) node._text = spliceString(node._text, offset, 0, insertDelta);
+					else this._xmlText.delete(offset, insertDelta.length);
+					currIndex += insertDelta.length;
+				} else {
+					const sharedType = insertDelta;
+					const { node, nodeIndex, length } = getPositionFromElementAndOffset(this, currIndex, false);
+					const collabNode = $getOrInitCollabNodeFromSharedType(binding, sharedType, this);
+					if (node instanceof CollabTextNode && length > 0 && length < node._text.length) {
+						const text = node._text;
+						const splitIdx = text.length - length;
+						node._text = spliceString(text, splitIdx, length, "");
+						children.splice(nodeIndex + 1, 0, collabNode);
+						pendingSplitText = spliceString(text, 0, splitIdx, "");
+					} else children.splice(nodeIndex, 0, collabNode);
+					if (pendingSplitText !== null && collabNode instanceof CollabTextNode) {
+						collabNode._text = pendingSplitText + collabNode._text;
+						pendingSplitText = null;
+					}
+					currIndex += 1;
 				}
-				currIndex += 1;
-			}
-			else throw new Error("Unexpected delta format");
+			} else throw new Error("Unexpected delta format");
 		}
 	}
 	syncChildrenFromYjs(binding) {
@@ -13535,13 +13546,14 @@ function updateCursor(binding, cursor, nextSelection, nodeMap, theme = {}) {
 	if (cursorsContainerOffsetParent === null) return;
 	const containerRect = cursorsContainerOffsetParent.getBoundingClientRect();
 	const prevSelection = cursor.selection;
-	if (nextSelection === null) if (prevSelection === null) return;
-	else {
-		cursor.selection = null;
-		destroySelection(binding, prevSelection);
-		return;
-	}
-	else cursor.selection = nextSelection;
+	if (nextSelection === null) {
+		if (prevSelection === null) return;
+		else {
+			cursor.selection = null;
+			destroySelection(binding, prevSelection);
+			return;
+		}
+	} else cursor.selection = nextSelection;
 	const caret = nextSelection.caret;
 	const color = nextSelection.color;
 	const selections = nextSelection.selections;
@@ -13666,12 +13678,14 @@ function $getAnchorAndFocusForUserState(binding, userState) {
 		const isBackwards = focusNode.isBefore(anchorNode);
 		const startNode = isBackwards ? focusNode : anchorNode;
 		const startOffset = isBackwards ? focusOffset : anchorOffset;
-		if ($isTextNode(startNode) && $isTextNode(startNode.getNextSibling()) && startOffset === startNode.getTextContentSize()) if (isBackwards) {
-			focusNode = startNode.getNextSibling();
-			focusOffset = 0;
-		} else {
-			anchorNode = startNode.getNextSibling();
-			anchorOffset = 0;
+		if ($isTextNode(startNode) && $isTextNode(startNode.getNextSibling()) && startOffset === startNode.getTextContentSize()) {
+			if (isBackwards) {
+				focusNode = startNode.getNextSibling();
+				focusOffset = 0;
+			} else {
+				anchorNode = startNode.getNextSibling();
+				anchorOffset = 0;
+			}
 		}
 	}
 	return {
@@ -13807,12 +13821,14 @@ function syncLexicalSelectionToYjs(binding, provider, prevSelection, nextSelecti
 	if (nextSelection === null || currentAnchorPos !== null && !nextSelection.is(prevSelection)) {
 		if (prevSelection === null) return;
 	}
-	if ($isRangeSelection(nextSelection)) if (isBindingV1(binding)) {
-		anchorPos = createRelativePosition(nextSelection.anchor, binding);
-		focusPos = createRelativePosition(nextSelection.focus, binding);
-	} else {
-		anchorPos = createRelativePositionV2(nextSelection.anchor, binding);
-		focusPos = createRelativePositionV2(nextSelection.focus, binding);
+	if ($isRangeSelection(nextSelection)) {
+		if (isBindingV1(binding)) {
+			anchorPos = createRelativePosition(nextSelection.anchor, binding);
+			focusPos = createRelativePosition(nextSelection.focus, binding);
+		} else {
+			anchorPos = createRelativePositionV2(nextSelection.anchor, binding);
+			focusPos = createRelativePositionV2(nextSelection.focus, binding);
+		}
 	}
 	if (shouldUpdatePosition(currentAnchorPos, anchorPos) || shouldUpdatePosition(currentFocusPos, focusPos)) awareness.setLocalState({
 		...localState,
@@ -13875,17 +13891,19 @@ function syncYjsChangesToLexical$1(binding, provider, events, isFromUndoManger, 
 }
 function $syncCursorFromYjs(editorState, binding, provider) {
 	const selection = $getSelection();
-	if ($isRangeSelection(selection)) if (doesSelectionNeedRecovering(selection)) {
-		const prevSelection = editorState._selection;
-		if ($isRangeSelection(prevSelection)) {
-			$syncLocalCursorPosition(binding, provider);
-			if (doesSelectionNeedRecovering(selection)) {
-				const anchorNodeKey = selection.anchor.key;
-				$moveSelectionToPreviousNode(anchorNodeKey, editorState);
+	if ($isRangeSelection(selection)) {
+		if (doesSelectionNeedRecovering(selection)) {
+			const prevSelection = editorState._selection;
+			if ($isRangeSelection(prevSelection)) {
+				$syncLocalCursorPosition(binding, provider);
+				if (doesSelectionNeedRecovering(selection)) {
+					const anchorNodeKey = selection.anchor.key;
+					$moveSelectionToPreviousNode(anchorNodeKey, editorState);
+				}
 			}
-		}
-		syncLexicalSelectionToYjs(binding, provider, prevSelection, $getSelection());
-	} else $syncLocalCursorPosition(binding, provider);
+			syncLexicalSelectionToYjs(binding, provider, prevSelection, $getSelection());
+		} else $syncLocalCursorPosition(binding, provider);
+	}
 }
 function $handleNormalizationMergeConflicts(binding, normalizedNodes) {
 	const normalizedNodesKeys = Array.from(normalizedNodes);
@@ -13896,14 +13914,16 @@ function $handleNormalizationMergeConflicts(binding, normalizedNodes) {
 		const nodeKey = normalizedNodesKeys[i];
 		const lexicalNode = $getNodeByKey(nodeKey);
 		const collabNode = collabNodeMap.get(nodeKey);
-		if (collabNode instanceof CollabTextNode) if ($isTextNode(lexicalNode)) mergedNodes.push([collabNode, lexicalNode.__text]);
-		else {
-			const offset = collabNode.getOffset();
-			if (offset === -1) continue;
-			const parent = collabNode._parent;
-			collabNode._normalized = true;
-			parent._xmlText.delete(offset, 1);
-			removedNodes.push(collabNode);
+		if (collabNode instanceof CollabTextNode) {
+			if ($isTextNode(lexicalNode)) mergedNodes.push([collabNode, lexicalNode.__text]);
+			else {
+				const offset = collabNode.getOffset();
+				if (offset === -1) continue;
+				const parent = collabNode._parent;
+				collabNode._normalized = true;
+				parent._xmlText.delete(offset, 1);
+				removedNodes.push(collabNode);
+			}
 		}
 	}
 	for (let i = 0; i < removedNodes.length; i++) {
@@ -14630,13 +14650,11 @@ const readSyncStep1 = (decoder, encoder, doc) => writeSyncStep2(encoder, doc, re
 * @param {decoding.Decoder} decoder
 * @param {Y.Doc} doc
 * @param {any} transactionOrigin
-* @param {(error:Error)=>any} [errorHandler]
 */
-const readSyncStep2 = (decoder, doc, transactionOrigin, errorHandler) => {
+const readSyncStep2 = (decoder, doc, transactionOrigin) => {
 	try {
 		applyUpdate(doc, readVarUint8Array(decoder), transactionOrigin);
 	} catch (error) {
-		if (errorHandler != null) errorHandler(error);
 		console.error("Caught error while handling a Yjs update", error);
 	}
 };
@@ -14654,7 +14672,6 @@ const writeUpdate = (encoder, update) => {
 * @param {decoding.Decoder} decoder
 * @param {Y.Doc} doc
 * @param {any} transactionOrigin
-* @param {(error:Error)=>any} [errorHandler]
 */
 const readUpdate = readSyncStep2;
 /**
@@ -14662,19 +14679,18 @@ const readUpdate = readSyncStep2;
 * @param {encoding.Encoder} encoder The reply message. Does not need to be sent if empty.
 * @param {Y.Doc} doc
 * @param {any} transactionOrigin
-* @param {(error:Error)=>any} [errorHandler] Optional error handler that catches errors when reading Yjs messages.
 */
-const readSyncMessage = (decoder, encoder, doc, transactionOrigin, errorHandler) => {
+const readSyncMessage = (decoder, encoder, doc, transactionOrigin) => {
 	const messageType = readVarUint(decoder);
 	switch (messageType) {
 		case 0:
 			readSyncStep1(decoder, encoder, doc);
 			break;
 		case 1:
-			readSyncStep2(decoder, doc, transactionOrigin, errorHandler);
+			readSyncStep2(decoder, doc, transactionOrigin);
 			break;
 		case 2:
-			readUpdate(decoder, doc, transactionOrigin, errorHandler);
+			readUpdate(decoder, doc, transactionOrigin);
 			break;
 		default: throw new Error("Unknown message type");
 	}
@@ -14731,7 +14747,7 @@ var Awareness = class extends Observable {
 		this.meta = /* @__PURE__ */ new Map();
 		this._checkInterval = setInterval(() => {
 			const now = getUnixTime();
-			if (this.getLocalState() !== null && 3e4 / 2 <= now - this.meta.get(this.clientID).lastUpdated) this.setLocalState(this.getLocalState());
+			if (this.getLocalState() !== null && 15e3 <= now - this.meta.get(this.clientID).lastUpdated) this.setLocalState(this.getLocalState());
 			/**
 			* @type {Array<number>}
 			*/
@@ -14889,9 +14905,10 @@ const applyAwarenessUpdate = (awareness, update, origin) => {
 		const prevState = awareness.states.get(clientID);
 		const currClock = clientMeta === void 0 ? 0 : clientMeta.clock;
 		if (currClock < clock || currClock === clock && state === null && awareness.states.has(clientID)) {
-			if (state === null) if (clientID === awareness.clientID && awareness.getLocalState() != null) clock++;
-			else awareness.states.delete(clientID);
-			else awareness.states.set(clientID, state);
+			if (state === null) {
+				if (clientID === awareness.clientID && awareness.getLocalState() != null) clock++;
+				else awareness.states.delete(clientID);
+			} else awareness.states.set(clientID, state);
 			awareness.meta.set(clientID, {
 				clock,
 				lastUpdated: timestamp
@@ -15492,8 +15509,11 @@ function resolveConsumer() {
 	if (typeof configuredConsumer === "function") configuredConsumer = configuredConsumer();
 	return configuredConsumer || (sharedConsumer ??= createConsumer());
 }
-var Collaboration = class extends HTMLElement {
+const Base = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
+var Collaboration = class extends Base {
 	#teardown = null;
+	#ownsEverything = false;
+	#lastRecoveryAt = 0;
 	connectedCallback() {
 		this.editorElement = this.closest("lexxy-editor");
 		if (!this.editorElement) {
@@ -15539,7 +15559,8 @@ var Collaboration = class extends HTMLElement {
 		const excludedProperties = attachmentExclusions(this.editor);
 		const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
 		patchCollabElementSplice(binding);
-		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
+		this.#ownsEverything = ownsProvider && ownsDoc;
+		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => this.#recoverFromDesync(error));
 		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
 		registerCursorTheme(this.editor);
 		const cursorsContainer = this.#createCursorsContainer();
@@ -15575,6 +15596,22 @@ var Collaboration = class extends HTMLElement {
 			}
 			if (ownsDoc) this.doc = null;
 		};
+	}
+	#recoverFromDesync(error) {
+		const canRebuild = this.#ownsEverything && Date.now() - this.#lastRecoveryAt > 15e3;
+		this.dispatchEvent(new CustomEvent("lexxy-realtime:desync", {
+			bubbles: true,
+			detail: {
+				error,
+				recovering: canRebuild
+			}
+		}));
+		if (!canRebuild) return;
+		this.#lastRecoveryAt = Date.now();
+		queueMicrotask(() => {
+			this.#teardown?.();
+			this.#init();
+		});
 	}
 	#createCursorsContainer() {
 		const host = this.editorElement.querySelector(".lexxy-editor-container") || this.editorElement;
@@ -15623,15 +15660,27 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
 		if (timer) clearInterval(timer);
 	};
 }
-function registerCollaborationListeners(editor, provider, binding) {
+function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
+	let desynced = false;
+	return (events, transaction) => {
+		if (transaction.origin === binding) return;
+		if (desynced) return;
+		try {
+			sync(binding, provider, events, false);
+		} catch (error) {
+			desynced = true;
+			console.error("lexxy-realtime: a remote update failed to apply; the editor is out of sync with the document.", error);
+			onDesync?.(error);
+		}
+	};
+}
+function registerCollaborationListeners(editor, provider, binding, onDesync) {
 	const unsubscribeUpdateListener = editor.registerUpdateListener(({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
 		editor.getEditorState().read(() => {
 			if (tags.has("skip-collab") === false) syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags);
 		});
 	});
-	const observer = (events, transaction) => {
-		if (transaction.origin !== binding) syncYjsChangesToLexical(binding, provider, events, false);
-	};
+	const observer = createRemoteApplier(provider, binding, { onDesync });
 	binding.root.getSharedType().observeDeep(observer);
 	return () => {
 		unsubscribeUpdateListener();
