@@ -67,8 +67,10 @@ package and use the same imports. npm and bun install its peers
 npm install lexxy-realtime
 ```
 
-Finally, authorize access: implement `authorized?` in the generated channel
-(everyone is denied until you do). Open the page in two browsers and type.
+There is no channel to write, and access rides the form: render it only
+where the request may edit the record, and the signed, field-scoped token
+it mints is what the gem's channel accepts. Open the page in two browsers
+and type.
 
 ## Try it
 

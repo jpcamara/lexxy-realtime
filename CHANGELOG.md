@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `LexxyRealtime::DocumentChannel`, shipped in the gem the way Turbo
+  ships `Turbo::StreamsChannel`. The form helper points elements at it by
+  name; possession of the signed, field-scoped token the helper mints is
+  the authorization, and a missing, tampered, wrong-field,
+  undeclared-field, or dead-record token is rejected. Apps layering
+  further checks subclass it and set `LexxyRealtime.channel_name` (which
+  replaces the `CHANNEL_NAME` constant).
 - `has_collaborative_rich_text` accepts `nodes:` — `Y::Lexxy` render rules
   for the app's custom Lexical nodes, applied when the document
   materializes into the attribute. Without a rule, a custom node degrades
@@ -16,6 +23,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Materialization logs a warning naming node types that have no render
   rule, once per class/field/type set. The warning needs yrby 0.8+; older
   yrby renders identically without it.
+
+### Changed
+
+- **Breaking:** `lexxy_realtime:install` no longer generates
+  `app/channels/document_channel.rb` or the Action Cable boilerplate —
+  install lands only the storage migration. An app upgrading from the
+  generated channel can delete it (the shipped channel is the same logic,
+  with token possession as the authorization); an app that customized its
+  channel should subclass `LexxyRealtime::DocumentChannel` and set
+  `LexxyRealtime.channel_name` so the form helper points at it.
+- The `lexxy` dependency gains a `< 1.0` ceiling: the collaboration
+  bundle executes against Lexxy's re-exported Lexical namespace at
+  runtime, so an incompatible Lexxy would otherwise fail in the browser
+  rather than at bundle time.
 
 ## [0.7.0] - 2026-08-18
 

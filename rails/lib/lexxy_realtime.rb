@@ -11,11 +11,19 @@ module LexxyRealtime
   # (sgid_purpose), so a token minted elsewhere can't join a document.
   SGID_PURPOSE = :lexxy_realtime
 
-  # The channel the installer generates and the form helper points elements at.
-  CHANNEL_NAME = "DocumentChannel"
-
   class << self
     def sgid_purpose(field) = "#{SGID_PURPOSE}/#{field}"
+
+    # The channel the form helper points elements at. Defaults to the
+    # gem-shipped LexxyRealtime::DocumentChannel; assign your own (usually a
+    # subclass overriding authorized?) to layer app-specific checks:
+    #
+    #   LexxyRealtime.channel_name = "MyDocumentChannel"
+    attr_writer :channel_name
+
+    def channel_name
+      @channel_name || "LexxyRealtime::DocumentChannel"
+    end
 
     # Cursor identity, called with the view context; returns { name:, color: }
     # (a nil color gets a stable one derived from the name).
