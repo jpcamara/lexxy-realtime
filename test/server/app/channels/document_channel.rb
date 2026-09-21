@@ -9,6 +9,12 @@ class DocumentChannel < ApplicationCable::Channel
   on_load  { |key| FileStore.replay(key) }
   on_change { |key, update| FileStore.record(key, update) }
 
+  # This isolated test server accepts every test room. Production channels
+  # must enforce their own document access policy.
+  def authorized?(_key)
+    true
+  end
+
   def subscribed
     sync_subscribed params[:id]
   end

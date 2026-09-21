@@ -285,7 +285,7 @@ import "lexxy-realtime"; // registers <lexxy-collaboration>
 Render (or create) the element with attributes inside the editor. The element
 waits for the editor, creates a shared Action Cable consumer (from the
 standard `action-cable-url` meta tag, falling back to `/cable`), builds the
-doc and provider, connects, and disconnects on removal:
+doc and provider, connects, and releases them on removal:
 
 ```html
 <lexxy-editor>
@@ -336,6 +336,63 @@ provider.connect(); // YrbyProvider does not auto-connect
 
 The element waits for the editor to initialize on its own, so you can append
 it as soon as the `<lexxy-editor>` is in the DOM.
+
+### Element lifecycle and ownership
+
+Set `doc`, `provider`, `consumer`, and the attributes before mounting. Runtime
+`status` and `awareness` are read-only. The element rejects assignments to
+`doc`, `provider`, or `consumer` after mounting starts; it never silently swaps
+one half of a live binding. Attributes are read at mount time. To reconfigure,
+remove the element, let removal settle, then set its inputs and append it again:
+
+```js
+const collab = document.querySelector("lexxy-collaboration");
+collab.remove();
+await Promise.resolve();
+collab.setAttribute("name", "Grace");
+document.querySelector("lexxy-editor").appendChild(collab);
+```
+
+To replace a document/provider pair together, use
+`collab.configure({ doc, provider, consumer })` while detached or failed. It
+validates the whole configuration before changing anything. Omitted fields
+return to their defaults; an invalid configuration leaves the previous one intact.
+The individual property setters use that same validation boundary.
+
+A move within the same editor in the same JavaScript turn preserves the binding.
+A later remount builds a fresh binding and explicitly renders the document's
+existing content. A document inferred from a supplied provider is host-owned,
+just like an explicitly supplied `doc`. Supplied documents, providers, and
+awareness must all refer to the same `Y.Doc`. Each editor and each local `Y.Doc`
+can have only one active Lexical binding; use separate documents for separate
+editors and let the provider synchronize them. Owned providers include a
+`lexxy_realtime_client_id` channel parameter so separate local documents receive
+separate subscription confirmations on the shared consumer.
+
+On removal, editor listeners, upload cleanup, and cursor overlays stop. An
+owned provider stays alive while it has unacknowledged edits, then it is
+destroyed along with an owned document. A remount with the same configuration
+reclaims a still-draining connection and its pending edits. That drain lasts until acknowledgment
+while the page is alive; it is not persistent storage across a tab close.
+Host-supplied providers and documents are never disconnected or destroyed by
+the element.
+
+`collab.status` describes the editor lifecycle:
+`detached`, `waiting` (for Lexxy), `starting`, `active`, `recovering`, or `failed`.
+`active` means bound; use `collab.provider.synced` for network synchronization.
+Bad configuration emits `lexxy-realtime:error` with `event.detail.error` and
+leaves the element `failed`. After fixing the input, call `collab.retry()`.
+Invalid JSON or a non-object `channel-params` now fails explicitly rather than
+connecting with empty parameters.
+
+A remote apply failure stops both directions of the binding and makes the
+editor read-only. `lexxy-realtime:desync` reports `{ error, recovering }`.
+Fully owned setups rebuild automatically, at most once every 15 seconds;
+host-owned setups remain failed until `retry()` or removal. Recovery rebuilds
+from the document/server state, resets local undo history, and may discard
+unacknowledged changes at the time of the fault. Setup failures clean up partial
+resources and restore the captured editor content. Internal Lexical bindings
+and editor references are no longer exposed as writable element fields.
 
 ### A single copy of `lexical` and `yjs`
 
@@ -410,7 +467,7 @@ Any provider with the standard Yjs surface works:
   brand-new, empty document the first time).
 - `provider.disconnect()` or `destroy()`: when you assign a provider, you
   own its connection and must disconnect it yourself. The element
-  disconnects only providers it creates.
+  releases only providers it creates (after pending edits are acknowledged).
 
 You start the connection however that provider expects (`provider.connect()`
 for `YrbyProvider`; `y-websocket` connects on construction). `y-websocket`
@@ -528,11 +585,14 @@ Two things matter under Turbo Drive:
 
 - Run your wiring on `turbo:load` (or make the editor page a Turbo frame
   boundary), so a fresh `<lexxy-collaboration>` mounts per visit. The test
-  suite covers removal before the first sync, DOM moves, and remounts.
+  suite covers removal before the first sync, DOM moves, remounts, and real
+  Turbo/Turbolinks navigation while other browsers edit.
 - Don't cache a live editor: mark the editor container
   `data-turbo-temporary` so Turbo's snapshot doesn't restore a stale editor
   DOM next to a fresh binding. To disable caching for the whole page, use
-  `<meta name="turbo-cache-control" content="no-cache">`.
+  `<meta name="turbo-cache-control" content="no-cache">`. With Turbolinks, use
+  `<meta name="turbolinks-cache-control" content="no-cache">`. Lifecycle safety
+  does not make a cached live Lexical DOM snapshot reusable.
 
 ## Requirements
 

@@ -4,7 +4,7 @@
 // binding via onDesync and stops applying — the recovery replaces the
 // binding, so a persistent fault reports once per rebuild, not per frame.
 import assert from "node:assert/strict";
-import { createRemoteApplier } from "../../src/editor_collaboration.js";
+import { createRemoteApplier } from "../../src/remote_applier.js";
 
 const binding = { root: { getSharedType: () => ({}) } };
 const provider = {};

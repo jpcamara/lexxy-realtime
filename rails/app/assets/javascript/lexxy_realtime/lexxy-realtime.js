@@ -14068,13 +14068,271 @@ mod.createUndoManager;
 mod.getAnchorAndFocusCollabNodesForUserState;
 const initLocalState = mod.initLocalState;
 mod.renderSnapshot__EXPERIMENTAL;
-const setLocalStateFocus = mod.setLocalStateFocus;
+mod.setLocalStateFocus;
 const syncCursorPositions = mod.syncCursorPositions;
 const syncLexicalUpdateToYjs = mod.syncLexicalUpdateToYjs;
 mod.syncLexicalUpdateToYjsV2__EXPERIMENTAL;
 const syncYjsChangesToLexical = mod.syncYjsChangesToLexical;
 mod.syncYjsChangesToLexicalV2__EXPERIMENTAL;
 mod.syncYjsStateToLexicalV2__EXPERIMENTAL;
+//#endregion
+//#region src/attachment_sync.js
+const UNSYNCABLE_ATTACHMENT_PROPERTIES = /* @__PURE__ */ new Set([
+	"editor",
+	"file",
+	"previewSrc",
+	"uploadUrl",
+	"blobUrlTemplate"
+]);
+const LEXXY_ATTACHMENT_NODE_TYPES = /* @__PURE__ */ new Set([
+	"action_text_attachment",
+	"action_text_attachment_upload",
+	"custom_action_text_attachment"
+]);
+function attachmentExclusions(editor) {
+	const excludedProperties = /* @__PURE__ */ new Map();
+	const nodes = editor?._nodes;
+	if (!nodes || typeof nodes.forEach !== "function") return excludedProperties;
+	nodes.forEach((info, type) => {
+		if (LEXXY_ATTACHMENT_NODE_TYPES.has(type)) excludedProperties.set(info.klass, UNSYNCABLE_ATTACHMENT_PROPERTIES);
+	});
+	return excludedProperties;
+}
+function patchCollabElementSplice(binding) {
+	const proto = binding?.root?.constructor?.prototype;
+	if (!proto || typeof proto.splice !== "function" || proto.__yrbySplicePatched) return;
+	const original = proto.splice;
+	proto.splice = function(b, index, delCount, collabNode) {
+		if (this._children[index] === void 0 && collabNode === void 0) return;
+		return original.call(this, b, index, delCount, collabNode);
+	};
+	proto.__yrbySplicePatched = true;
+}
+//#endregion
+//#region src/cleanup.js
+var Cleanup = class {
+	#callbacks = [];
+	add(callback) {
+		if (this.#callbacks) this.#callbacks.push(callback);
+		else this.#run(callback);
+	}
+	close() {
+		const callbacks = this.#callbacks;
+		this.#callbacks = null;
+		for (const callback of callbacks?.reverse() || []) this.#run(callback);
+	}
+	#run(callback) {
+		try {
+			callback();
+		} catch (error) {
+			console.error("lexxy-realtime: cleanup failed.", error);
+		}
+	}
+};
+//#endregion
+//#region src/upload_cleanup.js
+function registerUploadCleanup({ editorElement, editor, provider, doc }) {
+	const awareness = provider.awareness;
+	const document = editorElement.ownerDocument;
+	const window = document.defaultView;
+	const cleanup = new Cleanup();
+	const removeOwnPendingUploads = (event) => {
+		if (event?.persisted) return;
+		removePendingUploadNodes(editor);
+	};
+	const removeUploadsBeforeTurboDiscard = (event) => {
+		if (editorElement.closest("[data-turbo-permanent], [data-turbolinks-permanent]")) return;
+		if (event.type === "turbo:before-frame-render" && !event.target.contains(editorElement)) return;
+		removePendingUploadNodes(editor);
+	};
+	try {
+		window.addEventListener("pagehide", removeOwnPendingUploads);
+		cleanup.add(() => window.removeEventListener("pagehide", removeOwnPendingUploads));
+		for (const event of [
+			"turbo:before-cache",
+			"turbo:before-frame-render",
+			"turbolinks:before-cache"
+		]) {
+			document.addEventListener(event, removeUploadsBeforeTurboDiscard);
+			cleanup.add(() => document.removeEventListener(event, removeUploadsBeforeTurboDiscard));
+		}
+		cleanup.add(removeOrphanedUploadsWhenAlone(editor, provider, awareness, doc));
+		return () => cleanup.close();
+	} catch (error) {
+		cleanup.close();
+		throw error;
+	}
+}
+const ORPHAN_SWEEP_SETTLE_MS = 25e3;
+function removeOrphanedUploadsWhenAlone(editor, provider, awareness, doc) {
+	let timer = null;
+	let cancelled = false;
+	const alone = () => awareness.getStates().size <= 1;
+	const sweep = () => {
+		timer = null;
+		if (cancelled || !alone()) return;
+		if (!provider.synced) {
+			schedule();
+			return;
+		}
+		const info = editor?._nodes?.get?.("action_text_attachment_upload");
+		if (!info) return;
+		editor.update(() => {
+			for (const node of $nodesOfType(info.klass)) if (node.getType() === "action_text_attachment_upload" && !node.file) node.remove();
+		}, {
+			discrete: true,
+			tag: HISTORY_MERGE_TAG
+		});
+	};
+	const schedule = () => {
+		if (!cancelled && !timer && alone()) timer = setTimeout(sweep, ORPHAN_SWEEP_SETTLE_MS);
+	};
+	const onAwarenessChange = () => {
+		if (alone()) schedule();
+		else if (timer) {
+			clearTimeout(timer);
+			timer = null;
+		}
+	};
+	awareness.on("change", onAwarenessChange);
+	doc.on("update", schedule);
+	provider.whenSynced?.then?.(schedule, () => {});
+	schedule();
+	return () => {
+		cancelled = true;
+		clearTimeout(timer);
+		timer = null;
+		awareness.off("change", onAwarenessChange);
+		doc.off("update", schedule);
+	};
+}
+function removePendingUploadNodes(editor) {
+	const uploadType = "action_text_attachment_upload";
+	const info = editor?._nodes?.get?.(uploadType);
+	if (!info) return;
+	editor.update(() => {
+		for (const node of $nodesOfType(info.klass)) if (node.getType() === uploadType && node.file) node.remove();
+	}, {
+		discrete: true,
+		tag: HISTORY_MERGE_TAG
+	});
+}
+//#endregion
+//#region src/cursor_theme.js
+const CURSOR_CSS = `
+.lexxy-collab-cursor {
+  background-color: var(--lexical-cursor-color);
+  width: 2px;
+  border-radius: 1px;
+  z-index: 10;
+}
+
+.lexxy-collab-cursor__name {
+  position: absolute;
+  top: 0;
+  left: -2px;
+  transform: translateY(calc(-100% - 3px));
+  background-color: var(--lexical-cursor-color);
+  color: white;
+  font-family: var(--lexxy-font-base, system-ui, sans-serif);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.3em 0.7em;
+  border-radius: calc(var(--lexxy-radius, 0.5ch) * 1.5);
+  white-space: nowrap;
+  box-shadow: 0 1px 3px oklch(0% 0 0 / 0.25);
+  z-index: 11;
+}
+
+.lexxy-collab-selection {
+  z-index: 5;
+}
+
+.lexxy-collab-selection__bg {
+  background-color: var(--lexical-cursor-color);
+  opacity: 0.2;
+  border-radius: 2px;
+}
+`;
+function registerCursorTheme(editor) {
+	const theme = editor._config.theme;
+	if (theme.collaboration) return;
+	theme.collaboration = {
+		cursor: "lexxy-collab-cursor",
+		cursorName: "lexxy-collab-cursor__name",
+		selection: "lexxy-collab-selection",
+		selectionBg: "lexxy-collab-selection__bg"
+	};
+	if (getComputedStyle(document.documentElement).getPropertyValue("--lexxy-realtime-cursor-styles").trim() !== "" || document.getElementById("lexxy-realtime-cursor-styles")) return;
+	const style = document.createElement("style");
+	style.id = "lexxy-realtime-cursor-styles";
+	style.textContent = CURSOR_CSS;
+	document.head.appendChild(style);
+}
+//#endregion
+//#region src/bootstrap.js
+function emptyEditorState(state) {
+	return state.read(() => {
+		const root = $getRoot();
+		if (root.getChildrenSize() === 0) return true;
+		const only = root.getChildrenSize() === 1 && root.getFirstChild();
+		return !!only && only.getType() === "paragraph" && only.getChildrenSize() === 0;
+	});
+}
+function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
+	let done = false;
+	const seed = () => {
+		if (done || !provider.synced) return;
+		done = true;
+		if (timer) clearInterval(timer);
+		if (binding.root.getSharedType().length === 0) {
+			if (initialEditorState && !emptyEditorState(initialEditorState)) {
+				editor.setEditorState(initialEditorState, { tag: HISTORY_MERGE_TAG });
+				return;
+			}
+			editor.update(() => {
+				const root = $getRoot();
+				root.clear();
+				root.append($createParagraphNode());
+			}, { tag: HISTORY_MERGE_TAG });
+		}
+	};
+	let timer;
+	const check = () => {
+		seed();
+		if (!done && !timer) {
+			timer = setInterval(seed, 50);
+			timer.unref?.();
+		}
+	};
+	if (provider.whenSynced?.then) provider.whenSynced.then(check, () => {});
+	else check();
+	return () => {
+		done = true;
+		clearInterval(timer);
+	};
+}
+//#endregion
+//#region src/remote_applier.js
+function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
+	let desynced = false;
+	return (events, transaction) => {
+		if (transaction.origin === binding) return;
+		if (desynced) return;
+		try {
+			sync(binding, provider, events, false);
+		} catch (error) {
+			desynced = true;
+			console.error("lexxy-realtime: a remote update failed to apply; the editor is out of sync with the document.", error);
+			try {
+				onDesync?.(error);
+			} catch (callbackError) {
+				console.error("lexxy-realtime: desync callback failed.", callbackError);
+			}
+		}
+	};
+}
 //#endregion
 //#region node_modules/@rails/actioncable/app/assets/javascripts/actioncable.esm.js
 var adapters = {
@@ -15319,360 +15577,455 @@ var ActionCableProvider = class {
 	}
 };
 //#endregion
-//#region src/attachment_sync.js
-const UNSYNCABLE_ATTACHMENT_PROPERTIES = /* @__PURE__ */ new Set([
-	"editor",
-	"file",
-	"previewSrc",
-	"uploadUrl",
-	"blobUrlTemplate"
-]);
-const LEXXY_ATTACHMENT_NODE_TYPES = /* @__PURE__ */ new Set([
-	"action_text_attachment",
-	"action_text_attachment_upload",
-	"custom_action_text_attachment"
-]);
-function attachmentExclusions(editor) {
-	const excludedProperties = /* @__PURE__ */ new Map();
-	const nodes = editor?._nodes;
-	if (!nodes || typeof nodes.forEach !== "function") return excludedProperties;
-	nodes.forEach((info, type) => {
-		if (LEXXY_ATTACHMENT_NODE_TYPES.has(type)) excludedProperties.set(info.klass, UNSYNCABLE_ATTACHMENT_PROPERTIES);
-	});
-	return excludedProperties;
-}
-function patchCollabElementSplice(binding) {
-	const proto = binding?.root?.constructor?.prototype;
-	if (!proto || typeof proto.splice !== "function" || proto.__yrbySplicePatched) return;
-	const original = proto.splice;
-	proto.splice = function(b, index, delCount, collabNode) {
-		if (this._children[index] === void 0 && collabNode === void 0) return;
-		return original.call(this, b, index, delCount, collabNode);
-	};
-	proto.__yrbySplicePatched = true;
-}
-//#endregion
-//#region src/upload_cleanup.js
-function registerUploadCleanup(editorElement, editor, provider, awareness) {
-	const removeOwnPendingUploads = (event) => {
-		if (event?.persisted) return;
-		removePendingUploadNodes(editor);
-	};
-	window.addEventListener("pagehide", removeOwnPendingUploads);
-	const removeUploadsBeforeTurboDiscard = (event) => {
-		if (editorElement.closest("[data-turbo-permanent]")) return;
-		if (event.type === "turbo:before-frame-render" && !event.target.contains(editorElement)) return;
-		removePendingUploadNodes(editor);
-	};
-	document.addEventListener("turbo:before-cache", removeUploadsBeforeTurboDiscard);
-	document.addEventListener("turbo:before-frame-render", removeUploadsBeforeTurboDiscard);
-	const cancelOrphanSweep = removeOrphanedUploadsWhenAlone(editor, provider, awareness);
-	return () => {
-		window.removeEventListener("pagehide", removeOwnPendingUploads);
-		document.removeEventListener("turbo:before-cache", removeUploadsBeforeTurboDiscard);
-		document.removeEventListener("turbo:before-frame-render", removeUploadsBeforeTurboDiscard);
-		cancelOrphanSweep();
-	};
-}
-const ORPHAN_SWEEP_SETTLE_MS = 25e3;
-function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
-	let timer = null;
-	let cancelled = false;
-	const alone = () => awareness.getStates().size <= 1;
-	const sweep = () => {
-		timer = null;
-		if (cancelled || !alone()) return;
-		if (!provider.synced) {
-			schedule();
-			return;
-		}
-		const info = editor?._nodes?.get?.("action_text_attachment_upload");
-		if (!info) return;
-		editor.update(() => {
-			for (const node of $nodesOfType(info.klass)) if (node.getType() === "action_text_attachment_upload" && !node.file) node.remove();
-		}, {
-			discrete: true,
-			tag: HISTORY_MERGE_TAG
-		});
-	};
-	const schedule = () => {
-		if (!cancelled && !timer && alone()) timer = setTimeout(sweep, ORPHAN_SWEEP_SETTLE_MS);
-	};
-	const onAwarenessChange = () => {
-		if (alone()) schedule();
-		else if (timer) {
-			clearTimeout(timer);
-			timer = null;
-		}
-	};
-	awareness.on("change", onAwarenessChange);
-	provider.doc?.on?.("update", schedule);
-	provider.whenSynced?.then?.(schedule);
-	schedule();
-	return () => {
-		cancelled = true;
-		clearTimeout(timer);
-		timer = null;
-		awareness.off("change", onAwarenessChange);
-		provider.doc?.off?.("update", schedule);
-	};
-}
-function removePendingUploadNodes(editor) {
-	const uploadType = "action_text_attachment_upload";
-	const info = editor?._nodes?.get?.(uploadType);
-	if (!info) return;
-	editor.update(() => {
-		for (const node of $nodesOfType(info.klass)) if (node.getType() === uploadType && node.file) node.remove();
-	}, {
-		discrete: true,
-		tag: HISTORY_MERGE_TAG
-	});
-}
-//#endregion
-//#region src/cursor_theme.js
-const CURSOR_CSS = `
-.lexxy-collab-cursor {
-  background-color: var(--lexical-cursor-color);
-  width: 2px;
-  border-radius: 1px;
-  z-index: 10;
-}
-
-.lexxy-collab-cursor__name {
-  position: absolute;
-  top: 0;
-  left: -2px;
-  transform: translateY(calc(-100% - 3px));
-  background-color: var(--lexical-cursor-color);
-  color: white;
-  font-family: var(--lexxy-font-base, system-ui, sans-serif);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  line-height: 1;
-  padding: 0.3em 0.7em;
-  border-radius: calc(var(--lexxy-radius, 0.5ch) * 1.5);
-  white-space: nowrap;
-  box-shadow: 0 1px 3px oklch(0% 0 0 / 0.25);
-  z-index: 11;
-}
-
-.lexxy-collab-selection {
-  z-index: 5;
-}
-
-.lexxy-collab-selection__bg {
-  background-color: var(--lexical-cursor-color);
-  opacity: 0.2;
-  border-radius: 2px;
-}
-`;
-function registerCursorTheme(editor) {
-	const theme = editor._config.theme;
-	if (theme.collaboration) return;
-	theme.collaboration = {
-		cursor: "lexxy-collab-cursor",
-		cursorName: "lexxy-collab-cursor__name",
-		selection: "lexxy-collab-selection",
-		selectionBg: "lexxy-collab-selection__bg"
-	};
-	if (getComputedStyle(document.documentElement).getPropertyValue("--lexxy-realtime-cursor-styles").trim() !== "" || document.getElementById("lexxy-realtime-cursor-styles")) return;
-	const style = document.createElement("style");
-	style.id = "lexxy-realtime-cursor-styles";
-	style.textContent = CURSOR_CSS;
-	document.head.appendChild(style);
-}
-//#endregion
-//#region src/editor_collaboration.js
+//#region src/connection.js
 let sharedConsumer;
 let configuredConsumer;
+const drainingConnections = /* @__PURE__ */ new WeakMap();
+function validateConsumer(consumer) {
+	if (typeof consumer?.subscriptions?.create !== "function") throw new TypeError("Expected an ActionCable-compatible consumer with subscriptions.create().");
+	return consumer;
+}
 function setConsumer(consumerOrFactory) {
+	if (typeof consumerOrFactory !== "function") validateConsumer(consumerOrFactory);
 	configuredConsumer = consumerOrFactory;
 }
 function resolveConsumer() {
-	if (typeof configuredConsumer === "function") configuredConsumer = configuredConsumer();
+	if (typeof configuredConsumer === "function") configuredConsumer = validateConsumer(configuredConsumer());
 	return configuredConsumer || (sharedConsumer ??= createConsumer());
 }
+function validateDocument(doc) {
+	if (!(doc instanceof Doc) || doc.isDestroyed) throw new TypeError("Expected a live Y.Doc from the same copy of yjs as lexxy-realtime.");
+}
+function validateProvider(provider, doc) {
+	const awareness = provider?.awareness;
+	if (!awareness || [
+		"on",
+		"off",
+		"getStates",
+		"getLocalState",
+		"setLocalState"
+	].some((method) => typeof awareness[method] !== "function") || typeof provider.synced !== "boolean") throw new TypeError("Expected a Yjs provider with awareness and a boolean synced property.");
+	const providerDoc = provider.doc || awareness.doc;
+	if (doc && (providerDoc && providerDoc !== doc || awareness.doc && awareness.doc !== doc)) throw new TypeError("The collaboration document, provider and awareness must use the same Y.Doc.");
+}
+function openConnection({ doc: suppliedDoc, provider: suppliedProvider, consumer, channelName, channelParams }) {
+	if (suppliedProvider) validateProvider(suppliedProvider, suppliedDoc);
+	if (suppliedDoc) validateDocument(suppliedDoc);
+	const cable = suppliedProvider ? null : validateConsumer(consumer || resolveConsumer());
+	const key = JSON.stringify([channelName, channelParams]);
+	const draining = cable && drainingConnections.get(cable)?.get(key);
+	if (draining && (suppliedDoc ? draining.doc === suppliedDoc : draining.canRecover)) {
+		draining.reclaim();
+		return draining;
+	}
+	const doc = suppliedDoc || suppliedProvider?.doc || suppliedProvider?.awareness.doc || new Doc();
+	const ownsDoc = !suppliedDoc && !suppliedProvider;
+	const ownsProvider = !suppliedProvider;
+	validateDocument(doc);
+	const cleanup = new Cleanup();
+	if (ownsDoc) cleanup.add(() => doc.destroy());
+	let provider;
+	try {
+		provider = suppliedProvider || new ActionCableProvider(doc, cable, channelName, {
+			...channelParams,
+			lexxy_realtime_client_id: doc.clientID
+		});
+		if (ownsProvider) cleanup.add(() => provider.destroy());
+		validateProvider(provider, doc);
+	} catch (error) {
+		cleanup.close();
+		throw error;
+	}
+	let state = "open";
+	let timer;
+	const forget = () => {
+		clearInterval(timer);
+		const pool = cable && drainingConnections.get(cable);
+		if (pool?.get(key) === connection) pool.delete(key);
+	};
+	cleanup.add(forget);
+	const connection = {
+		doc,
+		provider,
+		canRecover: ownsDoc && ownsProvider,
+		reclaim() {
+			if (state !== "draining") throw new Error("Only a draining connection can be reclaimed.");
+			state = "open";
+			forget();
+		},
+		connect() {
+			if (state === "open" && ownsProvider) provider.connect();
+		},
+		close({ discard = false } = {}) {
+			if (state !== "open") return;
+			state = "closed";
+			if (!ownsProvider) {
+				cleanup.close();
+				return;
+			}
+			const presence = new Cleanup();
+			presence.add(() => provider.awareness.setLocalState(null));
+			presence.close();
+			if (!discard && provider.hasPending) {
+				state = "draining";
+				let pool = drainingConnections.get(cable);
+				if (!pool) drainingConnections.set(cable, pool = /* @__PURE__ */ new Map());
+				pool.set(key, connection);
+				timer = setInterval(() => {
+					if (state !== "draining" || provider.hasPending) return;
+					state = "closed";
+					cleanup.close();
+				}, 100);
+				timer.unref?.();
+			} else cleanup.close();
+		}
+	};
+	return connection;
+}
+//#endregion
+//#region src/editor_binding.js
+const editors = /* @__PURE__ */ new WeakMap();
+const documents = /* @__PURE__ */ new WeakMap();
+var EditorBinding = class {
+	#cleanup = new Cleanup();
+	#listeners = new Cleanup();
+	#state = "new";
+	#connection;
+	constructor(options, onDesync) {
+		this.options = options;
+		this.onDesync = onDesync;
+	}
+	get doc() {
+		return this.#connection?.doc;
+	}
+	get provider() {
+		return this.#connection?.provider;
+	}
+	get canRecover() {
+		return this.#connection?.canRecover ?? false;
+	}
+	start() {
+		if (this.#state !== "new") return;
+		this.#state = "active";
+		const { editorElement, editor, id, name, color, seed = true } = this.options;
+		let initialState;
+		let changedEditor = false;
+		try {
+			if (editors.has(editor)) throw new Error("This editor already has a collaboration binding.");
+			this.#connection = openConnection(this.options);
+			const { doc, provider } = this.#connection;
+			if (documents.has(doc)) throw new Error("This Y.Doc already has a collaboration binding; use a separate document per editor.");
+			editors.set(editor, this);
+			documents.set(doc, this);
+			this.#cleanup.add(() => editors.delete(editor));
+			this.#cleanup.add(() => documents.delete(doc));
+			initialState = editor.getEditorState();
+			changedEditor = true;
+			editor.update(() => $getRoot().clear(), {
+				tag: HISTORY_MERGE_TAG,
+				discrete: true
+			});
+			const binding = createBinding(editor, provider, id, doc, /* @__PURE__ */ new Map([[id, doc]]), attachmentExclusions(editor));
+			this.#cleanup.add(() => releaseBinding(binding));
+			patchCollabElementSplice(binding);
+			registerCursorTheme(editor);
+			const cursors = createCursorsContainer(editorElement);
+			this.#cleanup.add(() => cursors.remove());
+			binding.cursorsContainer = cursors;
+			editor.update(() => {
+				binding.root.syncPropertiesFromYjs(binding, null);
+				binding.root.applyChildrenYjsDelta(binding, binding.root.getSharedType().toDelta());
+				binding.root.syncChildrenFromYjs(binding);
+			}, {
+				tag: COLLABORATION_TAG,
+				discrete: true
+			});
+			this.#listeners.add(editor.registerUpdateListener(({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
+				if (this.#state !== "active" || tags.has("skip-collab")) return;
+				editorState.read(() => syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags));
+			}));
+			const observer = createRemoteApplier(provider, binding, { onDesync: (error) => this.#fail(error) });
+			const root = binding.root.getSharedType();
+			root.observeDeep(observer);
+			this.#listeners.add(() => root.unobserveDeep(observer));
+			this.#listeners.add(bootstrapWhenSynced(editor, provider, binding, seed ? initialState : null));
+			initLocalState(provider, name, color, true, {
+				name,
+				color
+			});
+			this.#listeners.add(registerUploadCleanup({
+				editorElement,
+				editor,
+				provider,
+				doc
+			}));
+			const renderCursors = () => {
+				if (this.#state === "active") syncCursorPositions(binding, provider);
+			};
+			provider.awareness.on("update", renderCursors);
+			this.#listeners.add(() => provider.awareness.off("update", renderCursors));
+			this.#listeners.add(editor.registerUpdateListener(renderCursors));
+			renderCursors();
+			this.#connection.connect();
+		} catch (error) {
+			this.close();
+			if (changedEditor && !initialState.isEmpty()) editor.setEditorState(initialState);
+			throw error;
+		}
+	}
+	#fail(error) {
+		if (this.#state !== "active") return;
+		this.#state = "failed";
+		this.#listeners.close();
+		this.onDesync(error);
+	}
+	close(options) {
+		if (this.#state === "closed") return;
+		const discard = options?.discard ?? this.#state === "failed";
+		this.#state = "closed";
+		this.#listeners.close();
+		this.#cleanup.close();
+		this.#connection?.close({ discard });
+	}
+};
+function createCursorsContainer(editorElement) {
+	const host = editorElement.querySelector(".lexxy-editor-container") || editorElement;
+	if (getComputedStyle(host).position === "static") host.style.position = "relative";
+	const container = editorElement.ownerDocument.createElement("div");
+	container.className = "lexxy-collab-cursors";
+	container.style.cssText = "position:absolute;inset:0;pointer-events:none;";
+	host.appendChild(container);
+	return container;
+}
+function releaseBinding(binding) {
+	const nodes = /* @__PURE__ */ new Set([binding.root, ...binding.collabNodeMap.values()]);
+	for (const node of nodes) {
+		for (const child of node._children || []) nodes.add(child);
+		const type = node.getSharedType();
+		if (type._collabNode === node) delete type._collabNode;
+	}
+	binding.root.destroy(binding);
+	binding.cursors.clear();
+	binding.cursorsContainer = null;
+	binding.docMap.clear();
+}
+//#endregion
+//#region src/editor_collaboration.js
 const Base = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
 var Collaboration = class extends Base {
-	#teardown = null;
-	#ownsEverything = false;
-	#lastRecoveryAt = 0;
-	connectedCallback() {
-		this.editorElement = this.closest("lexxy-editor");
-		if (!this.editorElement) {
-			console.error("<lexxy-collaboration> must be placed inside a <lexxy-editor>.");
-			return;
-		}
-		this.editor = this.editorElement.editor;
-		if (this.editor) this.#init();
-		else this.editorElement.addEventListener("lexxy:initialize", () => {
-			this.editor = this.editorElement.editor;
-			this.#init();
-		}, { once: true });
+	#configuration = {};
+	#state = { phase: "detached" };
+	#lastRecoveryAt = null;
+	get status() {
+		return this.#state.phase;
 	}
-	disconnectedCallback() {
-		this.#teardown?.();
+	get consumer() {
+		return this.#configuration.consumer;
 	}
-	#init() {
-		const id = this.getAttribute("doc-id") || "main";
-		const name = this.getAttribute("name") || "Example User";
-		const color = this.getAttribute("color") || "#958DF1";
-		const channelName = this.getAttribute("channel-name") || "SyncChannel";
-		const rawParams = this.getAttribute("channel-params") || "{}";
-		let channelParams;
-		try {
-			channelParams = typeof rawParams === "string" ? JSON.parse(rawParams) : rawParams;
-		} catch {
-			console.error("<lexxy-collaboration>: invalid channel-params attribute (expected JSON); using {}.", rawParams);
-			channelParams = {};
+	set consumer(value) {
+		this.configure({
+			...this.#configuration,
+			consumer: value
+		});
+	}
+	get doc() {
+		return this.#state.session?.doc || this.#configuration.doc;
+	}
+	set doc(value) {
+		this.configure({
+			...this.#configuration,
+			doc: value
+		});
+	}
+	get provider() {
+		return this.#state.session?.provider || this.#configuration.provider;
+	}
+	set provider(value) {
+		this.configure({
+			...this.#configuration,
+			provider: value
+		});
+	}
+	get awareness() {
+		return this.provider?.awareness;
+	}
+	configure(options = {}) {
+		if (!["detached", "failed"].includes(this.status)) throw new Error("Cannot reconfigure mounted collaboration. Remove the element before changing its inputs.");
+		for (const key of Object.keys(options)) if (![
+			"consumer",
+			"doc",
+			"provider"
+		].includes(key)) throw new TypeError(`Unknown collaboration option: ${key}`);
+		const { consumer, doc, provider } = options;
+		if (consumer != null) validateConsumer(consumer);
+		if (doc != null) validateDocument(doc);
+		if (provider != null) validateProvider(provider, doc);
+		if (this.status === "failed") {
+			const { editorElement, editor, seed } = this.#state;
+			this.#transition({
+				phase: "failed",
+				editorElement,
+				editor,
+				seed
+			});
 		}
-		const ownsProvider = !this.provider;
-		const ownsDoc = !this.doc;
-		const doc = this.doc || new Doc();
-		const provider = this.provider || new ActionCableProvider(doc, this.consumer || resolveConsumer(), channelName, channelParams);
-		if (ownsProvider) provider.connect();
-		const awareness = provider.awareness;
-		const docMap = /* @__PURE__ */ new Map();
-		docMap.set(id, doc);
-		const initialEditorState = this.editor.getEditorState();
-		this.editor.update(() => $getRoot().clear(), {
-			tag: HISTORY_MERGE_TAG,
-			discrete: true
-		});
-		const excludedProperties = attachmentExclusions(this.editor);
-		const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
-		patchCollabElementSplice(binding);
-		this.#ownsEverything = ownsProvider && ownsDoc;
-		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => this.#recoverFromDesync(error));
-		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
-		registerCursorTheme(this.editor);
-		const cursorsContainer = this.#createCursorsContainer();
-		binding.cursorsContainer = cursorsContainer;
-		initLocalState(provider, name, color, true, {
-			name,
-			color
-		});
-		setLocalStateFocus(provider, name, color, true, {
-			name,
-			color
-		});
-		const cancelUploadCleanup = registerUploadCleanup(this.editorElement, this.editor, provider, awareness);
-		const renderCursors = () => syncCursorPositions(binding, provider);
-		awareness.on("update", renderCursors);
-		const unsubscribeCursorRender = this.editor.registerUpdateListener(renderCursors);
-		syncCursorPositions(binding, provider);
-		this.provider = provider;
-		this.doc = doc;
-		this.awareness = awareness;
-		this.binding = binding;
-		this.#teardown = () => {
-			this.#teardown = null;
-			cancelUploadCleanup();
-			awareness.off("update", renderCursors);
-			unsubscribeCursorRender();
-			unsubscribeListeners();
-			cancelBootstrap();
-			cursorsContainer.remove();
-			if (ownsProvider) {
-				provider.disconnect();
-				this.provider = null;
-			}
-			if (ownsDoc) this.doc = null;
+		this.#configuration = {
+			consumer: consumer ?? void 0,
+			doc: doc ?? void 0,
+			provider: provider ?? void 0
 		};
 	}
-	#recoverFromDesync(error) {
-		const canRebuild = this.#ownsEverything && Date.now() - this.#lastRecoveryAt > 15e3;
+	connectedCallback() {
+		this.#scheduleReconcile();
+	}
+	disconnectedCallback() {
+		this.#scheduleReconcile();
+	}
+	#scheduleReconcile() {
+		queueMicrotask(() => this.#reconcile());
+	}
+	#reconcile({ seed = true } = {}) {
+		const editorElement = this.closest("lexxy-editor");
+		if (!this.isConnected) {
+			this.#transition({ phase: "detached" });
+			return;
+		}
+		if (this.#state.editorElement === editorElement && this.#state.editor === editorElement?.editor && this.status !== "detached") return;
+		if (this.status !== "detached") {
+			this.#restart(seed);
+			return;
+		}
+		if (!editorElement) {
+			this.#setupFailed(/* @__PURE__ */ new Error("<lexxy-collaboration> must be placed inside a <lexxy-editor>."));
+			return;
+		}
+		const editor = editorElement.editor;
+		if (!editor) {
+			const cleanup = new Cleanup();
+			const waiting = {
+				phase: "waiting",
+				editorElement,
+				editor,
+				cleanup
+			};
+			const initialize = () => {
+				if (this.#state === waiting) this.#reconcile();
+			};
+			editorElement.addEventListener("lexxy:initialize", initialize);
+			cleanup.add(() => editorElement.removeEventListener("lexxy:initialize", initialize));
+			this.#transition(waiting);
+			return;
+		}
+		const cleanup = new Cleanup();
+		const starting = {
+			phase: "starting",
+			editorElement,
+			editor,
+			cleanup
+		};
+		this.#transition(starting);
+		try {
+			const session = new EditorBinding({
+				...this.#options(),
+				editorElement,
+				editor,
+				seed
+			}, (error) => this.#desync(session, error));
+			starting.session = session;
+			cleanup.add(() => session.close());
+			session.start();
+			if (this.#state === starting) this.#state = {
+				...starting,
+				phase: "active"
+			};
+		} catch (error) {
+			if (this.#state === starting) this.#setupFailed(error, editorElement, editor);
+		}
+	}
+	#options() {
+		let channelParams = {};
+		if (!this.#configuration.provider) {
+			channelParams = JSON.parse(this.getAttribute("channel-params") || "{}");
+			if (!channelParams || Array.isArray(channelParams) || typeof channelParams !== "object") throw new TypeError("channel-params must be a JSON object.");
+		}
+		return {
+			...this.#configuration,
+			id: this.getAttribute("doc-id") || "main",
+			name: this.getAttribute("name") || "Example User",
+			color: this.getAttribute("color") || "#958DF1",
+			channelName: this.getAttribute("channel-name") || "SyncChannel",
+			channelParams
+		};
+	}
+	#transition(next) {
+		const previous = this.#state;
+		this.#state = next;
+		previous.cleanup?.close();
+	}
+	#setupFailed(error, editorElement, editor) {
+		this.#transition({
+			phase: "failed",
+			editorElement,
+			editor
+		});
+		this.dispatchEvent(new CustomEvent("lexxy-realtime:error", {
+			bubbles: true,
+			detail: { error }
+		}));
+		console.error("lexxy-realtime: could not start collaboration.", error);
+	}
+	#desync(session, error) {
+		if (this.#state.session !== session) return;
+		const now = Date.now();
+		const recovering = session.canRecover && (this.#lastRecoveryAt === null || now - this.#lastRecoveryAt > 15e3);
+		if (recovering) this.#lastRecoveryAt = now;
+		const failed = {
+			...this.#state,
+			seed: false,
+			phase: recovering ? "recovering" : "failed"
+		};
+		this.#state = failed;
+		const wasEditable = failed.editor.isEditable();
+		failed.editor.setEditable(false);
+		failed.cleanup.add(() => {
+			if (wasEditable) failed.editor.setEditable(true);
+		});
 		this.dispatchEvent(new CustomEvent("lexxy-realtime:desync", {
 			bubbles: true,
 			detail: {
 				error,
-				recovering: canRebuild
+				recovering
 			}
 		}));
-		if (!canRebuild) return;
-		this.#lastRecoveryAt = Date.now();
 		queueMicrotask(() => {
-			this.#teardown?.();
-			this.#init();
+			if (this.#state !== failed) return;
+			session.close({ discard: true });
+			if (recovering) this.#restart(false);
+			else if (!this.isConnected) this.#transition({ phase: "detached" });
 		});
 	}
-	#createCursorsContainer() {
-		const host = this.editorElement.querySelector(".lexxy-editor-container") || this.editorElement;
-		if (getComputedStyle(host).position === "static") host.style.position = "relative";
-		const container = document.createElement("div");
-		container.className = "lexxy-collab-cursors";
-		container.style.cssText = "position:absolute;inset:0;pointer-events:none;";
-		host.appendChild(container);
-		return container;
+	retry() {
+		if (this.status !== "failed") return;
+		this.#restart(this.#state.seed ?? true);
+	}
+	#restart(seed) {
+		const editorElement = this.closest("lexxy-editor");
+		const restarting = {
+			phase: "starting",
+			editorElement,
+			editor: editorElement?.editor
+		};
+		this.#transition(restarting);
+		queueMicrotask(() => {
+			if (this.#state !== restarting) return;
+			this.#state = { phase: "detached" };
+			this.#reconcile({ seed });
+		});
 	}
 };
-function emptyEditorState(state) {
-	return state.read(() => {
-		const root = $getRoot();
-		if (root.getChildrenSize() === 0) return true;
-		const only = root.getChildrenSize() === 1 && root.getFirstChild();
-		return !!only && only.getType() === "paragraph" && only.getChildrenSize() === 0;
-	});
-}
-function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
-	let done = false;
-	const seed = () => {
-		if (done || !provider.synced) return;
-		done = true;
-		if (timer) clearInterval(timer);
-		if (binding.root.getSharedType().length === 0) {
-			if (initialEditorState && !emptyEditorState(initialEditorState)) {
-				editor.setEditorState(initialEditorState, { tag: HISTORY_MERGE_TAG });
-				return;
-			}
-			editor.update(() => {
-				const root = $getRoot();
-				root.clear();
-				root.append($createParagraphNode());
-			}, { tag: HISTORY_MERGE_TAG });
-		}
-	};
-	let timer;
-	if (provider.whenSynced?.then) provider.whenSynced.then(seed, () => {});
-	else {
-		timer = setInterval(seed, 50);
-		if (typeof timer?.unref === "function") timer.unref();
-	}
-	return () => {
-		done = true;
-		if (timer) clearInterval(timer);
-	};
-}
-function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
-	let desynced = false;
-	return (events, transaction) => {
-		if (transaction.origin === binding) return;
-		if (desynced) return;
-		try {
-			sync(binding, provider, events, false);
-		} catch (error) {
-			desynced = true;
-			console.error("lexxy-realtime: a remote update failed to apply; the editor is out of sync with the document.", error);
-			onDesync?.(error);
-		}
-	};
-}
-function registerCollaborationListeners(editor, provider, binding, onDesync) {
-	const unsubscribeUpdateListener = editor.registerUpdateListener(({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
-		editor.getEditorState().read(() => {
-			if (tags.has("skip-collab") === false) syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags);
-		});
-	});
-	const observer = createRemoteApplier(provider, binding, { onDesync });
-	binding.root.getSharedType().observeDeep(observer);
-	return () => {
-		unsubscribeUpdateListener();
-		binding.root.getSharedType().unobserveDeep(observer);
-	};
-}
 //#endregion
 //#region src/index.js
-if (!customElements.get("lexxy-collaboration")) customElements.define("lexxy-collaboration", Collaboration);
+if (typeof customElements !== "undefined" && !customElements.get("lexxy-collaboration")) customElements.define("lexxy-collaboration", Collaboration);
 //#endregion
 export { Collaboration, ActionCableProvider as YrbyProvider, setConsumer };
 

@@ -97,13 +97,13 @@ await runScenario("badChannelParams");
 check("malformed channel-params does not throw", field("badChannelParams", "r.threwParse === false"));
 check("host provider still syncs with bad channel-params", field("badChannelParams", "r.synced === true"));
 
-// #2 — a late editor init must not run #init on a detached element.
-await runScenario("initRace");
-if (!field("initRace", "r.tookListenerPath === true")) {
-  console.log("  (skipped #init-race assert: the editor initializes synchronously, so the once-listener path is never taken)");
-} else {
-  check("#init does not run on a detached element", field("initRace", "r.ranOnDetached === false"));
+const contracts = JSON.parse(JSON.parse(ab(S, "eval", "JSON.stringify(window.__lc.contracts)").trim()));
+for (const name of contracts) {
+  await runScenario(name);
+  check(`lifecycle contract: ${name}`, field(name, "r.passed === true"));
 }
+check("no bootstrap timers remain", isTrue("window.__lc.active50() === 0"));
+check("no uncaught page errors", isTrue("(window.__err || []).length === 0"));
 
 const errs = ab(S, "eval", "JSON.stringify(window.__err || [])");
 const em = errs.match(/\[.*\]/s);
