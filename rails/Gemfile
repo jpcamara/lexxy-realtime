@@ -12,6 +12,8 @@ if File.directory?(File.expand_path("../../yrby", __dir__))
 end
 
 group :development, :test do
+  # Rails 8.1 passes positional JSON options; JSON 3 requires keywords.
+  gem "json", "< 3"
   gem "minitest"
   gem "rake"
   gem "rubocop", require: false

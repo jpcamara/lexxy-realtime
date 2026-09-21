@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { Cleanup } from '../../src/cleanup.js';
+import { Lifecycle } from '../../src/lifecycle.js';
+import { openConnection } from '../../src/connection.js';
+import { EditorBinding } from '../../src/editor_binding.js';
 import { Collaboration, setConsumer } from '../../src/index.js';
 import { Doc } from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
@@ -47,3 +50,67 @@ try {
   assert.throws(() => { element.doc = other; }, /live Y.Doc/);
 } finally { awareness.destroy(); doc.destroy(); other.destroy(); }
 console.log('ok: invalid configuration is rejected atomically and runtime state is read-only');
+
+// Rejected events cannot replace the snapshot or smuggle in a destination.
+const lifecycle = new Lifecycle('Test owner', 'idle', {
+  idle: { start: 'running', invalidTarget: 'missing' },
+  running: { refresh: 'running', stop: 'closed' },
+  closed: {},
+});
+const idle = lifecycle.current;
+for (const event of ['stop', 'unknown', 'toString', 'invalidTarget']) {
+  assert.throws(() => lifecycle.transition(event, { phase: 'running' }), /Test owner: cannot/);
+  assert.equal(lifecycle.current, idle);
+}
+assert.throws(() => { lifecycle.current.phase = 'running'; }, TypeError);
+assert.throws(() => { lifecycle.current = { phase: 'running' }; }, TypeError);
+const resource = {};
+const running = lifecycle.transition('start', { resource, phase: 'closed' });
+assert.equal(running.phase, 'running');
+assert.equal(running.resource, resource);
+assert.notEqual(lifecycle.transition('refresh', running), running);
+assert.equal(idle.phase, 'idle');
+lifecycle.transition('stop');
+assert.throws(() => lifecycle.transition('start'), /cannot start while closed/);
+assert.deepEqual(lifecycle.current, { phase: 'closed' });
+console.log('ok: invalid transitions are atomic, snapshots are read-only, and closed is terminal');
+
+// Closing before setup is legal; a later start must not acquire anything.
+const unused = new EditorBinding({}, () => assert.fail('closed binding emitted a fault'));
+unused.close();
+unused.start();
+unused.close();
+assert.equal(unused.doc, undefined);
+console.log('ok: a closed binding cannot start or acquire a document');
+
+// Presence removal can reenter teardown. It must see closing, not open or
+// closed, and cannot reclaim the connection before it actually starts draining.
+const consumer = { subscriptions: { create() { assert.fail('test unexpectedly connected'); } } };
+const options = { consumer, channelName: 'DocumentChannel', channelParams: { id: 'transition-test' } };
+const connection = openConnection(options);
+const ownedDoc = connection.doc;
+const ownedProvider = connection.provider;
+let presenceCalls = 0;
+let destroyed = 0;
+ownedDoc.on('destroy', () => destroyed++);
+Object.defineProperty(ownedProvider, 'hasPending', { configurable: true, get: () => true });
+const setPresence = ownedProvider.awareness.setLocalState.bind(ownedProvider.awareness);
+ownedProvider.awareness.setLocalState = state => {
+  presenceCalls++;
+  connection.close();
+  assert.throws(() => connection.reclaim(), /cannot reclaim while closing/);
+  setPresence(state);
+};
+assert.throws(() => connection.reclaim(), /cannot reclaim while open/);
+connection.close();
+assert.equal(presenceCalls, 1);
+assert.equal(destroyed, 0);
+assert.equal(openConnection(options), connection);
+await new Promise(resolve => setTimeout(resolve, 150));
+assert.equal(destroyed, 0, 'retired drain timer destroyed a reclaimed document');
+ownedProvider.awareness.setLocalState = setPresence;
+connection.close({ discard: true });
+connection.close();
+assert.equal(destroyed, 1);
+assert.throws(() => connection.reclaim(), /cannot reclaim while closed/);
+console.log('ok: reentrant close, pending drain, reclaim, and terminal disposal preserve ownership');

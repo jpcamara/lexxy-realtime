@@ -35,19 +35,22 @@ for (const framework of ['turbo', 'turbolinks']) {
   const sessions = ['a', 'b', 'c'].map(name => `lx-${framework}-${process.pid}-${name}`);
   const room = `nav-${framework}-${Date.now()}`;
   const initialChecks = checks;
+  const expected = { A: 0, B: 0, C: 0 };
   const url = name => `http://localhost:${PORT}/navigation-editor.html?framework=${framework}&room=${room}&name=${name}`;
   try {
     // Seed a single shared root before the other editors join.
     for (const [index, session] of sessions.entries()) {
       await ab(session, 'open', url(['Ada', 'Bea', 'Cam'][index]));
       await wait(session, ready);
+      await wait(session, `!document.querySelector('lexxy-collaboration').provider.hasPending && document.querySelector('lexxy-collaboration').doc.get('root').length > 0`);
     }
     const originalInstance = await value(sessions[0], 'return window.__navigation.instance;');
-    const expected = { A: 0, B: 0, C: 0 };
     async function type(session, letter, count) {
       await ab(session, 'click', '#editor [contenteditable]');
       await ab(session, 'press', 'ControlOrMeta+End');
-      await ab(session, 'keyboard', 'type', letter.repeat(count));
+      // agent-browser's keyboard type uses CDP insertText per character.
+      // Exercise actual keydown/keyup handling during concurrent remote edits.
+      for (let i = 0; i < count; i++) await ab(session, 'press', letter);
       expected[letter] += count;
       await wait(session, `(${text}).split('${letter}').length - 1 === ${expected[letter]}`);
     }
@@ -84,6 +87,8 @@ for (const framework of ['turbo', 'turbolinks']) {
     const summary = await value(sessions[0], `return { instance: window.__navigation.instance, visits: window.__navigation.visits, errors: window.__navigation.errors, overlays: document.querySelectorAll('.lexxy-collab-cursors').length, text: ${text} };`);
     check(summary.instance === originalInstance && summary.visits === 7, `${framework}: visits and history use the framework without full reloads`);
     check(summary.overlays === 1, `${framework}: one cursor overlay after navigation`);
+    const keys = await Promise.all(sessions.map(s => value(s, 'return window.__navigation.keys;')));
+    check(keys.every((events, i) => events.length === expected[['A', 'B', 'C'][i]] && events.every(key => key === ['A', 'B', 'C'][i])), `${framework}: every intended key reached its editor`);
     const inputTimes = await Promise.all(sessions.map(s => value(s, 'return window.__navigation.inputs;')));
     check(Math.max(...inputTimes[1]) > Math.min(...inputTimes[2]) && Math.max(...inputTimes[2]) > Math.min(...inputTimes[1]), `${framework}: peer keyboard input overlapped`);
     for (const session of sessions) {
@@ -97,9 +102,17 @@ for (const framework of ['turbo', 'turbolinks']) {
     await wait(reader, ready);
     await wait(reader, `(${text}) === ${JSON.stringify(summary.text)}`);
     check(true, `${framework}: fresh reader recovers every edit`);
-    writeFileSync(resolve(output, `${framework}.json`), JSON.stringify({ ...summary, expected, inputEvents: inputTimes.map(t => t.length), checks: checks - initialChecks }, null, 2));
+    writeFileSync(resolve(output, `${framework}.json`), JSON.stringify({ ...summary, expected, keyEvents: keys.map(events => events.length), inputEvents: inputTimes.map(t => t.length), checks: checks - initialChecks }, null, 2));
   } catch (error) {
-    writeFileSync(resolve(output, `${framework}-failure.json`), JSON.stringify({ error: error.stack }, null, 2));
+    const editors = await Promise.allSettled(sessions.map(session => value(session, `
+      const element = document.querySelector('lexxy-collaboration');
+      return { session: ${JSON.stringify(session)}, status: element?.status,
+        synced: element?.provider?.synced, pending: element?.provider?.hasPending,
+        text: ${text}, shared: element?.doc?.get('root').toString(),
+        inputs: window.__navigation?.inputs, keys: window.__navigation?.keys,
+        errors: window.__navigation?.errors, focused: document.activeElement?.outerHTML };
+    `)));
+    writeFileSync(resolve(output, `${framework}-failure.json`), JSON.stringify({ error: error.stack, expected, editors }, null, 2));
     await Promise.allSettled(sessions.map(session => ab(session, 'screenshot', resolve(output, `${session}-failure.png`))));
     throw error;
   } finally {

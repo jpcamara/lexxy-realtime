@@ -15734,6 +15734,35 @@ var ProviderAwareness = class extends Awareness {
 	}
 };
 //#endregion
+//#region src/lifecycle.js
+var Lifecycle = class {
+	#name;
+	#transitions;
+	#current;
+	constructor(name, initial, transitions) {
+		if (!Object.hasOwn(transitions, initial)) throw new Error(`${name}: unknown initial phase ${initial}`);
+		this.#name = name;
+		this.#transitions = transitions;
+		this.#current = Object.freeze({ phase: initial });
+	}
+	get current() {
+		return this.#current;
+	}
+	get phase() {
+		return this.#current.phase;
+	}
+	transition(event, details = {}) {
+		const events = this.#transitions[this.phase];
+		const next = Object.hasOwn(events, event) ? events[event] : void 0;
+		if (next === void 0 || !Object.hasOwn(this.#transitions, next)) throw new Error(`${this.#name}: cannot ${event} while ${this.phase}`);
+		this.#current = Object.freeze({
+			...details,
+			phase: next
+		});
+		return this.#current;
+	}
+};
+//#endregion
 //#region src/connection.js
 let sharedConsumer;
 let configuredConsumer;
@@ -15793,7 +15822,18 @@ function openConnection({ doc: suppliedDoc, provider: suppliedProvider, consumer
 		cleanup.close();
 		throw error;
 	}
-	let state = "open";
+	const lifecycle = new Lifecycle("Connection", "open", {
+		open: { close: "closing" },
+		closing: {
+			drain: "draining",
+			finish: "closed"
+		},
+		draining: {
+			reclaim: "open",
+			finish: "closed"
+		},
+		closed: {}
+	});
 	let timer;
 	const forget = () => {
 		clearInterval(timer);
@@ -15806,17 +15846,17 @@ function openConnection({ doc: suppliedDoc, provider: suppliedProvider, consumer
 		provider,
 		canRecover: ownsDoc && ownsProvider,
 		reclaim() {
-			if (state !== "draining") throw new Error("Only a draining connection can be reclaimed.");
-			state = "open";
+			lifecycle.transition("reclaim");
 			forget();
 		},
 		connect() {
-			if (state === "open" && ownsProvider) provider.connect();
+			if (lifecycle.phase === "open" && ownsProvider) provider.connect();
 		},
 		close({ discard = false } = {}) {
-			if (state !== "open") return;
-			state = "closed";
+			if (lifecycle.phase !== "open") return;
+			lifecycle.transition("close");
 			if (!ownsProvider) {
+				lifecycle.transition("finish");
 				cleanup.close();
 				return;
 			}
@@ -15824,17 +15864,20 @@ function openConnection({ doc: suppliedDoc, provider: suppliedProvider, consumer
 			presence.add(() => provider.awareness.setLocalState(null));
 			presence.close();
 			if (!discard && provider.hasPending) {
-				state = "draining";
+				lifecycle.transition("drain");
 				let pool = drainingConnections.get(cable);
 				if (!pool) drainingConnections.set(cable, pool = /* @__PURE__ */ new Map());
 				pool.set(key, connection);
 				timer = setInterval(() => {
-					if (state !== "draining" || provider.hasPending) return;
-					state = "closed";
+					if (lifecycle.phase !== "draining" || provider.hasPending) return;
+					lifecycle.transition("finish");
 					cleanup.close();
 				}, 100);
 				timer.unref?.();
-			} else cleanup.close();
+			} else {
+				lifecycle.transition("finish");
+				cleanup.close();
+			}
 		}
 	};
 	return connection;
@@ -15846,7 +15889,18 @@ const documents = /* @__PURE__ */ new WeakMap();
 var EditorBinding = class {
 	#cleanup = new Cleanup();
 	#listeners = new Cleanup();
-	#state = "new";
+	#lifecycle = new Lifecycle("EditorBinding", "new", {
+		new: {
+			start: "active",
+			close: "closed"
+		},
+		active: {
+			fail: "failed",
+			close: "closed"
+		},
+		failed: { close: "closed" },
+		closed: {}
+	});
 	#connection;
 	constructor(options, onDesync) {
 		this.options = options;
@@ -15862,8 +15916,8 @@ var EditorBinding = class {
 		return this.#connection?.canRecover ?? false;
 	}
 	start() {
-		if (this.#state !== "new") return;
-		this.#state = "active";
+		if (this.#lifecycle.phase !== "new") return;
+		this.#lifecycle.transition("start");
 		const { editorElement, editor, id, name, color, seed = true } = this.options;
 		let initialState;
 		let changedEditor = false;
@@ -15898,7 +15952,7 @@ var EditorBinding = class {
 				discrete: true
 			});
 			this.#listeners.add(editor.registerUpdateListener(({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
-				if (this.#state !== "active" || tags.has("skip-collab")) return;
+				if (this.#lifecycle.phase !== "active" || tags.has("skip-collab")) return;
 				editorState.read(() => syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags));
 			}));
 			const observer = createRemoteApplier(provider, binding, { onDesync: (error) => this.#fail(error) });
@@ -15917,7 +15971,7 @@ var EditorBinding = class {
 				doc
 			}));
 			const renderCursors = () => {
-				if (this.#state === "active") syncCursorPositions(binding, provider);
+				if (this.#lifecycle.phase === "active") syncCursorPositions(binding, provider);
 			};
 			provider.awareness.on("update", renderCursors);
 			this.#listeners.add(() => provider.awareness.off("update", renderCursors));
@@ -15931,15 +15985,15 @@ var EditorBinding = class {
 		}
 	}
 	#fail(error) {
-		if (this.#state !== "active") return;
-		this.#state = "failed";
+		if (this.#lifecycle.phase !== "active") return;
+		this.#lifecycle.transition("fail");
 		this.#listeners.close();
 		this.onDesync(error);
 	}
 	close(options) {
-		if (this.#state === "closed") return;
-		const discard = options?.discard ?? this.#state === "failed";
-		this.#state = "closed";
+		if (this.#lifecycle.phase === "closed") return;
+		const discard = options?.discard ?? this.#lifecycle.phase === "failed";
+		this.#lifecycle.transition("close");
 		this.#listeners.close();
 		this.#cleanup.close();
 		this.#connection?.close({ discard });
@@ -15971,7 +16025,49 @@ function releaseBinding(binding) {
 const Base = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
 var Collaboration = class extends Base {
 	#configuration = {};
-	#state = { phase: "detached" };
+	#lifecycle = new Lifecycle("Collaboration", "detached", {
+		detached: {
+			wait: "waiting",
+			start: "starting",
+			setupFailed: "failed",
+			detach: "detached"
+		},
+		waiting: {
+			restart: "restarting",
+			detach: "detached"
+		},
+		restarting: {
+			released: "detached",
+			restart: "restarting",
+			detach: "detached"
+		},
+		starting: {
+			started: "active",
+			setupFailed: "failed",
+			recover: "recovering",
+			fail: "failed",
+			restart: "restarting",
+			detach: "detached"
+		},
+		active: {
+			recover: "recovering",
+			fail: "failed",
+			restart: "restarting",
+			detach: "detached"
+		},
+		recovering: {
+			restart: "restarting",
+			detach: "detached"
+		},
+		failed: {
+			configure: "failed",
+			restart: "restarting",
+			detach: "detached"
+		}
+	});
+	get #state() {
+		return this.#lifecycle.current;
+	}
 	#lastRecoveryAt = null;
 	get status() {
 		return this.#state.phase;
@@ -16019,8 +16115,7 @@ var Collaboration = class extends Base {
 		if (provider != null) validateProvider(provider, doc);
 		if (this.status === "failed") {
 			const { editorElement, editor, seed } = this.#state;
-			this.#transition({
-				phase: "failed",
+			this.#transition("configure", {
 				editorElement,
 				editor,
 				seed
@@ -16044,7 +16139,7 @@ var Collaboration = class extends Base {
 	#reconcile({ seed = true } = {}) {
 		const editorElement = this.closest("lexxy-editor");
 		if (!this.isConnected) {
-			this.#transition({ phase: "detached" });
+			this.#transition("detach");
 			return;
 		}
 		if (this.#state.editorElement === editorElement && this.#state.editor === editorElement?.editor && this.status !== "detached") return;
@@ -16059,28 +16154,19 @@ var Collaboration = class extends Base {
 		const editor = editorElement.editor;
 		if (!editor) {
 			const cleanup = new Cleanup();
-			const waiting = {
-				phase: "waiting",
+			const waiting = this.#transition("wait", {
 				editorElement,
 				editor,
 				cleanup
-			};
+			});
 			const initialize = () => {
 				if (this.#state === waiting) this.#reconcile();
 			};
 			editorElement.addEventListener("lexxy:initialize", initialize);
 			cleanup.add(() => editorElement.removeEventListener("lexxy:initialize", initialize));
-			this.#transition(waiting);
 			return;
 		}
-		const cleanup = new Cleanup();
-		const starting = {
-			phase: "starting",
-			editorElement,
-			editor,
-			cleanup
-		};
-		this.#transition(starting);
+		let starting;
 		try {
 			const session = new EditorBinding({
 				...this.#options(),
@@ -16088,15 +16174,18 @@ var Collaboration = class extends Base {
 				editor,
 				seed
 			}, (error) => this.#desync(session, error));
-			starting.session = session;
+			const cleanup = new Cleanup();
 			cleanup.add(() => session.close());
+			starting = this.#transition("start", {
+				editorElement,
+				editor,
+				cleanup,
+				session
+			});
 			session.start();
-			if (this.#state === starting) this.#state = {
-				...starting,
-				phase: "active"
-			};
+			if (this.#state === starting) this.#transition("started");
 		} catch (error) {
-			if (this.#state === starting) this.#setupFailed(error, editorElement, editor);
+			if (!starting || this.#state === starting) this.#setupFailed(error, editorElement, editor);
 		}
 	}
 	#options() {
@@ -16114,14 +16203,22 @@ var Collaboration = class extends Base {
 			channelParams
 		};
 	}
-	#transition(next) {
+	#transition(event, details = {}) {
 		const previous = this.#state;
-		this.#state = next;
-		previous.cleanup?.close();
+		const retained = [
+			"started",
+			"recover",
+			"fail"
+		].includes(event) ? previous : {};
+		const next = this.#lifecycle.transition(event, {
+			...retained,
+			...details
+		});
+		if (previous.cleanup !== next.cleanup) previous.cleanup?.close();
+		return next;
 	}
 	#setupFailed(error, editorElement, editor) {
-		this.#transition({
-			phase: "failed",
+		this.#transition("setupFailed", {
 			editorElement,
 			editor
 		});
@@ -16132,16 +16229,11 @@ var Collaboration = class extends Base {
 		console.error("lexxy-realtime: could not start collaboration.", error);
 	}
 	#desync(session, error) {
-		if (this.#state.session !== session) return;
+		if (this.#state.session !== session || !["starting", "active"].includes(this.status)) return;
 		const now = Date.now();
 		const recovering = session.canRecover && (this.#lastRecoveryAt === null || now - this.#lastRecoveryAt > 15e3);
 		if (recovering) this.#lastRecoveryAt = now;
-		const failed = {
-			...this.#state,
-			seed: false,
-			phase: recovering ? "recovering" : "failed"
-		};
-		this.#state = failed;
+		const failed = this.#transition(recovering ? "recover" : "fail", { seed: false });
 		const wasEditable = failed.editor.isEditable();
 		failed.editor.setEditable(false);
 		failed.cleanup.add(() => {
@@ -16158,7 +16250,7 @@ var Collaboration = class extends Base {
 			if (this.#state !== failed) return;
 			session.close({ discard: true });
 			if (recovering) this.#restart(false);
-			else if (!this.isConnected) this.#transition({ phase: "detached" });
+			else if (!this.isConnected) this.#transition("detach");
 		});
 	}
 	retry() {
@@ -16167,15 +16259,13 @@ var Collaboration = class extends Base {
 	}
 	#restart(seed) {
 		const editorElement = this.closest("lexxy-editor");
-		const restarting = {
-			phase: "starting",
+		const restarting = this.#transition("restart", {
 			editorElement,
 			editor: editorElement?.editor
-		};
-		this.#transition(restarting);
+		});
 		queueMicrotask(() => {
 			if (this.#state !== restarting) return;
-			this.#state = { phase: "detached" };
+			this.#transition("released");
 			this.#reconcile({ seed });
 		});
 	}

@@ -52,7 +52,7 @@ export interface CollaborationConfiguration {
 }
 
 /** The editor lifecycle, independent of provider.synced / transport status. */
-export type CollaborationStatus = 'detached' | 'waiting' | 'starting' | 'active' | 'recovering' | 'failed';
+export type CollaborationStatus = 'detached' | 'waiting' | 'restarting' | 'starting' | 'active' | 'recovering' | 'failed';
 
 /** Minimal provider contract; the host owns providers assigned to an element. */
 export interface CollaborationProvider {
