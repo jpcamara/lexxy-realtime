@@ -1,4 +1,5 @@
 import { $nodesOfType, HISTORY_MERGE_TAG } from 'lexical';
+import { Cleanup } from './cleanup.js';
 
 // Upload nodes sync without their File, so only the uploading client can
 // finish them. Pagehide and Turbo discard remove this client's own
@@ -6,7 +7,11 @@ import { $nodesOfType, HISTORY_MERGE_TAG } from 'lexical';
 // client alone past an awareness settle delay removes remaining file-less
 // placeholders, presuming their uploader gone -- the backstop for lost
 // pagehide sends and for discards no event covers (streams, morphing).
-export function registerUploadCleanup(editorElement, editor, provider, awareness) {
+export function registerUploadCleanup({ editorElement, editor, provider, doc }) {
+  const awareness = provider.awareness;
+  const document = editorElement.ownerDocument;
+  const window = document.defaultView;
+  const cleanup = new Cleanup();
   // Teardown also fires on DOM moves, where the upload lives on, so it
   // cannot remove nodes. A persisted pagehide means bfcache: the page
   // and its upload may come back.
@@ -14,27 +19,28 @@ export function registerUploadCleanup(editorElement, editor, provider, awareness
     if (event?.persisted) return;
     removePendingUploadNodes(editor);
   };
-  window.addEventListener('pagehide', removeOwnPendingUploads);
 
   // Plain DOM events; apps without Turbo never fire them. An editor
   // inside data-turbo-permanent survives the navigation, upload included,
   // so it is left alone.
   const removeUploadsBeforeTurboDiscard = (event) => {
-    if (editorElement.closest('[data-turbo-permanent]')) return;
+    if (editorElement.closest('[data-turbo-permanent], [data-turbolinks-permanent]')) return;
     if (event.type === 'turbo:before-frame-render' && !event.target.contains(editorElement)) return;
     removePendingUploadNodes(editor);
   };
-  document.addEventListener('turbo:before-cache', removeUploadsBeforeTurboDiscard);
-  document.addEventListener('turbo:before-frame-render', removeUploadsBeforeTurboDiscard);
-
-  const cancelOrphanSweep = removeOrphanedUploadsWhenAlone(editor, provider, awareness);
-
-  return () => {
-    window.removeEventListener('pagehide', removeOwnPendingUploads);
-    document.removeEventListener('turbo:before-cache', removeUploadsBeforeTurboDiscard);
-    document.removeEventListener('turbo:before-frame-render', removeUploadsBeforeTurboDiscard);
-    cancelOrphanSweep();
-  };
+  try {
+    window.addEventListener('pagehide', removeOwnPendingUploads);
+    cleanup.add(() => window.removeEventListener('pagehide', removeOwnPendingUploads));
+    for (const event of ['turbo:before-cache', 'turbo:before-frame-render', 'turbolinks:before-cache']) {
+      document.addEventListener(event, removeUploadsBeforeTurboDiscard);
+      cleanup.add(() => document.removeEventListener(event, removeUploadsBeforeTurboDiscard));
+    }
+    cleanup.add(removeOrphanedUploadsWhenAlone(editor, provider, awareness, doc));
+    return () => cleanup.close();
+  } catch (error) {
+    cleanup.close();
+    throw error;
+  }
 }
 
 // A synced client that has seen no other awareness state for the whole
@@ -46,7 +52,7 @@ export function registerUploadCleanup(editorElement, editor, provider, awareness
 // nodes are never touched, since being alone while uploading is normal.
 const ORPHAN_SWEEP_SETTLE_MS = 25000;
 
-function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
+function removeOrphanedUploadsWhenAlone(editor, provider, awareness, doc) {
   let timer = null;
   let cancelled = false;
 
@@ -90,8 +96,8 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
   // author's awareness frames were lost, so only the doc update shows up.
   // schedule is a no-op unless this client is alone with no sweep pending,
   // so listening on every update costs one timer at most.
-  provider.doc?.on?.('update', schedule);
-  provider.whenSynced?.then?.(schedule);
+  doc.on('update', schedule);
+  provider.whenSynced?.then?.(schedule, () => {});
   schedule();
 
   return () => {
@@ -101,7 +107,7 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
     clearTimeout(timer);
     timer = null;
     awareness.off('change', onAwarenessChange);
-    provider.doc?.off?.('update', schedule);
+    doc.off('update', schedule);
   };
 }
 

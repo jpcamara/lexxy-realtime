@@ -33,7 +33,24 @@ provider.connect();
 provider.disconnect();
 provider.destroy();
 
+const collaboration = document.createElement('lexxy-collaboration');
+collaboration.doc = provider.doc;
+collaboration.provider = provider;
+collaboration.consumer = consumer;
+collaboration.configure({ doc: provider.doc, provider, consumer });
+collaboration.retry();
+collaboration.addEventListener('lexxy-realtime:desync', event => {
+  const recovering: boolean = event.detail.recovering;
+  const error: unknown = event.detail.error;
+  void [recovering, error];
+});
+const lifecycle: import('lexxy-realtime').CollaborationStatus = collaboration.status;
+// @ts-expect-error Runtime state is read-only.
+collaboration.status = 'active';
+// @ts-expect-error Presence always belongs to the configured provider.
+collaboration.awareness = provider.awareness;
 const element: HTMLElement = new Collaboration();
+void lifecycle;
 
 // @anycable/web works through its ActionCable-compat consumer.
 import { createCable, createConsumer } from "@anycable/web";

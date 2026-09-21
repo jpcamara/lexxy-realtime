@@ -4,3 +4,5 @@ tmp/
 .bundle/
 public/app.js
 public/lifecycle.js
+
+public/navigation.js

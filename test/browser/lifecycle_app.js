@@ -3,6 +3,7 @@
 // leaks + sync state, so the lifecycle claims can be verified (and regression-
 // tested) in a real browser. Exposes window.__lc; driven by lifecycle.mjs.
 import "@37signals/lexxy";
+import { contractScenarios } from "./lifecycle_contract.js";
 import { YrbyProvider } from "../../src/index.js"; // registers <lexxy-collaboration>
 import * as Y from "yjs";
 import { createConsumer } from "@rails/actioncable";
@@ -33,6 +34,7 @@ async function makeEditor() {
   if (!editor.editor) {
     await new Promise((res) => editor.addEventListener("lexxy:initialize", res, { once: true }));
   }
+  await sleep(50); // Lexxy mounts its root in a deferred callback.
   return editor;
 }
 
@@ -47,12 +49,15 @@ function makeCollab(room, provider) {
   collab.consumer = consumer;
   collab.doc = doc;
   collab.provider = p;
+  hostResources.push(() => { p.destroy(); doc.destroy(); });
   return { collab, doc, provider: p };
 }
 
 const results = {};
+const hostResources = [];
 
 const scenarios = {
+  ...contractScenarios({ consumer, makeEditor }),
   // #0: the element-managed wiring — only a consumer and attributes; the
   // element builds the doc and provider itself, and must CONNECT the
   // provider it owns (YrbyProvider does not auto-connect). Teardown must
@@ -168,27 +173,12 @@ const scenarios = {
     };
   },
 
-  // #2: if the editor initializes after the element was disconnected, #init must
-  // not run on the detached element.
-  async initRace() {
-    const editor = document.createElement("lexxy-editor");
-    const { collab } = makeCollab(`lc-race-${Date.now()}`);
-    editor.appendChild(collab); // editor is detached, so neither connectedCallback has fired
-    document.body.appendChild(editor); // both connect; editor begins async init
-    const tookListenerPath = !editor.editor; // collab saw an uninitialized editor => registered the once-listener
-    collab.remove(); // remove before the editor finishes initializing
-    if (!editor.editor) {
-      await new Promise((res) => editor.addEventListener("lexxy:initialize", res, { once: true }));
-    }
-    await sleep(150);
-    const ranOnDetached = !collab.isConnected && collab.provider !== undefined;
-    editor.remove();
-    return { tookListenerPath, ranOnDetached };
-  },
+
 };
 
 window.__lc = {
   results,
+  contracts: Object.keys(contractScenarios({ consumer, makeEditor })),
   active50: () => short.size,
   errors: () => window.__err || [],
   run(name) {
@@ -196,7 +186,8 @@ window.__lc = {
     Promise.resolve()
       .then(() => scenarios[name]())
       .then((r) => (results[name] = r))
-      .catch((e) => (results[name] = { error: String((e && e.stack) || e) }));
+      .catch((e) => (results[name] = { error: String((e && e.stack) || e) }))
+      .finally(() => { for (const close of hostResources.splice(0)) close(); });
   },
 };
 document.body.dataset.lcReady = "true";

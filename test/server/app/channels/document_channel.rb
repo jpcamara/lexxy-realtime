@@ -9,6 +9,12 @@ class DocumentChannel < ApplicationCable::Channel
   on_load  { |key| FileStore.replay(key) }
   on_change { |key, update| FileStore.record(key, update) }
 
+  # This isolated test server accepts every test room. Production channels
+  # must enforce their own document access policy.
+  def authorized?(_key)
+    true
+  end
+
   def subscribed
     sync_subscribed params[:id]
   end
@@ -16,10 +22,4 @@ class DocumentChannel < ApplicationCable::Channel
   def receive(data)
     sync_receive(data, params[:id])
   end
-
-  private
-
-  # A local test server with no users, so every client may edit. yrby-rails
-  # 0.7 denies access unless the channel defines this.
-  def authorized?(_key = nil) = true
 end
