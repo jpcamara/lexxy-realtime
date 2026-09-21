@@ -7,6 +7,7 @@ import { bootstrapWhenSynced } from './bootstrap.js';
 import { createRemoteApplier } from './remote_applier.js';
 import { openConnection } from './connection.js';
 import { Cleanup } from './cleanup.js';
+import { Lifecycle } from './lifecycle.js';
 
 const editors = new WeakMap();
 const documents = new WeakMap();
@@ -14,7 +15,12 @@ const documents = new WeakMap();
 export class EditorBinding {
   #cleanup = new Cleanup();
   #listeners = new Cleanup();
-  #state = 'new';
+  #lifecycle = new Lifecycle('EditorBinding', 'new', {
+    new: { start: 'active', close: 'closed' },
+    active: { fail: 'failed', close: 'closed' },
+    failed: { close: 'closed' },
+    closed: {},
+  });
   #connection;
 
   constructor(options, onDesync) {
@@ -27,8 +33,8 @@ export class EditorBinding {
   get canRecover() { return this.#connection?.canRecover ?? false; }
 
   start() {
-    if (this.#state !== 'new') return;
-    this.#state = 'active';
+    if (this.#lifecycle.phase !== 'new') return;
+    this.#lifecycle.transition('start');
     const { editorElement, editor, id, name, color, seed = true } = this.options;
     let initialState;
     let changedEditor = false;
@@ -64,7 +70,7 @@ export class EditorBinding {
 
       this.#listeners.add(editor.registerUpdateListener(
         ({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
-          if (this.#state !== 'active' || tags.has('skip-collab')) return;
+          if (this.#lifecycle.phase !== 'active' || tags.has('skip-collab')) return;
           editorState.read(() => syncLexicalUpdateToYjs(
             binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags
           ));
@@ -79,7 +85,7 @@ export class EditorBinding {
       initLocalState(provider, name, color, true, { name, color });
       this.#listeners.add(registerUploadCleanup({ editorElement, editor, provider, doc }));
       const renderCursors = () => {
-        if (this.#state === 'active') syncCursorPositions(binding, provider);
+        if (this.#lifecycle.phase === 'active') syncCursorPositions(binding, provider);
       };
       provider.awareness.on('update', renderCursors);
       this.#listeners.add(() => provider.awareness.off('update', renderCursors));
@@ -94,16 +100,16 @@ export class EditorBinding {
   }
 
   #fail(error) {
-    if (this.#state !== 'active') return;
-    this.#state = 'failed';
+    if (this.#lifecycle.phase !== 'active') return;
+    this.#lifecycle.transition('fail');
     this.#listeners.close();
     this.onDesync(error);
   }
 
   close(options) {
-    if (this.#state === 'closed') return;
-    const discard = options?.discard ?? this.#state === 'failed';
-    this.#state = 'closed';
+    if (this.#lifecycle.phase === 'closed') return;
+    const discard = options?.discard ?? this.#lifecycle.phase === 'failed';
+    this.#lifecycle.transition('close');
     this.#listeners.close();
     this.#cleanup.close();
     this.#connection?.close({ discard });

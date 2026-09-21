@@ -37,16 +37,18 @@ npm run test:browser  # just the browser e2e
 ## Lifecycle and navigation contracts
 
 `headless/contracts.mjs` verifies SSR imports, rejected public configuration,
-and cleanup under exceptions/reentry. `browser/lifecycle_contract.js` drives
-real Lexxy editors through duplicate ownership, populated remounts, delayed
+cleanup under exceptions/reentry, rejected transitions, immutable snapshots,
+terminal closure, and connection reclaim during reentrant teardown.
+`browser/lifecycle_contract.js` drives real Lexxy editors through duplicate ownership, populated remounts, delayed
 initialization, partial setup failures, throwing cleanup, remote-apply recovery,
-recovery cancellation, bootstrap during reconnect, and held acknowledgments.
+recovery cancellation, retry/removal inside failure callbacks, bootstrap during
+reconnect, and held acknowledgments.
 
 `browser/navigation.mjs` uses three independent Chrome sessions for each of
 Turbo 8 and Turbolinks 5. Two users continue typing while the third visits away
 and returns, including browser history. It checks exact convergence, retired
-resource disposal, one overlay, overlapping keyboard input, and recovery by a
-fresh fourth reader. Screenshots and JSON evidence are saved under
+resource disposal, one overlay, overlapping keyboard input, every expected
+keydown reaching its editor, and recovery by a fresh fourth reader. Screenshots and JSON evidence are saved under
 `server/data/navigation/`. These fixtures follow the documented no-cache rule
 for live editor DOM; they do not claim cached Lexical snapshots are reusable.
 

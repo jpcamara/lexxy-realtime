@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Lifecycle transitions are enforced by an internal, dependency-free event
+  guard. Invalid transitions leave state untouched; snapshots are read-only.
+  Deferred restart has its own `restarting` status, and connections enter
+  `closing` before invoking teardown callbacks. Closed resources cannot reopen.
 - Collaboration now has explicit element, binding, and transport lifetimes.
   Late initialization and recovery cannot resurrect removed editors; same-turn
   moves preserve the binding. Populated host documents render on first mount

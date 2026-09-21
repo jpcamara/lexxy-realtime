@@ -6,10 +6,28 @@ Lexical caches as a second writable source of state.
 
 | Owner | States / responsibility |
 | --- | --- |
-| `Collaboration` | `detached → waiting → starting → active`; failures go to `failed` or `recovering`; removal always returns to `detached`. Waiting is optional when Lexxy is already initialized. |
+| `Collaboration` | `detached → waiting → restarting → detached → starting → active`; failures go to `failed` or `recovering`; removal always returns to `detached`. Waiting is optional when Lexxy is already initialized. |
 | `EditorBinding` | `new → active → failed/closed`; `closed` is terminal. Owns observers, bootstrap, upload cleanup, cursor rendering, and the Lexical binding. |
-| Connection | `open → draining → closed`, or directly `closed`; remount can reclaim `draining → open`. Owns only the provider/document it creates. Host resources are borrowed. |
+| Connection | `open → closing → draining → closed`, or `closing → closed`; remount can reclaim `draining → open`. Owns only the provider/document it creates. Host resources are borrowed. |
 | `Cleanup` | Open or closed. Closing commits before callbacks, runs in reverse acquisition order, and continues after exceptions. |
+
+All three owners use the internal `Lifecycle` guard. Each owner declares its
+allowed events and destinations beside its state field. An undeclared event
+throws before changing anything; callers cannot supply a destination phase.
+There are no direct phase assignments outside that guard. Snapshots are shallow
+frozen, and every transition creates a fresh identity, including same-phase
+transitions. Resources referenced by a snapshot remain usable by their owner.
+
+The element retains the binding only on `started`, `recover`, and `fail`.
+Other events replace its resource scope and close the previous scope after
+committing the new state. `restarting` means waiting for deferred unsubscribe;
+`starting` means setting up a new binding. A connection enters `closing` before
+removing presence, so reentrant callbacks cannot close or reclaim it halfway
+through teardown. `closed` is terminal for both binding and connection.
+
+Public no-ops (such as retry outside `failed`, repeated close, or stale deferred
+callbacks) are filtered before sending an event. These guards are distinct from
+an invalid internal transition, which is a programming error and must throw.
 
 Each deferred initialization, restart, and recovery is tied to the state object
 that scheduled it. A newer state invalidates that continuation. DOM callbacks

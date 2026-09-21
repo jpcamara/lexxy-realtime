@@ -2,11 +2,14 @@ import '@37signals/lexxy';
 import '../../src/index.js';
 
 const framework = new URLSearchParams(location.search).get('framework');
-window.__navigation = { instance: crypto.randomUUID(), visits: 0, retired: [], errors: [], inputs: [] };
+window.__navigation = { instance: crypto.randomUUID(), visits: 0, retired: [], errors: [], inputs: [], keys: [] };
 const state = window.__navigation;
 addEventListener('error', event => state.errors.push(event.message));
 addEventListener('unhandledrejection', event => state.errors.push(String(event.reason)));
 addEventListener('input', () => state.inputs.push(Date.now()), true);
+addEventListener('keydown', event => {
+  if (event.target.closest?.('[contenteditable]') && /^[ABC]$/.test(event.key)) state.keys.push(event.key);
+}, true);
 
 document.addEventListener(`${framework}:before-render`, () => {
   const element = document.querySelector('lexxy-collaboration');

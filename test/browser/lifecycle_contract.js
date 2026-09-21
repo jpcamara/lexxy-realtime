@@ -144,6 +144,22 @@ export function contractScenarios({ consumer, makeEditor }) {
       await until(() => collab.status === 'active' && collab.provider.synced);
       assert(editor.querySelectorAll('.lexxy-collab-cursors').length === 1, 'stale initialize duplicated binding');
     }),
+    initializeWhileWaiting: scenario(async ({ mount }) => {
+      const { editor, collab } = await mount({ append: false });
+      write(editor, 'WAITED FOR INITIALIZATION');
+      const lexical = editor.editor;
+      Object.defineProperty(editor, 'editor', { configurable: true, value: undefined });
+      editor.appendChild(collab);
+      await tick();
+      assert(collab.status === 'waiting', 'did not wait for editor initialization');
+      Object.defineProperty(editor, 'editor', { configurable: true, value: lexical });
+      editor.dispatchEvent(new CustomEvent('lexxy:initialize'));
+      assert(collab.status === 'restarting', 'initialization did not release the waiting scope');
+      editor.dispatchEvent(new CustomEvent('lexxy:initialize'));
+      await until(() => collab.status === 'active');
+      assert(text(editor) === 'WAITED FOR INITIALIZATION', 'initialization lost the captured content');
+      assert(editor.querySelectorAll('.lexxy-collab-cursors').length === 1, 'repeated initialization duplicated the binding');
+    }),
     recoveryRemoval: scenario(async ({ mount }) => {
       const { editor, collab, doc } = await mount({ owned: true });
       let events = 0;
@@ -181,6 +197,43 @@ export function contractScenarios({ consumer, makeEditor }) {
       collab.retry();
       await tick();
       assert(collab.status === 'active' && editor.editor.isEditable() && text(editor) === 'HOST CONTENT', 'host retry failed');
+    }),
+    retryInsideDesync: scenario(async ({ mount, dispose }) => {
+      const { editor, collab, doc, provider } = await mount();
+      const replacementDoc = new Doc();
+      const replacement = { doc: replacementDoc, awareness: new Awareness(replacementDoc), synced: true };
+      dispose.push(() => { replacement.awareness.destroy(); replacementDoc.destroy(); });
+      let duringRetry;
+      let reconfigurationRejected = false;
+      collab.addEventListener('lexxy-realtime:desync', () => {
+        collab.configure({ doc: replacementDoc, provider: replacement });
+        collab.retry();
+        collab.retry();
+        duringRetry = collab.status;
+        try { collab.configure({ doc, provider }); } catch { reconfigurationRejected = true; }
+      }, { once: true });
+      fault(editor, doc);
+      await until(() => collab.status === 'active');
+      assert(duringRetry === 'restarting' && reconfigurationRejected, 'restart was not an exclusive phase');
+      assert(collab.doc === replacementDoc && collab.provider === replacement, 'stale fault work replaced new binding');
+      assert(!doc.isDestroyed && editor.editor.isEditable(), 'retry lost host ownership or editability');
+      assert(editor.querySelectorAll('.lexxy-collab-cursors').length === 1, 'retry duplicated binding');
+      write(editor, 'AFTER REENTRANT RETRY');
+      assert(replacementDoc.get('root', XmlText).toString().includes('AFTER REENTRANT RETRY'), 'replacement cannot publish edits');
+    }),
+    removeInsideRetry: scenario(async ({ mount }) => {
+      const { editor, collab, doc } = await mount();
+      collab.addEventListener('lexxy-realtime:desync', () => {
+        collab.retry();
+        collab.remove();
+      }, { once: true });
+      fault(editor, doc);
+      await tick();
+      collab.retry();
+      collab.disconnectedCallback();
+      await tick();
+      assert(collab.status === 'detached' && !doc.isDestroyed, 'queued retry resurrected a removed binding');
+      assert(editor.editor.isEditable() && !editor.querySelector('.lexxy-collab-cursors'), 'retry removal leaked failure resources');
     }),
     partialSetup: scenario(async ({ mount }) => {
       const { editor, collab } = await mount({ append: false });

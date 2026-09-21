@@ -378,7 +378,8 @@ Host-supplied providers and documents are never disconnected or destroyed by
 the element.
 
 `collab.status` describes the editor lifecycle:
-`detached`, `waiting` (for Lexxy), `starting`, `active`, `recovering`, or `failed`.
+`detached`, `waiting` (for Lexxy), `restarting` (finishing the old subscription),
+`starting`, `active`, `recovering`, or `failed`.
 `active` means bound; use `collab.provider.synced` for network synchronization.
 Bad configuration emits `lexxy-realtime:error` with `event.detail.error` and
 leaves the element `failed`. After fixing the input, call `collab.retry()`.

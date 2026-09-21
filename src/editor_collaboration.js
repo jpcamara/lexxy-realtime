@@ -1,5 +1,6 @@
 import { EditorBinding } from './editor_binding.js';
 import { Cleanup } from './cleanup.js';
+import { Lifecycle } from './lifecycle.js';
 import { validateConsumer, validateDocument, validateProvider } from './connection.js';
 export { setConsumer } from './connection.js';
 
@@ -7,7 +8,16 @@ const Base = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
 
 export class Collaboration extends Base {
   #configuration = {};
-  #state = { phase: 'detached' };
+  #lifecycle = new Lifecycle('Collaboration', 'detached', {
+    detached: { wait: 'waiting', start: 'starting', setupFailed: 'failed', detach: 'detached' },
+    waiting: { restart: 'restarting', detach: 'detached' },
+    restarting: { released: 'detached', restart: 'restarting', detach: 'detached' },
+    starting: { started: 'active', setupFailed: 'failed', recover: 'recovering', fail: 'failed', restart: 'restarting', detach: 'detached' },
+    active: { recover: 'recovering', fail: 'failed', restart: 'restarting', detach: 'detached' },
+    recovering: { restart: 'restarting', detach: 'detached' },
+    failed: { configure: 'failed', restart: 'restarting', detach: 'detached' },
+  });
+  get #state() { return this.#lifecycle.current; }
   #lastRecoveryAt = null;
 
   get status() { return this.#state.phase; }
@@ -34,7 +44,7 @@ export class Collaboration extends Base {
     if (provider != null) validateProvider(provider, doc);
     if (this.status === 'failed') {
       const { editorElement, editor, seed } = this.#state;
-      this.#transition({ phase: 'failed', editorElement, editor, seed });
+      this.#transition('configure', { editorElement, editor, seed });
     }
     this.#configuration = { consumer: consumer ?? undefined, doc: doc ?? undefined, provider: provider ?? undefined };
   }
@@ -49,7 +59,7 @@ export class Collaboration extends Base {
   #reconcile({ seed = true } = {}) {
     const editorElement = this.closest('lexxy-editor');
     if (!this.isConnected) {
-      this.#transition({ phase: 'detached' });
+      this.#transition('detach');
       return;
     }
     if (this.#state.editorElement === editorElement
@@ -66,28 +76,26 @@ export class Collaboration extends Base {
     const editor = editorElement.editor;
     if (!editor) {
       const cleanup = new Cleanup();
-      const waiting = { phase: 'waiting', editorElement, editor, cleanup };
+      const waiting = this.#transition('wait', { editorElement, editor, cleanup });
       const initialize = () => {
         if (this.#state === waiting) this.#reconcile();
       };
       editorElement.addEventListener('lexxy:initialize', initialize);
       cleanup.add(() => editorElement.removeEventListener('lexxy:initialize', initialize));
-      this.#transition(waiting);
       return;
     }
-    const cleanup = new Cleanup();
-    const starting = { phase: 'starting', editorElement, editor, cleanup };
-    this.#transition(starting);
+    let starting;
     try {
       const session = new EditorBinding({
         ...this.#options(), editorElement, editor, seed,
       }, error => this.#desync(session, error));
-      starting.session = session;
+      const cleanup = new Cleanup();
       cleanup.add(() => session.close());
+      starting = this.#transition('start', { editorElement, editor, cleanup, session });
       session.start();
-      if (this.#state === starting) this.#state = { ...starting, phase: 'active' };
+      if (this.#state === starting) this.#transition('started');
     } catch (error) {
-      if (this.#state === starting) this.#setupFailed(error, editorElement, editor);
+      if (!starting || this.#state === starting) this.#setupFailed(error, editorElement, editor);
     }
   }
 
@@ -110,25 +118,28 @@ export class Collaboration extends Base {
     };
   }
 
-  #transition(next) {
+  #transition(event, details = {}) {
     const previous = this.#state;
-    this.#state = next;
-    previous.cleanup?.close();
+    // Activation and desync keep the current binding lifetime. All other
+    // events release it. Commit first so cleanup callbacks see the new phase.
+    const retained = ['started', 'recover', 'fail'].includes(event) ? previous : {};
+    const next = this.#lifecycle.transition(event, { ...retained, ...details });
+    if (previous.cleanup !== next.cleanup) previous.cleanup?.close();
+    return next;
   }
 
   #setupFailed(error, editorElement, editor) {
-    this.#transition({ phase: 'failed', editorElement, editor });
+    this.#transition('setupFailed', { editorElement, editor });
     this.dispatchEvent(new CustomEvent('lexxy-realtime:error', { bubbles: true, detail: { error } }));
     console.error('lexxy-realtime: could not start collaboration.', error);
   }
 
   #desync(session, error) {
-    if (this.#state.session !== session) return;
+    if (this.#state.session !== session || !['starting', 'active'].includes(this.status)) return;
     const now = Date.now();
     const recovering = session.canRecover && (this.#lastRecoveryAt === null || now - this.#lastRecoveryAt > 15000);
     if (recovering) this.#lastRecoveryAt = now;
-    const failed = { ...this.#state, seed: false, phase: recovering ? 'recovering' : 'failed' };
-    this.#state = failed;
+    const failed = this.#transition(recovering ? 'recover' : 'fail', { seed: false });
     // Prevent edits that look saved while the poisoned binding is stopped.
     const wasEditable = failed.editor.isEditable();
     failed.editor.setEditable(false);
@@ -140,7 +151,7 @@ export class Collaboration extends Base {
       if (recovering) {
         this.#restart(false);
       } else if (!this.isConnected) {
-        this.#transition({ phase: 'detached' });
+        this.#transition('detach');
       }
     });
   }
@@ -153,13 +164,12 @@ export class Collaboration extends Base {
 
   #restart(seed) {
     const editorElement = this.closest('lexxy-editor');
-    const restarting = { phase: 'starting', editorElement, editor: editorElement?.editor };
-    this.#transition(restarting);
+    const restarting = this.#transition('restart', { editorElement, editor: editorElement?.editor });
     // Yrby defers unsubscribe. Finish it before subscribing to the same
     // channel again, or Rails may never confirm the replacement provider.
     queueMicrotask(() => {
       if (this.#state !== restarting) return;
-      this.#state = { phase: 'detached' };
+      this.#transition('released');
       this.#reconcile({ seed });
     });
   }

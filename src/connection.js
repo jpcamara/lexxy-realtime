@@ -2,6 +2,7 @@ import { Doc } from 'yjs';
 import { createConsumer } from '@rails/actioncable';
 import { YrbyProvider } from './yrby_provider.js';
 import { Cleanup } from './cleanup.js';
+import { Lifecycle } from './lifecycle.js';
 
 let sharedConsumer;
 let configuredConsumer;
@@ -80,7 +81,12 @@ export function openConnection({ doc: suppliedDoc, provider: suppliedProvider, c
     cleanup.close();
     throw error;
   }
-  let state = 'open';
+  const lifecycle = new Lifecycle('Connection', 'open', {
+    open: { close: 'closing' },
+    closing: { drain: 'draining', finish: 'closed' },
+    draining: { reclaim: 'open', finish: 'closed' },
+    closed: {},
+  });
   let timer;
   const forget = () => {
     clearInterval(timer);
@@ -92,31 +98,31 @@ export function openConnection({ doc: suppliedDoc, provider: suppliedProvider, c
     doc, provider,
     canRecover: ownsDoc && ownsProvider,
     reclaim() {
-      if (state !== 'draining') throw new Error('Only a draining connection can be reclaimed.');
-      state = 'open';
+      lifecycle.transition('reclaim');
       forget();
     },
-    connect() { if (state === 'open' && ownsProvider) provider.connect(); },
+    connect() { if (lifecycle.phase === 'open' && ownsProvider) provider.connect(); },
     close({ discard = false } = {}) {
-      if (state !== 'open') return;
-      state = 'closed';
-      if (!ownsProvider) { cleanup.close(); return; }
+      if (lifecycle.phase !== 'open') return;
+      lifecycle.transition('close');
+      if (!ownsProvider) { lifecycle.transition('finish'); cleanup.close(); return; }
       // Removing presence must not prevent the rest of teardown.
       const presence = new Cleanup();
       presence.add(() => provider.awareness.setLocalState(null));
       presence.close();
       if (!discard && provider.hasPending) {
-        state = 'draining';
+        lifecycle.transition('drain');
         let pool = drainingConnections.get(cable);
         if (!pool) drainingConnections.set(cable, pool = new Map());
         pool.set(key, connection);
         timer = setInterval(() => {
-          if (state !== 'draining' || provider.hasPending) return;
-          state = 'closed';
+          if (lifecycle.phase !== 'draining' || provider.hasPending) return;
+          lifecycle.transition('finish');
           cleanup.close();
         }, 100);
         timer.unref?.();
       } else {
+        lifecycle.transition('finish');
         cleanup.close();
       }
     },
