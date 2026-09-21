@@ -25,12 +25,41 @@ function fault(editor, doc) {
   finally { editor.editor.update = original; }
 }
 
+// Hold real ACK envelopes at the transport boundary, without reaching into a
+// provider's delivery/session implementation. Other inbound messages keep flowing.
+function acknowledgementGate(consumer) {
+  let holding = false;
+  const held = [];
+  return {
+    consumer: {
+      subscriptions: {
+        create(params, callbacks) {
+          return consumer.subscriptions.create(params, {
+            ...callbacks,
+            received(message) {
+              const deliver = () => callbacks.received.call(this, message);
+              if (holding && message?.ack !== undefined) held.push(deliver);
+              else deliver();
+            },
+          });
+        },
+      },
+    },
+    hold() { holding = true; },
+    get pending() { return held.length; },
+    release() {
+      holding = false;
+      for (const deliver of held.splice(0)) deliver();
+    },
+  };
+}
+
 export function contractScenarios({ consumer, makeEditor }) {
   // Each case cleans up even when an assertion fails; no case can pass by
   // inheriting another case's provider, editor, or timers.
   const scenario = fn => async () => {
     const dispose = [];
-    async function mount({ owned = false, synced = true, append = true, provider, doc } = {}) {
+    async function mount({ owned = false, synced = true, append = true, provider, doc, consumer: cableConsumer = consumer } = {}) {
       const editor = await makeEditor();
       const collab = document.createElement('lexxy-collaboration');
       if (!owned) {
@@ -40,7 +69,7 @@ export function contractScenarios({ consumer, makeEditor }) {
         collab.provider = provider;
         dispose.push(() => { provider.awareness.destroy(); doc.destroy(); });
       }
-      collab.consumer = consumer;
+      collab.consumer = cableConsumer;
       collab.setAttribute('channel-name', 'DocumentChannel');
       collab.setAttribute('channel-params', JSON.stringify({ id: `contract-${crypto.randomUUID()}` }));
       dispose.push(() => editor.remove());
@@ -291,22 +320,21 @@ export function contractScenarios({ consumer, makeEditor }) {
       await until(() => text(first.editor) === 'BOTH EDITORS');
       assert(first.doc !== second.collab.doc, 'editors share a local document');
     }),
-    pendingRemount: scenario(async ({ mount }) => {
-      const { editor, collab, doc, provider } = await mount({ owned: true });
+    pendingRemount: scenario(async ({ mount, dispose }) => {
+      const acknowledgements = acknowledgementGate(consumer);
+      dispose.push(() => acknowledgements.release());
+      const { editor, collab, doc, provider } = await mount({ owned: true, consumer: acknowledgements.consumer });
       await until(() => !provider.hasPending);
-      const ack = provider.session.ack.bind(provider.session);
-      const held = [];
-      provider.session.ack = id => held.push(id);
+      acknowledgements.hold();
       write(editor, 'REMOUNT BEFORE ACK');
-      await until(() => held.length > 0);
+      await until(() => acknowledgements.pending > 0);
       collab.remove();
       await tick();
       editor.appendChild(collab);
       await until(() => collab.status === 'active' && collab.provider.synced);
       assert(collab.doc === doc && collab.provider === provider, 'pending connection was not reclaimed');
       assert(text(editor) === 'REMOUNT BEFORE ACK', 'pending remount lost content');
-      provider.session.ack = ack;
-      held.forEach(ack);
+      acknowledgements.release();
       await tick();
       assert(!doc.isDestroyed && collab.status === 'active', 'old drain timer destroyed remounted resources');
     }),
@@ -320,19 +348,18 @@ export function contractScenarios({ consumer, makeEditor }) {
       assert(text(target.editor) === 'MOVE BETWEEN EDITORS', 'new editor did not load document');
       assert(!editor.querySelector('.lexxy-collab-cursors') && target.editor.querySelectorAll('.lexxy-collab-cursors').length === 1, 'old editor retained binding');
     }),
-    pendingDrain: scenario(async ({ mount }) => {
-      const { editor, collab, doc, provider } = await mount({ owned: true });
+    pendingDrain: scenario(async ({ mount, dispose }) => {
+      const acknowledgements = acknowledgementGate(consumer);
+      dispose.push(() => acknowledgements.release());
+      const { editor, collab, doc, provider } = await mount({ owned: true, consumer: acknowledgements.consumer });
       await until(() => !provider.hasPending);
-      const ack = provider.session.ack.bind(provider.session);
-      const held = [];
-      provider.session.ack = id => held.push(id);
+      acknowledgements.hold();
       write(editor, 'WAIT FOR ACK');
-      await until(() => held.length > 0);
+      await until(() => acknowledgements.pending > 0);
       collab.remove();
       await tick();
       assert(provider.hasPending && !doc.isDestroyed && collab.status === 'detached', 'pending edits discarded');
-      provider.session.ack = ack;
-      held.forEach(ack);
+      acknowledgements.release();
       await until(() => doc.isDestroyed);
       assert(provider.status === 'disconnected', 'drained provider stayed connected');
     }),
