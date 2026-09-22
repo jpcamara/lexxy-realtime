@@ -62,6 +62,28 @@ for (const framework of ['turbo', 'turbolinks']) {
       const texts = await Promise.all(sessions.map(session => value(session, `return ${text};`)));
       check(new Set(texts).size === 1, `${framework}: all three editors converge exactly`);
     }
+    // Reproduce the original duplicate-character race deterministically:
+    // remote A reaches peers whose caret still points at the paragraph. Real
+    // keyboard insertion must extend A's CRDT text, not copy it into BA / CA.
+    await type(sessions[0], 'A', 1);
+    for (const session of sessions.slice(1)) {
+      await wait(session, `(${text}) === 'A'`);
+      await ab(session, 'eval', `(() => {
+        const editable = document.querySelector('#editor [contenteditable]');
+        editable.focus();
+        const range = document.createRange();
+        range.setStart(editable.querySelector('p'), 0);
+        range.collapse(true);
+        const selection = getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      })()`);
+    }
+    await Promise.all(sessions.slice(1).map((session, i) => ab(session, 'press', ['B', 'C'][i])));
+    expected.B++; expected.C++;
+    await converge();
+    check(true, `${framework}: concurrent first keys preserve the single pre-existing A`);
+
     await Promise.all(sessions.map((session, i) => type(session, ['A', 'B', 'C'][i], 24)));
     await converge();
 
