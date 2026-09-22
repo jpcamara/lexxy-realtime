@@ -8,6 +8,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Concurrent first keystrokes no longer duplicate text that arrived from a peer.
+  Reordered text-node cleanup preserves surviving characters, formatting, and
+  NodeState instead of deleting them. Both fixes retain the existing Yjs document format.
 - Lifecycle transitions are enforced by an internal, dependency-free event
   guard. Invalid transitions leave state untouched; snapshots are read-only.
   Deferred restart has its own `restarting` status, and connections enter

@@ -1,4 +1,4 @@
-import { createBinding, syncLexicalUpdateToYjs, syncCursorPositions, initLocalState } from '@lexical/yjs';
+import { createBinding, syncCursorPositions, initLocalState } from '@lexical/yjs';
 import { $getRoot, HISTORY_MERGE_TAG, COLLABORATION_TAG } from 'lexical';
 import { attachmentExclusions, patchCollabElementSplice } from './attachment_sync.js';
 import { registerUploadCleanup } from './upload_cleanup.js';
@@ -8,6 +8,8 @@ import { createRemoteApplier } from './remote_applier.js';
 import { openConnection } from './connection.js';
 import { Cleanup } from './cleanup.js';
 import { Lifecycle } from './lifecycle.js';
+import { registerTextReconciliation, syncEditorUpdate } from './text_reconciliation.js';
+import { registerSelectionNormalization } from './selection_normalization.js';
 
 const editors = new WeakMap();
 const documents = new WeakMap();
@@ -55,6 +57,8 @@ export class EditorBinding {
       const binding = createBinding(editor, provider, id, doc, new Map([[id, doc]]), attachmentExclusions(editor));
       this.#cleanup.add(() => releaseBinding(binding));
       patchCollabElementSplice(binding);
+      this.#cleanup.add(registerTextReconciliation(binding));
+      this.#listeners.add(registerSelectionNormalization(editor));
       registerCursorTheme(editor);
       const cursors = createCursorsContainer(editorElement);
       this.#cleanup.add(() => cursors.remove());
@@ -69,11 +73,9 @@ export class EditorBinding {
       }, { tag: COLLABORATION_TAG, discrete: true });
 
       this.#listeners.add(editor.registerUpdateListener(
-        ({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
-          if (this.#lifecycle.phase !== 'active' || tags.has('skip-collab')) return;
-          editorState.read(() => syncLexicalUpdateToYjs(
-            binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags
-          ));
+        update => {
+          if (this.#lifecycle.phase !== 'active' || update.tags.has('skip-collab')) return;
+          syncEditorUpdate(binding, provider, update);
         }
       ));
       const observer = createRemoteApplier(provider, binding, { onDesync: error => this.#fail(error) });
