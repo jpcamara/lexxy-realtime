@@ -8,6 +8,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Concurrent first keystrokes no longer duplicate text that arrived from a peer.
+  Reordered text-node cleanup preserves surviving characters, formatting, and
+  NodeState instead of deleting them. Both fixes retain the existing Yjs document format.
+- Lifecycle transitions are enforced by an internal, dependency-free event
+  guard. Invalid transitions leave state untouched; snapshots are read-only.
+  Deferred restart has its own `restarting` status, and connections enter
+  `closing` before invoking teardown callbacks. Closed resources cannot reopen.
+- Collaboration now has explicit element, binding, and transport lifetimes.
+  Late initialization and recovery cannot resurrect removed editors; same-turn
+  moves preserve the binding. Populated host documents render on first mount
+  and remount without duplicating Lexical's cached children.
+- Invalid or conflicting configuration fails before clearing the editor.
+  Runtime status/presence are read-only; mounted document/provider/consumer
+  assignments throw. `configure()` replaces a document/provider pair atomically.
+  Setup errors emit `lexxy-realtime:error`; `retry()`
+  restarts failed setups or bindings. Undocumented mutable `binding`, `editor`,
+  and `editorElement` fields have been removed.
+- Partial setup and throwing cleanup release the remaining resources. Owned
+  connections drain pending edits on removal and then destroy their resources;
+  host-owned providers/documents remain untouched. Remote apply failures stop
+  local writes as well as remote applies, and recovery waits for the old
+  subscription to leave before connecting its replacement.
+- Package imports work without browser globals. Bootstrap handles an already
+  resolved first-sync promise during reconnection and cancels late callbacks.
+
+
 - A throw inside the Yjs->Lexical apply no longer silently desyncs the
   editor. The remote-update observer fires from inside `Y.applyUpdate`,
   which y-protocols wraps in a catch-and-log — so an exception during

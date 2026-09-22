@@ -23,6 +23,7 @@ const bundle = (input, file) =>
   });
 
 export default [
+  bundle("test/browser/navigation_app.js", "test/server/public/navigation.js"),
   bundle("test/browser/app.js", "test/server/public/app.js"),
   bundle("test/browser/lifecycle_app.js", "test/server/public/lifecycle.js"),
 ];

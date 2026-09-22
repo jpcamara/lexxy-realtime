@@ -31,7 +31,46 @@ export declare function setConsumer(
  * `consumer` on the element to override the shared one from setConsumer.
  */
 export declare class Collaboration extends HTMLElement {
+  /** Configure before mounting (or after removal has settled). Active assignments throw. */
   consumer?: CableConsumer;
+  doc?: import('yjs').Doc;
+  provider?: CollaborationProvider;
+  readonly awareness: import('y-protocols/awareness').Awareness | undefined;
+  readonly status: CollaborationStatus;
+  /** Replace all configuration atomically while detached or failed. */
+  configure(options?: CollaborationConfiguration): void;
+  /** Retry a failed setup/binding; a no-op in other states. */
+  retry(): void;
   connectedCallback(): void;
   disconnectedCallback(): void;
+}
+
+export interface CollaborationConfiguration {
+  consumer?: CableConsumer | null;
+  doc?: import('yjs').Doc | null;
+  provider?: CollaborationProvider | null;
+}
+
+/** The editor lifecycle, independent of provider.synced / transport status. */
+export type CollaborationStatus = 'detached' | 'waiting' | 'restarting' | 'starting' | 'active' | 'recovering' | 'failed';
+
+/** Minimal provider contract; the host owns providers assigned to an element. */
+export interface CollaborationProvider {
+  readonly awareness: import('y-protocols/awareness').Awareness;
+  readonly synced: boolean;
+  readonly doc?: import('yjs').Doc;
+  readonly whenSynced?: PromiseLike<unknown>;
+}
+
+export interface CollaborationErrorDetail { error: unknown; }
+export interface CollaborationDesyncDetail extends CollaborationErrorDetail { recovering: boolean; }
+
+declare global {
+  interface HTMLElementEventMap {
+    'lexxy-realtime:error': CustomEvent<CollaborationErrorDetail>;
+    'lexxy-realtime:desync': CustomEvent<CollaborationDesyncDetail>;
+  }
+  interface HTMLElementTagNameMap {
+    'lexxy-collaboration': Collaboration;
+  }
 }

@@ -34,12 +34,27 @@ npm run test:browser  # just the browser e2e
   editors that converge both ways, then opens a third cold client that rebuilds
   the document from the server.
 
-## Note on the Lexxy patch
+## Lifecycle and navigation contracts
 
-`@lexical/yjs`'s `createBinding` snapshots node defaults by constructing every
-registered node with no arguments. Several Lexxy ActionText nodes destructure
-their first constructor argument and throw on no-arg construction, which aborts
-binding setup and silently breaks Lexical↔Yjs sync. `patches/` carries a
-`patch-package` patch that defaults those constructor args, applied on
-`postinstall`. This is still required on current Lexxy (verified on 0.9.18) and
-is a candidate for an upstream fix.
+`headless/contracts.mjs` verifies SSR imports, rejected public configuration,
+cleanup under exceptions/reentry, rejected transitions, immutable snapshots,
+terminal closure, and connection reclaim during reentrant teardown.
+`browser/lifecycle_contract.js` drives real Lexxy editors through duplicate ownership, populated remounts, delayed
+initialization, partial setup failures, throwing cleanup, remote-apply recovery,
+recovery cancellation, retry/removal inside failure callbacks, bootstrap during
+reconnect, and held acknowledgments.
+
+`browser/navigation.mjs` uses three independent Chrome sessions for each of
+Turbo 8 and Turbolinks 5. Two users continue typing while the third visits away
+and returns, including browser history. It checks exact convergence, retired
+resource disposal, one overlay, overlapping keyboard input, every expected
+keydown reaching its editor, and recovery by a fresh fourth reader. Screenshots and JSON evidence are saved under
+`server/data/navigation/`. These fixtures follow the documented no-cache rule
+for live editor DOM; they do not claim cached Lexical snapshots are reusable.
+
+## Lexical compatibility
+
+Lexxy 0.9.29 already fixes the attachment constructors. The remaining
+`patchCollabElementSplice` workaround handles an empty-tree splice in
+`@lexical/yjs` 0.44. A binding's disposal also clears its `_collabNode` caches
+before the same Y.Doc can be attached to another editor. See `LIFECYCLE.md`.

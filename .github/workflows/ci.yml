@@ -130,6 +130,15 @@ jobs:
           export AGENT_BROWSER_EXECUTABLE_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser)"
           bun run test:browser
 
+      - name: Browser navigation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-navigation
+          path: lexxy-realtime/test/server/data/navigation/
+          if-no-files-found: ignore
+          retention-days: 14
+
   anycable:
     name: AnyCable e2e (anycable-go + real Chrome)
     runs-on: ubuntu-latest

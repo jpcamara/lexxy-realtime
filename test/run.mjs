@@ -8,7 +8,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { rmSync, mkdirSync, readdirSync } from "node:fs";
+import { rmSync, mkdirSync, readdirSync, openSync, closeSync } from "node:fs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -58,10 +58,22 @@ try {
 }
 
 console.log(`> booting yrby test server on :${PORT}`);
-const server = spawn("bundle", ["exec", "puma", "-p", PORT, "config.ru"], {
+function startProcess(name, command, args, options = {}) {
+  const log = openSync(join(dataDir, `${name}.log`), 'a');
+  try { return spawn(command, args, { ...options, stdio: ['ignore', log, log] }); }
+  finally { closeSync(log); }
+}
+async function stopProcess(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  await new Promise(resolve => {
+    const timer = setTimeout(() => child.kill('SIGKILL'), 5000);
+    child.once('exit', () => { clearTimeout(timer); resolve(); });
+    child.kill('SIGTERM');
+  });
+}
+const server = startProcess('actioncable', "bundle", ["exec", "puma", "-p", PORT, "config.ru"], {
   cwd: serverDir,
   env: { ...process.env, RAILS_ENV: "development", LOG_LEVEL: "error" },
-  stdio: "ignore",
 });
 
 let exitCode = 0;
@@ -92,7 +104,7 @@ try {
     if (run("npx", ["tsc", "-p", join(here, "types")]).status !== 0) exitCode = 1;
 
     console.log("\n=== headless durability suite ===");
-    for (const name of ["remote_apply", "convergence", "durability", "loss"]) {
+    for (const name of ["contracts", "remote_apply", "text_integrity", "convergence", "durability", "loss"]) {
       console.log(`\n--- ${name} ---`);
       const r = run("bun", [join(here, "headless", `${name}.mjs`)]);
       if (r.status !== 0) exitCode = 1;
@@ -114,6 +126,8 @@ try {
     console.log("\n=== element lifecycle (agent-browser) ===");
     if (run("node", [join(here, "browser", "lifecycle.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
+    console.log("\n=== Turbo / Turbolinks concurrent navigation (agent-browser) ===");
+    if (run("node", [join(here, "browser", "navigation.mjs")]).status !== 0) exitCode = 1;
     console.log("\n=== import-map assets e2e (agent-browser) ===");
     // Build straight into the test server's public directory, so test
     // runs never rewrite the committed gem assets.
@@ -159,7 +173,7 @@ try {
       }
     } else {
       console.log("\n=== AnyCable e2e (anycable-go gateway + RPC server) ===");
-      shutdown(); // the async-adapter server; the AnyCable page server takes its port
+      await stopProcess(server); // AnyCable pages need the same port released first.
 
       const WS_PORT = process.env.ANYCABLE_WS_PORT || "8081";
       const RPC_PORT = process.env.ANYCABLE_RPC_PORT || "50061";
@@ -179,15 +193,15 @@ try {
         ANYCABLE_HTTP_HEALTH_PORT: RPC_HEALTH_PORT,
       };
       const stack = [
-        spawn("bundle", ["exec", "puma", "-p", PORT, "config.ru"], { cwd: serverDir, env: anyEnv, stdio: "ignore" }),
-        spawn("bundle", ["exec", "anycable"], { cwd: serverDir, env: anyEnv, stdio: "ignore" }),
-        spawn("anycable-go", [
+        startProcess("anycable-pages", "bundle", ["exec", "puma", "-p", PORT, "config.ru"], { cwd: serverDir, env: anyEnv }),
+        startProcess("anycable-rpc", "bundle", ["exec", "anycable"], { cwd: serverDir, env: anyEnv }),
+        startProcess("anycable-go", "anycable-go", [
           "--host=127.0.0.1",
           `--port=${WS_PORT}`,
           `--rpc_host=127.0.0.1:${RPC_PORT}`,
           "--broadcast_adapter=redis",
           `--redis_url=${REDIS_URL}`,
-        ], { stdio: "ignore" }),
+        ]),
       ];
       const stopStack = () => stack.forEach((p) => { try { p.kill("SIGTERM"); } catch { /* gone */ } });
       process.on("exit", stopStack);
@@ -208,11 +222,11 @@ try {
           return false;
         };
         if (!(await gatewayUp())) {
-          console.error("FAILED: AnyCable stack did not come up");
+          console.error("FAILED: AnyCable stack did not come up; see test/server/data/anycable-*.log");
           exitCode = 1;
         } else {
           console.log("\n--- headless durability suite over anycable-go ---");
-          for (const name of ["remote_apply", "convergence", "durability", "loss"]) {
+          for (const name of ["contracts", "remote_apply", "text_integrity", "convergence", "durability", "loss"]) {
             console.log(`\n--- ${name} (anycable) ---`);
             const r = run("bun", [join(here, "headless", `${name}.mjs`)], { env: { ...process.env, PORT, CABLE_URL } });
             if (r.status !== 0) exitCode = 1;
@@ -234,12 +248,12 @@ try {
           spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
         }
       } finally {
-        stopStack();
+        await Promise.all(stack.map(stopProcess));
       }
     }
   }
 } finally {
-  shutdown();
+  await stopProcess(server);
 }
 
 console.log(exitCode === 0 ? "\nALL TESTS PASSED" : "\nTESTS FAILED");
