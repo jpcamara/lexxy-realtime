@@ -37,7 +37,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   in the stored HTML (a decorator-style node renders as nothing) while
   live editors keep showing it.
 - Materialization logs a warning naming node types that have no render
-  rule, once per class/field/type set.
+  rule, once per class/field/type set. The warning needs a yrby release
+  that reports unknown node types. Until then the HTML is the same and
+  nothing is logged.
 
 ### Changed
 

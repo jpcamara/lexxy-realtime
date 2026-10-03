@@ -34,8 +34,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "lexxy", ">= 0.9.29", "< 1.0"
   # lexxy 0.9 requires Rails >= 8.0.2.
   spec.add_dependency "rails", ">= 8.0.2"
-  # yrby 0.8 reports unknown node types, which the materialization
-  # warning reads.
+  # yrby 0.8 is the core release yrby-rails 0.7 builds on.
   spec.add_dependency "yrby", "~> 0.8"
   # yrby-rails: the sync concern and the Y::Document models. 0.7 calls
   # authorized?(key), which the generated channel accepts.
