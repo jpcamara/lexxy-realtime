@@ -142,12 +142,16 @@ and `on_change`.
 
 ### The document channel
 
-`DocumentChannel` runs Yjs sync over Action Cable or AnyCable and stores
-updates in `Y::Document`. It saves each update before acknowledging or
-broadcasting it, so the stored log can rebuild the document.
+`LexxyRealtime::DocumentChannel` ships in the gem. It's yrby-rails'
+`Y::DocumentChannel` with one addition: after it saves each update, it
+renders the document to HTML and saves it to the Action Text field. It saves
+each update before acknowledging or broadcasting it, so the stored log can
+rebuild the document.
 
-The form helper gives the client a signed GlobalID scoped to one record and
-field. Use `authorized?` for your application's user access check.
+The form helper gives the browser yrby's signed grant for one record and
+field. To also check the user's permissions when they subscribe, use
+`LexxyRealtime::DocumentChannel.authorize_document`. The
+[Rails gem README](rails/README.md#access-control) shows how.
 
 ### Encrypted storage
 
@@ -233,16 +237,17 @@ LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil
 <%= form.collaborative_rich_textarea :body, name: "Reviewer", color: "#0ea5e9" %>
 ```
 
-Cursor names and colors are sent as presence metadata. The channel uses the
-signed GlobalID to find the record and `authorized?` to check access.
+Cursor names and colors are sent as presence metadata. The channel finds the
+record from the signed grant and checks access with your `authorize_document`
+block, if you set one.
 
-Names are cosmetic; access is enforced. Presence metadata is written by
-the client, so a tampered client can label its cursor with any name — and
-under AnyCable, presence rides whispers the server never sees. What a
-client can never do is grant itself access: reading and writing the
-document are gated by the signed GlobalID and your `authorized?` check,
-entirely on the server. Treat the name on a cursor as a label for people
-who already share the document, never as authentication.
+Names are cosmetic, and access is enforced. A client sets its own presence
+metadata, so a tampered client can label its cursor with any name. Under
+AnyCable, presence also travels as whispers the server never sees. What a
+client can't do is give itself access. Reading and writing the document
+depend on the signed grant and your authorization check, both on the server.
+Treat the name on a cursor as a label for people who already share the
+document, not as authentication.
 
 ## The JavaScript client
 

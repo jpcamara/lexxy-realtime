@@ -114,27 +114,35 @@ The next successful update renders the full document again. Until then,
 
 ## Access control
 
-The form helper gives clients a signed GlobalID scoped to one record and
-field — the way `turbo_stream_from` signs its stream names. Possession of
-the token is the authorization: your app minted it by rendering the form,
-and `LexxyRealtime::DocumentChannel` rejects a missing, tampered,
-wrong-field, or dead-record token. To layer further checks (say, revoking
-access after the page was rendered), subclass the channel and point the
-helper at it:
+The form helper renders yrby's signed grant for the record and field, the
+same token yrby-rails' `collaborative_document_tag` uses.
+`LexxyRealtime::DocumentChannel` is yrby-rails' `Y::DocumentChannel` with
+Action Text rendering added. It rejects a missing, tampered, expired, or
+wrong-field grant, a deleted record, and a field that isn't declared with
+`has_collaborative_rich_text`. A valid grant means your app rendered the
+form for this user.
+
+To also check the user's current permissions when they subscribe, give
+the channel a block:
 
 ```ruby
-# app/channels/my_document_channel.rb
-class MyDocumentChannel < LexxyRealtime::DocumentChannel
-  private
-
-  def authorized?(key = nil)
-    super && record.editable_by?(connection.current_user)
+# config/initializers/lexxy_realtime.rb
+Rails.application.config.to_prepare do
+  LexxyRealtime::DocumentChannel.authorize_document do |record, name|
+    record.editable_by?(current_user, attribute: name)
   end
 end
-
-# config/initializers/lexxy_realtime.rb
-LexxyRealtime.channel_name = "MyDocumentChannel"
 ```
+
+The block runs inside the channel, so `current_user` and your other
+connection identifiers are available. `editable_by?` stands for your own
+permission check. If the block returns false or nil, the channel rejects
+the subscription before sending anything.
+
+To limit how long a grant lasts, pass `expires_in:` to the form helper,
+as in `form.collaborative_rich_textarea :body, expires_in: 1.hour`.
+Without it, GlobalID's default of one month applies. An editor whose
+grant has expired reconnects after the page reloads.
 
 ## Configuration
 

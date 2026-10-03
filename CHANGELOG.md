@@ -24,30 +24,41 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- `LexxyRealtime::DocumentChannel`, shipped in the gem the way Turbo
-  ships `Turbo::StreamsChannel`. The form helper points elements at it by
-  name. Holding the signed, field-scoped token the helper renders is the
-  authorization, and the channel rejects a missing, tampered, wrong-field,
-  undeclared-field, or dead-record token. Apps that want more checks
-  subclass it and set `LexxyRealtime.channel_name`, which replaces the
-  `CHANNEL_NAME` constant.
+- `LexxyRealtime::DocumentChannel`, shipped in the gem. It's yrby-rails'
+  `Y::DocumentChannel` plus rendering the Action Text field after each
+  saved change. It rejects a missing, tampered, expired, or wrong-field
+  grant, a deleted record, and a field without `has_collaborative_rich_text`.
+  Add a permission check with
+  `LexxyRealtime::DocumentChannel.authorize_document`.
+- `collaborative_rich_textarea` accepts `expires_in:` to limit how long the
+  grant lasts.
 - `has_collaborative_rich_text` accepts `nodes:`, the `Y::Lexxy` render rules
   for the app's custom Lexical nodes, applied when the document
   materializes into the attribute. Without a rule, a custom node degrades
   in the stored HTML (a decorator-style node renders as nothing) while
   live editors keep showing it.
 - Materialization logs a warning naming node types that have no render
-  rule, once per class/field/type set.
+  rule, once per class/field/type set. The warning needs a yrby release
+  that reports unknown node types. Until then the HTML is the same and
+  nothing is logged.
 
 ### Changed
 
 - **Breaking:** `lexxy_realtime:install` no longer generates
   `app/channels/document_channel.rb` or the Action Cable boilerplate. It
   only adds the storage migration. An app upgrading from the generated
-  channel can delete it, since the shipped channel runs the same logic. An
-  app that customized its channel should subclass
-  `LexxyRealtime::DocumentChannel` and set `LexxyRealtime.channel_name` so
-  the form helper points at it.
+  channel can delete it. Move any access check from its `authorized?` into
+  an `authorize_document` block.
+- **Breaking:** collaborative fields are built on yrby-rails'
+  `Y::Collaborative`. `record.collaborative_document(:body)` now returns
+  yrby's document handle, and `find_or_create_collaborative_document` and
+  the `collaborative_document_<name>` association are gone. Existing
+  documents keep working, because both versions use the same rows.
+- **Breaking:** the form helper renders yrby's grant
+  (`record.collaborative_sgid`) as the `grant` channel param, in place of a
+  lexxy-realtime token in `sgid`. Pages open during the upgrade need a
+  reload to reconnect. `LexxyRealtime.sgid_purpose` and `SGID_PURPOSE` are
+  removed.
 - Requires yrby 0.8, yrby-rails 0.7, and yrby-client 0.6.
 - The `lexxy` dependency gains a `< 1.0` ceiling. The collaboration
   bundle runs against Lexxy's re-exported Lexical namespace, so an

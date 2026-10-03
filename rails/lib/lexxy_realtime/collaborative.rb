@@ -3,30 +3,31 @@
 require "active_support/concern"
 
 module LexxyRealtime
-  # Adds Y::Document-backed collaboration to an attribute. When Action
-  # Text is available, it declares the corresponding +has_rich_text+
-  # association.
+  # Adds collaborative Lexxy editing to an attribute. Storage and the signed
+  # token come from yrby-rails' Y::Collaborative. When Action Text is
+  # available, it also declares the matching +has_rich_text+ association.
   module Collaborative
     extend ActiveSupport::Concern
 
     class_methods do
       def has_collaborative_rich_text(name, **options) # rubocop:disable Naming/PredicatePrefix
+        # The yrby-rails engine includes Y::Collaborative into Active Record.
+        # Including it here too covers models loaded without the engine.
+        include Y::Collaborative unless include?(Y::Collaborative)
         include Model unless include?(Model)
-        # nodes: is ours, not Action Text's — Y::Lexxy render rules for the
-        # app's custom Lexical nodes, applied when the document materializes.
+        # nodes: belongs to lexxy-realtime, not Action Text. These are the
+        # Y::Lexxy render rules for the app's custom Lexical nodes.
         nodes = options.delete(:nodes)
         has_rich_text(name, **options) if respond_to?(:has_rich_text)
         self.collaborative_rich_text_names = (collaborative_rich_text_names + [name.to_sym]).freeze
         self.collaborative_rich_text_rules =
           collaborative_rich_text_rules.merge(name.to_sym => (nodes || {}).freeze).freeze
 
-        # encrypted: true encrypts both halves: has_rich_text gets the
-        # option (an encrypted body), and the document stores CRDT state
-        # through Y::EncryptedDocument. Without Action Text, declare
-        # +encrypts+ on the plain attribute yourself.
-        document_class = options[:encrypted] ? "Y::EncryptedDocument" : "Y::Document"
-        has_one :"collaborative_document_#{name}", -> { where(name: name) },
-                class_name: document_class, as: :record, inverse_of: :record, dependent: :destroy
+        # encrypted: true encrypts both halves. has_rich_text gets the option
+        # for the body, and the document is stored through
+        # Y::EncryptedDocument. Without Action Text, declare +encrypts+ on
+        # the plain attribute yourself.
+        has_collaborative_document(name, encrypted: options[:encrypted] || false)
       end
     end
 
@@ -37,21 +38,11 @@ module LexxyRealtime
       included do
         class_attribute :collaborative_rich_text_names, instance_writer: false, default: [].freeze
         class_attribute :collaborative_rich_text_rules, instance_writer: false, default: {}.freeze
+
+        after_destroy :destroy_collaborative_documents
       end
 
       def collaborative_rich_text?(name) = collaborative_rich_text_names.include?(name.to_sym)
-
-      # The document, if collaboration has started (nil until the first join).
-      def collaborative_document(name) = public_send("collaborative_document_#{name}")
-
-      # Creates the document on first use. The association supplies the
-      # class, so an encrypted attribute gets a Y::EncryptedDocument.
-      def find_or_create_collaborative_document(name)
-        collaborative_document(name) || begin
-          association(:"collaborative_document_#{name}").klass.for(self, name)
-          public_send("reload_collaborative_document_#{name}")
-        end
-      end
 
       # Reloads and renders the document while holding the record lock,
       # then saves the HTML through the attribute writer. Returns false
@@ -59,12 +50,9 @@ module LexxyRealtime
       def refresh_collaborative_rich_text(name)
         ensure_collaborative!(name)
 
-        document = collaborative_document(name)
-        return false unless document
-
         with_lock do
           strict_loading!(false) if strict_loading? # the writer lazily loads the rich-text row
-          state = document.reload.load_state
+          state = collaborative_document(name).load_state
           break false if state.nil?
 
           doc = Y::Doc.new
@@ -82,6 +70,13 @@ module LexxyRealtime
 
       private
 
+      # Deletes each attribute's document and its updates with the record.
+      def destroy_collaborative_documents
+        collaborative_rich_text_names.each do |name|
+          self.class.collaborative_document_class(name).where(record: self, name: name.to_s).destroy_all
+        end
+      end
+
       def ensure_collaborative!(name)
         return if collaborative_rich_text?(name)
 
@@ -89,11 +84,10 @@ module LexxyRealtime
       end
 
       # A custom Lexical node with no render rule degrades in the stored
-      # HTML — a decorator-style node renders as nothing — while live
-      # editors keep showing it. Log once per class/field/type set so the
-      # first materialization makes the divergence visible. unknown_types
-      # arrived in yrby 0.8; an older yrby renders identically but can't
-      # report.
+      # HTML (a decorator-style node renders as nothing) while live editors
+      # keep showing it. Log once per class, field, and set of types, so the
+      # first materialization shows the difference. Renderers without
+      # unknown_types render the same HTML and log nothing.
       def report_unknown_node_types(name, renderer)
         return unless renderer.respond_to?(:unknown_types)
 

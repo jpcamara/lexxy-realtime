@@ -7,18 +7,11 @@ require "lexxy_realtime/engine"
 
 # Rails integration for collaborative Lexxy editing with yrby.
 module LexxyRealtime
-  # Signed ids from the form helper carry this purpose scoped per field
-  # (sgid_purpose), so a token minted elsewhere can't join a document.
-  SGID_PURPOSE = :lexxy_realtime
-
   class << self
-    def sgid_purpose(field) = "#{SGID_PURPOSE}/#{field}"
-
-    # The channel the form helper points elements at. Defaults to the
-    # gem-shipped LexxyRealtime::DocumentChannel; assign your own (usually a
-    # subclass overriding authorized?) to layer app-specific checks:
-    #
-    #   LexxyRealtime.channel_name = "MyDocumentChannel"
+    # The channel the form helper points elements at. It defaults to the
+    # gem's LexxyRealtime::DocumentChannel. To add a permission check, use
+    # LexxyRealtime::DocumentChannel.authorize_document instead of a
+    # subclass. Set this only when you need a different channel entirely.
     attr_writer :channel_name
 
     def channel_name
@@ -43,8 +36,8 @@ module LexxyRealtime
       "hsl(#{name.to_s.each_byte.reduce(0) { |acc, b| ((acc * 31) + b) % 360 }}, 70%, 45%)"
     end
 
-    # Gates the unknown-node-type log line to once per class/field/type
-    # set per process; the notification fires every materialization.
+    # Limits the unknown-node-type log line to once per class, field, and
+    # set of types, per process.
     def first_sighting_of_unknown_types?(key)
       @unknown_types_mutex.synchronize { !@unknown_types_seen.add?(key).nil? }
     end

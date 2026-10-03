@@ -50,16 +50,13 @@ class BootPost < ActiveRecord::Base
 end
 
 abort "rich_text association missing" unless BootPost.reflect_on_association(:rich_text_body)
-abort "document association missing" unless BootPost.reflect_on_association(:collaborative_document_body)
+abort "yrby's collaborative_document missing" unless BootPost.method_defined?(:collaborative_document)
 if BootPost.reflect_on_association(:rich_text_notes).klass != ActionText::EncryptedRichText
   abort "encrypted: did not reach Action Text"
 end
-if BootPost.reflect_on_association(:collaborative_document_notes).klass != Y::EncryptedDocument
-  abort "encrypted: did not reach the document association"
-end
-abort "instance API missing on declaring model" unless BootPost.method_defined?(:find_or_create_collaborative_document)
-if ActiveRecord::Base.method_defined?(:find_or_create_collaborative_document)
-  abort "instance API leaked to plain models"
-end
+abort "encrypted: did not reach yrby's storage" if BootPost.collaborative_document_class(:notes) != Y::EncryptedDocument
+abort "instance API missing on declaring model" unless BootPost.method_defined?(:refresh_collaborative_rich_text)
+abort "instance API leaked to plain models" if ActiveRecord::Base.method_defined?(:refresh_collaborative_rich_text)
+abort "shipped channel isn't Y::DocumentChannel" unless LexxyRealtime::DocumentChannel < Y::DocumentChannel
 
 puts "ENGINE BOOT OK"
