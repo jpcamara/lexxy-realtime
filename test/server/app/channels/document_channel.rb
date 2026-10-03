@@ -16,4 +16,10 @@ class DocumentChannel < ApplicationCable::Channel
   def receive(data)
     sync_receive(data, params[:id])
   end
+
+  private
+
+  # A local test server with no users, so every client may edit. yrby-rails
+  # 0.7 denies access unless the channel defines this.
+  def authorized?(_key = nil) = true
 end

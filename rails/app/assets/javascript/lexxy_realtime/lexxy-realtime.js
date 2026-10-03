@@ -14487,113 +14487,131 @@ function getConfig(name) {
 }
 //#endregion
 //#region node_modules/yrby-client/dist/reliable_sync.js
-const DEFAULTS = { resendInterval: 1e3 };
+const DEFAULT_RESEND_INTERVAL = 1e3;
 var ReliableSync = class {
-	/** Unacked local updates, in order. */
-	pending = [];
+	#pending = [];
 	#send;
 	#merge;
 	#resendInterval;
 	#setInterval;
 	#clearInterval;
 	#nextSeq = 1;
-	#connected = false;
-	#timer = void 0;
-	#tailCache = void 0;
+	#phase = "paused";
+	#timer;
+	#version = 0;
+	#tail;
 	constructor(opts) {
-		const { send, merge, resendInterval } = opts ?? {};
+		const { send, merge, resendInterval, setInterval: setTimer, clearInterval: clearTimer } = opts ?? {};
 		if (typeof send !== "function") throw new TypeError("ReliableSync requires a send(update, id) function");
 		if (typeof merge !== "function") throw new TypeError("ReliableSync requires a merge(updates) function");
+		const interval = resendInterval ?? DEFAULT_RESEND_INTERVAL;
+		if (!Number.isFinite(interval) || interval <= 0) throw new TypeError("ReliableSync resendInterval must be a positive number");
 		this.#send = send;
 		this.#merge = merge;
-		const interval = resendInterval ?? DEFAULTS.resendInterval;
-		if (!Number.isFinite(interval) || interval <= 0) throw new TypeError("ReliableSync resendInterval must be a positive number");
 		this.#resendInterval = interval;
-		this.#setInterval = opts.setInterval ?? ((fn, ms) => setInterval(fn, ms));
-		this.#clearInterval = opts.clearInterval ?? ((h) => clearInterval(h));
+		this.#setInterval = setTimer ?? ((fn, ms) => setInterval(fn, ms));
+		this.#clearInterval = clearTimer ?? ((h) => clearInterval(h));
+	}
+	/** A snapshot of unacknowledged local updates, oldest first. Editing it does not change the queue. */
+	get pending() {
+		return this.#pending.map(({ seq, update }) => ({
+			seq,
+			update: update.slice()
+		}));
 	}
 	/** True while there are unacknowledged local updates. */
 	get hasPending() {
-		return this.pending.length > 0;
+		return this.#pending.length > 0;
 	}
-	/**
-	* Record a local document update. It is queued and the unacked tail is
-	* flushed; the update remains retained until the server acknowledges it.
-	*/
+	/** Queue a local update and, while connected, send the tail. Ignored after destroy(). */
 	enqueue(update) {
-		this.pending.push({
+		if (this.#phase === "destroyed") return;
+		this.#pending.push({
 			seq: this.#nextSeq++,
-			update
+			update: new Uint8Array(update)
 		});
-		this.#tailCache = void 0;
-		if (this.#connected) this.#startTimer();
-		this.flush();
+		this.#queueChanged();
+		this.#flush();
 	}
 	/**
-	* Send the whole unacked tail as one merged delta. The id is the highest seq
-	* in the batch, so a single { ack } cumulatively confirms everything up to it.
-	* No-op while disconnected (the tail is replayed on the next onConnect).
+	* Confirm delivery through `id`, removing every queued update with
+	* seq <= id. Acks come off the wire, so ignore a malformed value or an id
+	* beyond anything sent.
 	*/
-	flush() {
-		if (!this.#connected || this.pending.length === 0) return;
-		this.#send(this.#mergedTail(), this.pending[this.pending.length - 1].seq);
+	acknowledge(id) {
+		if (this.#phase === "destroyed" || !Number.isSafeInteger(id) || id < 0) return;
+		const newest = this.#pending.at(-1);
+		if (newest && id > newest.seq) return;
+		this.#pending = this.#pending.filter((p) => p.seq > id);
+		this.#queueChanged();
 	}
-	/**
-	* Confirm delivery up to `id`: prune every queued update with seq <= id.
-	* Acks arrive over the wire, so validate before pruning. A malformed value
-	* (NaN/string/negative) or an impossible future id must not silently drop the
-	* queue; invalid acks are ignored.
-	*/
-	onAck(id) {
-		if (!Number.isSafeInteger(id) || id < 0) return;
-		if (this.pending.length > 0 && id > this.pending[this.pending.length - 1].seq) return;
-		this.pending = this.pending.filter((p) => p.seq > id);
-		this.#tailCache = void 0;
-		if (this.pending.length === 0) this.#stopTimer();
+	/** Call when the transport is up. Replays the tail and keeps retransmitting until it is acknowledged. */
+	resume() {
+		if (this.#phase === "destroyed") return;
+		this.#phase = "live";
+		this.#version++;
+		this.#updateTimer();
+		this.#flush();
 	}
-	/** Transport (re)connected: replay the unacked tail and resume retransmits. */
-	onConnect() {
-		this.#connected = true;
-		this.flush();
-		if (this.pending.length > 0) this.#startTimer();
+	/** Call when the transport is down. Keeps the queue and stops retransmitting. */
+	pause() {
+		if (this.#phase === "destroyed") return;
+		this.#phase = "paused";
+		this.#version++;
+		this.#updateTimer();
 	}
-	/** Transport dropped: keep the queue (for reconnect replay), pause the timer. */
-	onDisconnect() {
-		this.#connected = false;
-		this.#stopTimer();
+	/** Send the tail again if anything is unacknowledged. The internal timer calls this, and a host with its own scheduler can too. */
+	retransmit() {
+		this.#flush();
 	}
-	/**
-	* One retransmit tick. Exposed for deterministic testing; normally driven by
-	* the internal timer.
-	*/
-	onTick() {
-		if (!this.#connected || this.pending.length === 0) return;
-		this.flush();
-	}
-	/** Stop timers and drop references. Call when the provider is destroyed. */
+	/** Stop the timer and drop the queue. Later enqueues are ignored. */
 	destroy() {
-		this.#connected = false;
-		this.#stopTimer();
-		this.pending = [];
-		this.#tailCache = void 0;
+		if (this.#phase === "destroyed") return;
+		this.#phase = "destroyed";
+		this.#pending = [];
+		this.#queueChanged();
 	}
-	/** The unacked tail merged into one delta (memoized between tail changes). */
-	#mergedTail() {
-		if (this.#tailCache === void 0) {
-			const updates = this.pending.map((p) => p.update);
-			this.#tailCache = updates.length === 1 ? updates[0] : this.#merge(updates);
+	#queueChanged() {
+		this.#version++;
+		this.#tail = void 0;
+		this.#updateTimer();
+	}
+	#updateTimer() {
+		const wanted = this.#phase === "live" && this.hasPending;
+		if (wanted === (this.#timer !== void 0)) return;
+		if (!wanted) {
+			const timer = this.#timer;
+			this.#timer = void 0;
+			timer.stop();
+			return;
 		}
-		return this.#tailCache;
+		const timer = this.#timer = { stop: () => {} };
+		let handle;
+		try {
+			handle = this.#setInterval(() => {
+				if (this.#timer === timer) this.#flush();
+			}, this.#resendInterval);
+		} catch (error) {
+			if (this.#timer === timer) this.#timer = void 0;
+			throw error;
+		}
+		timer.stop = () => this.#clearInterval(handle);
+		if (this.#timer !== timer) {
+			timer.stop();
+			return;
+		}
+		handle?.unref?.();
 	}
-	#startTimer() {
-		if (this.#timer !== void 0) return;
-		this.#timer = this.#setInterval(() => this.onTick(), this.#resendInterval);
-		const t = this.#timer;
-		if (t && typeof t.unref === "function") t.unref();
-	}
-	#stopTimer() {
-		if (this.#timer !== void 0) this.#clearInterval(this.#timer);
-		this.#timer = void 0;
+	#flush() {
+		if (this.#phase !== "live" || !this.#pending.length) return;
+		if (this.#tail === void 0) {
+			const version = this.#version;
+			const updates = this.#pending.map((p) => p.update);
+			const tail = updates.length === 1 ? updates[0] : this.#merge(updates);
+			if (this.#version !== version) return;
+			this.#tail = tail;
+		}
+		this.#send(this.#tail, this.#pending.at(-1).seq);
 	}
 };
 /**
@@ -14926,12 +14944,15 @@ var YProtocolSession = class {
 	awareness;
 	#send;
 	#onError;
-	#synced = false;
+	#state = {
+		phase: "unsynced",
+		cycle: {}
+	};
 	#delivery;
 	#onDocUpdate;
 	#onAwarenessUpdate;
 	constructor(doc, opts) {
-		const { send, awareness = null, resendInterval, onError, setInterval: setIntervalFn, clearInterval: clearIntervalFn } = opts ?? {};
+		const { send, awareness = null, resendInterval, onError, setInterval: setTimer, clearInterval: clearTimer } = opts ?? {};
 		if (!doc) throw new TypeError("YProtocolSession requires a Y.Doc");
 		if (typeof send !== "function") throw new TypeError("YProtocolSession requires a send(frame, id) function");
 		this.doc = doc;
@@ -14942,8 +14963,8 @@ var YProtocolSession = class {
 			merge: mergeUpdates,
 			send: (update, id) => this.#send(this.#frameUpdate(update), id),
 			resendInterval,
-			setInterval: setIntervalFn,
-			clearInterval: clearIntervalFn
+			setInterval: setTimer,
+			clearInterval: clearTimer
 		});
 		this.#onDocUpdate = (update, origin) => {
 			if (origin === this) return;
@@ -14952,7 +14973,7 @@ var YProtocolSession = class {
 		this.doc.on("update", this.#onDocUpdate);
 		if (this.awareness) {
 			this.#onAwarenessUpdate = ({ added, updated, removed }, origin) => {
-				if (origin === this) return;
+				if (origin === this || this.#state.phase === "destroyed") return;
 				const changed = added.concat(updated, removed);
 				this.#send(this.#frameAwareness(changed), void 0);
 			};
@@ -14961,22 +14982,33 @@ var YProtocolSession = class {
 	}
 	/** True once we've received the server's SyncStep2 (the document is caught up). */
 	get synced() {
-		return this.#synced;
+		return this.#state.phase === "synced";
 	}
 	/** True while there are unacknowledged local document updates in flight. */
 	get hasPending() {
 		return this.#delivery.hasPending;
 	}
-	/** Transport connected: send the opening handshake and replay the unacked tail. */
-	onConnect() {
+	/** Call when the transport is up. Sends the opening handshake, re-announces presence, and replays the unacked tail. */
+	resume() {
+		if (this.#state.phase === "destroyed") return;
+		const cycle = {};
+		this.#state = {
+			phase: "unsynced",
+			cycle
+		};
 		this.#send(this.#frameSyncStep1(), void 0);
+		if (!this.#current(cycle)) return;
 		if (this.awareness && this.awareness.getLocalState() !== null) this.#send(this.#frameAwareness([this.doc.clientID]), void 0);
-		this.#delivery.onConnect();
+		if (this.#current(cycle)) this.#delivery.resume();
 	}
-	/** Transport dropped: pause retransmits (queue kept) and clear remote presence. */
-	onDisconnect() {
-		this.#synced = false;
-		this.#delivery.onDisconnect();
+	/** Call when the transport is down. Keeps the queue, stops retransmits, and clears peers' presence. */
+	pause() {
+		if (this.#state.phase === "destroyed") return;
+		this.#state = {
+			phase: "unsynced",
+			cycle: {}
+		};
+		this.#delivery.pause();
 		if (this.awareness) {
 			const remote = [...this.awareness.getStates().keys()].filter((c) => c !== this.doc.clientID);
 			if (remote.length) removeAwarenessStates(this.awareness, remote, this);
@@ -14989,11 +15021,11 @@ var YProtocolSession = class {
 	* waiting for the awareness timeout. A no-op when there's no local state.
 	*/
 	removeLocalAwareness() {
-		if (this.awareness && this.awareness.getLocalState() !== null) this.awareness.setLocalState(null);
+		if (this.#state.phase !== "destroyed" && this.awareness && this.awareness.getLocalState() !== null) this.awareness.setLocalState(null);
 	}
 	/** A reliable-delivery `{ ack: id }` envelope arrived. */
-	ack(id) {
-		this.#delivery.onAck(id);
+	acknowledge(id) {
+		this.#delivery.acknowledge(id);
 	}
 	/**
 	* Apply an update without treating it as a local edit, so it isn't queued for
@@ -15005,11 +15037,11 @@ var YProtocolSession = class {
 	* keystroke becomes an outbound frame), so a bare `Y.applyUpdate(doc, update)`
 	* would look like a local edit and get echoed back on the next connect. Going
 	* through here applies under the session's own origin, which the outbound
-	* filter skips. Safe to call before `onConnect()`: the state folds into the
+	* filter skips. Safe to call before `resume()`: the state folds into the
 	* SyncStep1 handshake instead of being re-sent.
 	*/
 	applyRemoteUpdate(update) {
-		applyUpdate(this.doc, update, this);
+		if (this.#state.phase !== "destroyed") applyUpdate(this.doc, update, this);
 	}
 	/**
 	* Decode and apply one incoming binary protocol frame (document sync or
@@ -15017,15 +15049,22 @@ var YProtocolSession = class {
 	* SyncStep1), or null if there's nothing to send.
 	*/
 	receive(frame) {
+		if (this.#state.phase === "destroyed") return null;
+		const { cycle } = this.#state;
 		try {
-			if (this.#validateFrame(frame) === null) return null;
+			if (!validateFrame(frame)) return null;
 			const decoder = createDecoder(frame);
 			const encoder = createEncoder();
 			switch (readVarUint(decoder)) {
 				case MessageType.Sync: {
 					writeVarUint(encoder, MessageType.Sync);
-					const syncType = readSyncMessage(decoder, encoder, this.doc, this);
-					if (!this.#synced && syncType === 1) this.#synced = true;
+					const report = (error) => {
+						if (this.#current(cycle)) this.#onError(error, "receive");
+					};
+					if (readSyncMessage(decoder, encoder, this.doc, this, report) === 1 && this.#current(cycle)) this.#state = {
+						phase: "synced",
+						cycle
+					};
 					break;
 				}
 				case MessageType.Awareness:
@@ -15033,17 +15072,22 @@ var YProtocolSession = class {
 					break;
 				default: return null;
 			}
-			return length(encoder) > 1 ? toUint8Array(encoder) : null;
+			return this.#current(cycle) && length(encoder) > 1 ? toUint8Array(encoder) : null;
 		} catch (error) {
-			this.#onError(error, "receive");
+			if (this.#current(cycle)) this.#onError(error, "receive");
 			return null;
 		}
 	}
 	/** Detach doc/awareness listeners and stop retransmits. */
 	destroy() {
+		if (this.#state.phase === "destroyed") return;
+		this.#state = { phase: "destroyed" };
 		this.doc.off("update", this.#onDocUpdate);
 		if (this.awareness && this.#onAwarenessUpdate) this.awareness.off("update", this.#onAwarenessUpdate);
 		this.#delivery.destroy();
+	}
+	#current(cycle) {
+		return this.#state.phase !== "destroyed" && this.#state.cycle === cycle;
 	}
 	#frameSyncStep1() {
 		const e = createEncoder();
@@ -15063,40 +15107,28 @@ var YProtocolSession = class {
 		writeVarUint8Array(e, encodeAwarenessUpdate(this.awareness, clients));
 		return toUint8Array(e);
 	}
-	#validateFrame(frame) {
-		const decoder = createDecoder(frame);
-		const type = readVarUint(decoder);
-		switch (type) {
-			case MessageType.Sync: {
-				const scratchDoc = new Doc();
-				try {
-					const scratchEncoder = createEncoder();
-					writeVarUint(scratchEncoder, MessageType.Sync);
-					readSyncMessage(decoder, scratchEncoder, scratchDoc, this);
-				} finally {
-					scratchDoc.destroy();
-				}
-				break;
-			}
-			case MessageType.Awareness:
-				{
-					const payload = readVarUint8Array(decoder);
-					const inner = createDecoder(payload);
-					const count = readVarUint(inner);
-					for (let i = 0; i < count; i++) {
-						readVarUint(inner);
-						readVarUint(inner);
-						JSON.parse(readVarString(inner));
-					}
-					if (hasContent(inner)) throw new Error("awareness payload has trailing bytes");
-				}
-				break;
-			default: return null;
-		}
-		if (hasContent(decoder)) throw new Error("frame has trailing bytes after a complete message");
-		return type;
-	}
 };
+function validateFrame(frame) {
+	const decoder = createDecoder(frame);
+	const type = readVarUint(decoder);
+	if (type === MessageType.Sync) {
+		readVarUint(decoder);
+		readVarUint8Array(decoder);
+	} else if (type === MessageType.Awareness) validateAwareness(readVarUint8Array(decoder));
+	else return false;
+	if (hasContent(decoder)) throw new Error("frame has trailing bytes after a complete message");
+	return true;
+}
+function validateAwareness(payload) {
+	const decoder = createDecoder(payload);
+	const count = readVarUint(decoder);
+	for (let i = 0; i < count; i++) {
+		readVarUint(decoder);
+		readVarUint(decoder);
+		JSON.parse(readVarString(decoder));
+	}
+	if (hasContent(decoder)) throw new Error("awareness payload has trailing bytes");
+}
 //#endregion
 //#region node_modules/yrby-client/dist/base64.js
 const toBase64 = (bytes) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
@@ -15110,34 +15142,16 @@ var ActionCableProvider = class {
 	channelParams;
 	awareness;
 	session;
-	#subscription = null;
+	#state = { phase: "disconnected" };
 	#onError;
-	#connected = false;
-	#status = "disconnected";
+	#last = {
+		status: "disconnected",
+		pending: false
+	};
 	#statusListeners = /* @__PURE__ */ new Set();
-	#whenSynced = null;
-	#everSynced = false;
-	#onUnload = null;
-	#onRestore = null;
-	#stashedPresence = null;
-	constructor(doc, consumer, channelName, channelParams = {}, opts = {}) {
-		this.doc = doc;
-		this.consumer = consumer;
-		this.channelName = channelName;
-		this.channelParams = channelParams;
-		this.awareness = new Awareness(doc);
-		this.#onError = opts.onError ?? ((error, context) => console.warn(`[yrby] ${context}:`, error));
-		this.session = new YProtocolSession(doc, {
-			awareness: this.awareness,
-			resendInterval: opts.resendInterval,
-			onError: this.#onError,
-			send: (frame, id) => this.#send(frame, id)
-		});
-	}
-	/** True once the document has caught up with the server (received a SyncStep2). */
-	get synced() {
-		return this.session.synced;
-	}
+	#resolveSynced;
+	#onDocUpdate = () => this.#refreshStatus();
+	#page = null;
 	/**
 	* Resolves once the document has first caught up with the server. Most
 	* editor bindings seed an empty document when they mount, so binding
@@ -15148,22 +15162,39 @@ var ActionCableProvider = class {
 	*   await provider.whenSynced;
 	*   // now hand the doc to the editor binding
 	*
-	* Resolves immediately if the first catch-up has already happened, even
-	* while the transport is down (`synced` is false during a reconnect;
-	* whether the doc has ever synced does not change). It stays resolved
-	* across later reconnects; use `onStatusChange` to track the live
-	* connection. If the provider is destroyed before the first sync, the
-	* promise never settles.
+	* It resolves on the first catch-up and remains resolved across later
+	* reconnects, even while `synced` is false during a re-handshake. Use
+	* `onStatusChange` to track the live connection. If the provider is
+	* destroyed before the first sync, it never resolves.
 	*/
-	get whenSynced() {
-		this.#whenSynced ??= this.#everSynced ? Promise.resolve() : new Promise((resolve) => {
-			const off = this.onStatusChange(({ status }) => {
-				if (status !== "synced") return;
-				off();
-				resolve();
-			});
+	whenSynced = new Promise((resolve) => {
+		this.#resolveSynced = resolve;
+	});
+	constructor(doc, consumer, channelName, channelParams = {}, opts = {}) {
+		this.doc = doc;
+		this.consumer = consumer;
+		this.channelName = channelName;
+		this.channelParams = channelParams;
+		const onError = opts.onError ?? ((error, context) => console.warn(`[yrby] ${context}:`, error));
+		this.#onError = (error, context) => {
+			try {
+				onError(error, context);
+			} catch (callbackError) {
+				console.warn("[yrby] onError callback failed:", callbackError, "while reporting:", error);
+			}
+		};
+		this.awareness = new ProviderAwareness(doc, this.#onError);
+		this.session = new YProtocolSession(doc, {
+			awareness: this.awareness,
+			resendInterval: opts.resendInterval,
+			onError: this.#onError,
+			send: (frame, id) => this.#send(frame, id)
 		});
-		return this.#whenSynced;
+		this.doc.on("update", this.#onDocUpdate);
+	}
+	/** True once the document has caught up with the server (received a SyncStep2). */
+	get synced() {
+		return this.session.synced;
 	}
 	/** True while there are unacknowledged local document updates in flight. */
 	get hasPending() {
@@ -15186,7 +15217,7 @@ var ActionCableProvider = class {
 	}
 	/** Current connection status. See {@link ProviderStatus}. */
 	get status() {
-		return this.#status;
+		return this.#computeStatus();
 	}
 	/** Subscribe to status changes. Returns an unsubscribe function. */
 	onStatusChange(listener) {
@@ -15194,128 +15225,254 @@ var ActionCableProvider = class {
 		return () => this.#statusListeners.delete(listener);
 	}
 	connect() {
-		if (this.#subscription) return;
-		const provider = this;
-		this.#subscription = this.consumer.subscriptions.create({
-			channel: this.channelName,
-			...this.channelParams
-		}, {
-			received(message) {
-				if (message && message.ack !== void 0) {
-					provider.session.ack(message.ack);
-					return;
-				}
-				const awarenessPayload = message && message.awareness;
-				const payload = message && (awarenessPayload ?? message.update);
-				if (typeof payload !== "string") return;
-				let frame;
-				try {
-					frame = fromBase64(payload);
-				} catch (error) {
-					provider.#onError(error, "received");
-					return;
-				}
-				if (awarenessPayload !== void 0 && frame[0] !== MessageType.Awareness) {
-					provider.#onError(/* @__PURE__ */ new Error("awareness envelope carried a non-awareness frame"), "received");
-					return;
-				}
-				const reply = provider.session.receive(frame);
-				if (reply) provider.#send(reply, void 0);
-				provider.#refreshStatus();
-			},
-			connected() {
-				provider.#connected = true;
-				provider.session.onConnect();
-				provider.#refreshStatus();
-			},
-			disconnected() {
-				provider.#connected = false;
-				provider.session.onDisconnect();
-				provider.#refreshStatus();
-			},
-			rejected() {
-				provider.#onError(/* @__PURE__ */ new Error("subscription rejected by the server"), "rejected");
-				provider.disconnect();
-			}
-		});
-		this.#installUnloadHandler();
+		if (this.#destroying()) throw new Error("provider is destroyed");
+		if (this.#state.phase !== "disconnected") return;
+		const attempt = {};
+		this.#state = {
+			phase: "subscribing",
+			attempt
+		};
+		const on = (callback) => (...args) => {
+			const run = () => {
+				if (this.#active(attempt)) callback(...args);
+			};
+			if (this.#state.phase === "subscribing") queueMicrotask(run);
+			else run();
+		};
+		let subscription;
+		try {
+			subscription = this.consumer.subscriptions.create({
+				channel: this.channelName,
+				...this.channelParams
+			}, {
+				received: on((message) => this.#receive(message, attempt)),
+				connected: on(() => this.#connected()),
+				disconnected: on(() => this.#lost()),
+				rejected: on(() => this.#stop("reject"))
+			});
+		} catch (error) {
+			if (!this.#subscribing(attempt)) return;
+			this.#state = { phase: "disconnected" };
+			this.#refreshStatus();
+			throw error;
+		}
+		if (!this.#subscribing(attempt)) {
+			this.#unsubscribe(subscription);
+			return;
+		}
+		this.#state = {
+			phase: "connecting",
+			attempt,
+			subscription
+		};
+		this.#watchPage();
 		this.#refreshStatus();
 	}
 	disconnect() {
-		if (!this.#subscription) return;
-		const sub = this.#subscription;
-		this.session.removeLocalAwareness();
-		this.session.onDisconnect();
-		this.#connected = false;
-		this.#subscription = null;
-		this.#removeUnloadHandler();
-		queueMicrotask(() => sub.unsubscribe?.());
-		this.#refreshStatus();
+		this.#stop("disconnect");
+	}
+	/**
+	* Resubscribes with updated channel params, such as a renewed grant. This
+	* replaces only the cable subscription and keeps the doc, the delivery
+	* queue, awareness, and this provider's ack route. Does nothing after
+	* destroy().
+	*/
+	renew(params) {
+		if (this.#destroying()) return;
+		Object.assign(this.channelParams, params);
+		this.disconnect();
+		this.connect();
 	}
 	destroy() {
-		this.disconnect();
+		this.#stop("destroy");
+	}
+	#destroying() {
+		const state = this.#state;
+		return state.phase === "destroyed" || state.phase === "stopping" && state.reason === "destroy";
+	}
+	#subscribing(attempt) {
+		return this.#state.phase === "subscribing" && this.#state.attempt === attempt;
+	}
+	#active(attempt) {
+		const state = this.#state;
+		return (state.phase === "connecting" || state.phase === "connected") && state.attempt === attempt;
+	}
+	#connected() {
+		const state = this.#state;
+		if (state.phase !== "connecting") return;
+		this.#state = {
+			...state,
+			phase: "connected"
+		};
+		this.session.resume();
+		this.#refreshStatus();
+	}
+	#lost() {
+		const state = this.#state;
+		if (state.phase !== "connecting" && state.phase !== "connected") return;
+		this.#state = {
+			...state,
+			phase: "connecting"
+		};
+		this.session.pause();
+		this.#refreshStatus();
+	}
+	#stop(reason) {
+		const state = this.#state;
+		if (state.phase === "destroyed") return;
+		if (state.phase === "stopping") {
+			if (reason === "destroy") state.reason = reason;
+			return;
+		}
+		if (state.phase === "disconnected" && reason === "disconnect") return;
+		let finalReason = reason;
+		if ("subscription" in state) {
+			const stopping = {
+				...state,
+				phase: "stopping",
+				reason
+			};
+			this.#state = stopping;
+			this.#unwatchPage();
+			this.session.removeLocalAwareness();
+			this.session.pause();
+			this.#unsubscribe(state.subscription);
+			if (this.#state !== stopping) return;
+			finalReason = stopping.reason;
+		}
+		const destroyed = finalReason === "destroy";
+		this.#state = { phase: destroyed ? "destroyed" : "disconnected" };
+		if (destroyed) this.#destroyOwned();
+		else if (finalReason === "reject") this.#onError(/* @__PURE__ */ new Error("subscription rejected by the server"), "rejected");
+		this.#refreshStatus();
+		if (destroyed) this.#statusListeners.clear();
+	}
+	#destroyOwned() {
 		this.session.destroy();
 		this.awareness.destroy();
-		this.#statusListeners.clear();
+		this.doc.off("update", this.#onDocUpdate);
+	}
+	#unsubscribe(subscription) {
+		queueMicrotask(() => {
+			try {
+				subscription.unsubscribe?.();
+			} catch (error) {
+				this.#onError(error, "unsubscribe");
+			}
+		});
+	}
+	#receive(message, attempt) {
+		if (message && message.ack !== void 0) {
+			this.session.acknowledge(message.ack);
+			this.#refreshStatus();
+			return;
+		}
+		const awarenessPayload = message && message.awareness;
+		const payload = message && (awarenessPayload ?? message.update);
+		if (typeof payload !== "string") return;
+		let frame;
+		try {
+			frame = fromBase64(payload);
+		} catch (error) {
+			this.#onError(error, "received");
+			return;
+		}
+		if (awarenessPayload !== void 0 && frame[0] !== MessageType.Awareness) {
+			this.#onError(/* @__PURE__ */ new Error("awareness envelope carried a non-awareness frame"), "received");
+			return;
+		}
+		const reply = this.session.receive(frame);
+		if (reply && this.#active(attempt)) this.#send(reply, void 0);
+		this.#refreshStatus();
 	}
 	#computeStatus() {
-		if (!this.#subscription) return "disconnected";
-		if (!this.#connected) return "connecting";
-		return this.session.synced ? "synced" : "connected";
+		switch (this.#state.phase) {
+			case "subscribing":
+			case "connecting": return "connecting";
+			case "connected": return this.session.synced ? "synced" : "connected";
+			default: return "disconnected";
+		}
 	}
 	#refreshStatus() {
-		const next = this.#computeStatus();
-		if (next === this.#status) return;
-		this.#status = next;
-		if (next === "synced") this.#everSynced = true;
-		for (const listener of this.#statusListeners) listener({ status: next });
-	}
-	#installUnloadHandler() {
-		if (typeof window === "undefined" || this.#onUnload) return;
-		this.#onUnload = () => {
-			this.#stashedPresence = this.awareness.getLocalState();
-			this.session.removeLocalAwareness();
+		const status = this.#computeStatus();
+		const pending = this.hasPending;
+		if (status === this.#last.status && pending === this.#last.pending) return;
+		const event = this.#last = {
+			status,
+			pending
 		};
-		this.#onRestore = (event) => {
-			if (!event.persisted || !this.#stashedPresence) return;
-			if (this.awareness.getLocalState() === null) this.awareness.setLocalState(this.#stashedPresence);
-			this.#stashedPresence = null;
-		};
-		window.addEventListener("pagehide", this.#onUnload);
-		window.addEventListener("pageshow", this.#onRestore);
+		if (status === "synced") this.#resolveSynced();
+		for (const listener of this.#statusListeners) {
+			if (this.#last !== event) break;
+			try {
+				listener({
+					status,
+					pending
+				});
+			} catch (error) {
+				this.#onError(error, "listener");
+			}
+		}
 	}
-	#removeUnloadHandler() {
-		if (typeof window === "undefined") return;
-		if (this.#onUnload) {
-			window.removeEventListener("pagehide", this.#onUnload);
-			this.#onUnload = null;
-		}
-		if (this.#onRestore) {
-			window.removeEventListener("pageshow", this.#onRestore);
-			this.#onRestore = null;
-		}
+	#watchPage() {
+		if (typeof window === "undefined" || this.#page) return;
+		let stashed = null;
+		const page = this.#page = {
+			hide: () => {
+				if (this.#page !== page) return;
+				stashed = this.awareness.getLocalState();
+				this.session.removeLocalAwareness();
+			},
+			show: (event) => {
+				if (this.#page !== page || !event.persisted || !stashed) return;
+				if (this.awareness.getLocalState() === null) this.awareness.setLocalState(stashed);
+				stashed = null;
+			}
+		};
+		window.addEventListener("pagehide", this.#page.hide);
+		window.addEventListener("pageshow", this.#page.show);
+	}
+	#unwatchPage() {
+		if (!this.#page || typeof window === "undefined") return;
+		const page = this.#page;
+		this.#page = null;
+		window.removeEventListener("pagehide", page.hide);
+		window.removeEventListener("pageshow", page.show);
 	}
 	#send(frame, id) {
-		const sub = this.#subscription;
-		if (!sub) return;
-		const update = toBase64(frame);
+		const state = this.#state;
+		if (!("subscription" in state)) return;
 		const isAwareness = frame[0] === MessageType.Awareness;
+		if (state.phase === "stopping" && !isAwareness) return;
+		const { subscription } = state;
+		const update = toBase64(frame);
+		const report = (error) => {
+			const current = this.#state;
+			if ("subscription" in current && current.subscription === subscription) this.#onError(error, "send");
+		};
 		try {
-			if (isAwareness && typeof sub.whisper === "function") {
-				this.#observe(sub.whisper({ awareness: update }));
-				return;
-			}
-			const payload = id === void 0 ? { update } : {
+			const result = isAwareness && typeof subscription.whisper === "function" ? subscription.whisper({ awareness: update }) : subscription.send(id === void 0 ? { update } : {
 				update,
 				id
-			};
-			this.#observe(sub.send(payload));
+			});
+			if (result instanceof Promise) result.catch(report);
 		} catch (error) {
-			this.#onError(error, "send");
+			report(error);
 		}
 	}
-	#observe(result) {
-		if (result instanceof Promise) result.catch((error) => this.#onError(error, "send"));
+};
+var ProviderAwareness = class extends Awareness {
+	onError;
+	constructor(doc, onError) {
+		super(doc);
+		this.onError = onError;
+	}
+	emit(...args) {
+		try {
+			super.emit(...args);
+		} catch (error) {
+			this.onError(error, `awareness:${args[0]}`);
+		}
 	}
 };
 //#endregion
