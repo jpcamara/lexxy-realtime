@@ -31,9 +31,10 @@ Gem::Specification.new do |spec|
   spec.add_dependency "lexxy", ">= 0.9.29"
   # lexxy 0.9 requires Rails >= 8.0.2.
   spec.add_dependency "rails", ">= 8.0.2"
-  spec.add_dependency "yrby", ">= 0.6.0"
-  # yrby-rails (formerly yrby-actioncable): the sync channel and the
-  # Y::Document / Y::DocumentUpdate models.
-  # 0.5 ships Y::EncryptedDocument, which encrypted: attributes wire in.
-  spec.add_dependency "yrby-rails", ">= 0.5"
+  # yrby 0.8 reports unknown node types, which the materialization
+  # warning reads.
+  spec.add_dependency "yrby", "~> 0.8"
+  # yrby-rails: the sync concern and the Y::Document models. 0.7 calls
+  # authorized?(key), which the generated channel accepts.
+  spec.add_dependency "yrby-rails", "~> 0.7"
 end

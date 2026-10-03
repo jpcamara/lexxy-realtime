@@ -46,7 +46,7 @@
     "test:anycable": "node test/run.mjs --anycable"
   },
   "dependencies": {
-    "yrby-client": "^0.5.0"
+    "yrby-client": "^0.6.0"
   },
   "peerDependencies": {
     "@37signals/lexxy": "^0.9.29",
