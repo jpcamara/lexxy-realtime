@@ -49,14 +49,14 @@
     "yrby-client": "^0.5.0"
   },
   "peerDependencies": {
-    "@37signals/lexxy": "^0.9.29",
+    "@37signals/lexxy": "^0.9.29 || ^1.0.0",
     "@lexical/yjs": "^0.44",
     "lexical": "^0.44",
     "y-protocols": "^1.0",
     "yjs": "^13.6"
   },
   "devDependencies": {
-    "@37signals/lexxy": "0.9.29",
+    "@37signals/lexxy": "1.0.0",
     "@anycable/core": "^1.1.1",
     "@anycable/web": "^1.1.1",
     "@lexical/yjs": "^0.44.0",
