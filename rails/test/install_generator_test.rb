@@ -25,8 +25,8 @@ class InstallGeneratorTest < Rails::Generators::TestCase
                    "the channel materializes updates through the record API"
       assert_match "record.find_or_create_collaborative_document(field).append", channel,
                    "storage routes through the record so encrypted attributes decrypt"
-      assert_match "def authorized?\n    false", channel,
-                   "authorization defaults to false"
+      assert_match "def authorized?(_key = nil)\n    false", channel,
+                   "authorization defaults to false and accepts the key yrby-rails 0.7 passes"
     end
     assert_no_file "app/models/yrby_document_store.rb"
     assert_no_file "app/models/yrby_document_update.rb"

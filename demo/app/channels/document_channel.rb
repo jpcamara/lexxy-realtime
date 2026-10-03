@@ -38,7 +38,7 @@ class DocumentChannel < ApplicationCable::Channel
 
   # The demo has no users, so anyone may edit. A real app checks its
   # current user here.
-  def authorized?
+  def authorized?(_key = nil)
     true
   end
 
