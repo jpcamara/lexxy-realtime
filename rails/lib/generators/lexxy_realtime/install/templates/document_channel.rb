@@ -39,7 +39,9 @@ class DocumentChannel < ApplicationCable::Channel
   # Check whether the current user may edit this record, e.g.
   # record.editable_by?(current_user) with identified_by :current_user
   # on the connection. Nothing connects until this returns true.
-  def authorized?
+  # yrby-rails 0.7 also calls it with the document key; the token already
+  # picked the document, so the key isn't needed here.
+  def authorized?(_key = nil)
     false
   end
 
