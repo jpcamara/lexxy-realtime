@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "concurrent/map"
 require "lexxy_realtime/version"
 require "lexxy_realtime/collaborative"
 require "lexxy_realtime/form_builder"
@@ -39,10 +40,9 @@ module LexxyRealtime
     # unknown-node warning uses it to log once per class, field, and set
     # of types.
     def first_sighting_of_unknown_types?(key)
-      @unknown_types_mutex.synchronize { !@unknown_types_seen.add?(key).nil? }
+      @unknown_types_seen.put_if_absent(key, true).nil?
     end
   end
 
-  @unknown_types_seen = Set.new
-  @unknown_types_mutex = Mutex.new
+  @unknown_types_seen = Concurrent::Map.new
 end
