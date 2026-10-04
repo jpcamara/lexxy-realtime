@@ -40,6 +40,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   reload to reconnect. `LexxyRealtime.sgid_purpose` and `SGID_PURPOSE` are
   removed.
 - Requires yrby 0.8.1 or later, yrby-rails 0.7, and yrby-client 0.6.
+- The `lexxy` gem dependency gains a `< 2.0` ceiling. The collaboration
+  bundle runs against Lexxy's re-exported Lexical namespace, so the ceiling
+  keeps a future major release from reaching apps before it's tested.
 
 ## [0.7.1] - 2026-10-03
 
