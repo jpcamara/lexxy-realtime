@@ -69,7 +69,7 @@ module LexxyRealtime
 
           doc = Y::Doc.new
           doc.apply_update(state)
-          renderer = Y::Lexxy.new(doc, nodes: collaborative_rich_text_rules[name.to_sym] || {})
+          renderer = Y::Lexxy.new(doc, nodes: collaborative_rich_text_rules.fetch(name.to_sym))
           html = renderer.to_html
           break false if html.nil?
 
@@ -97,9 +97,8 @@ module LexxyRealtime
 
         Rails.logger&.warn(
           "#{self.class.name}##{name} contains Lexical node types with no Y::Lexxy render rule: " \
-          "#{types.join(', ')}. They degrade in the stored HTML (a decorator-style node renders as " \
-          "nothing) while live editors still show them. Declare rules with " \
-          "has_collaborative_rich_text :#{name}, nodes: { ... }."
+          "#{types.join(', ')}. The stored HTML drops their markup, and a decorator node renders " \
+          "nothing. Add rules with has_collaborative_rich_text :#{name}, nodes: { ... }."
         )
       end
     end

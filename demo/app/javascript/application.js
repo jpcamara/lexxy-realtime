@@ -8,5 +8,5 @@ import "./controllers"
 import "@37signals/lexxy"
 import "lexxy-realtime"
 
-// Ecosystem node packages (hashtags, comment marks) for every editor.
+// Hashtag and comment-mark nodes for every editor.
 import "./custom_nodes"

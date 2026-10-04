@@ -190,8 +190,9 @@ nodes. When it meets a node type it doesn't know, it renders what it can:
 - A `TextNode` subclass, such as a hashtag, syncs as a plain text run and
   renders as its text. Rules can't target text runs.
 
-The editors still show the node, but `post.body` doesn't, and neither does
-anything that reads it: mailers, search, read-only views. A node registered
+The editors still draw the node with your JavaScript. `post.body` gets the
+reduced version, and so does everything that reads it: mailers, search,
+read-only views. A node registered
 through Lexical's node replacement counts as custom, because its type name
 is what syncs.
 
