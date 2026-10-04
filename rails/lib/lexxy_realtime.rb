@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "concurrent/map"
 require "lexxy_realtime/version"
 require "lexxy_realtime/collaborative"
 require "lexxy_realtime/form_builder"
@@ -34,5 +35,14 @@ module LexxyRealtime
     def collaborator_color(name)
       "hsl(#{name.to_s.each_byte.reduce(0) { |acc, b| ((acc * 31) + b) % 360 }}, 70%, 45%)"
     end
+
+    # Returns true the first time this process sees the key. The
+    # unknown-node warning uses it to log once per class, field, and set
+    # of types.
+    def first_sighting_of_unknown_types?(key)
+      @unknown_types_seen.put_if_absent(key, true).nil?
+    end
   end
+
+  @unknown_types_seen = Concurrent::Map.new
 end

@@ -19,6 +19,9 @@ Key integration files:
   authorization opened up, since the demo has no users. The models ship in
   the yrby-rails gem.
 - `app/javascript/application.js`: `import "lexxy-realtime"`
+- `app/javascript/custom_nodes/index.js`: Lexical's hashtag and mark nodes,
+  registered with every editor. `Post` has the matching `nodes:` rules. See
+  [Custom nodes](#custom-nodes).
 - `config/initializers/lexxy_realtime.rb`: guest identity for cursors.
   Without it, the default reads `current_user.name`, `username`, or
   `handle`.
@@ -52,6 +55,35 @@ rows in `y_documents`, `y_document_updates`, and `action_text_rich_texts`
 hold ciphertext.
 
 ![The saved post, notes decrypted on read](docs/show.png)
+
+## Custom nodes
+
+The demo adds two Lexical node packages to every editor through Lexxy's
+extension API. The code is in `app/javascript/custom_nodes/index.js`. The
+collaboration binding reads the editor's node list, so these nodes sync like
+the built-in ones.
+
+- `@lexical/hashtag`: typing `#word` creates a `HashtagNode`.
+- `@lexical/mark`: the toolbar's comment button wraps the selection in a
+  `MarkNode`, which renders as `<mark>`. Comment threads build on this.
+
+The server renders the stored document without running that JavaScript, so
+`Post` declares a rule for the mark:
+
+```ruby
+has_collaborative_rich_text :body, nodes: {
+  "mark" => { tag: "mark", attrs: { "class" => "comment-mark" } }
+}
+```
+
+Without the rule, the marked text is saved as plain text and the `<mark>`
+tag is lost. Hashtags have no rule. A `HashtagNode` is a `TextNode`
+subclass, which syncs as a plain text run, and rules can't target text
+runs. `#word` is saved as plain text.
+
+`script/check_custom_nodes.rb` runs in `bin/ci`. It loads a document from
+two live editors (`script/fixtures/custom_nodes_body.update.b64`) into a
+post and checks both cases.
 
 ## Notes
 

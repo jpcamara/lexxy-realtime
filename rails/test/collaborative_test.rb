@@ -6,6 +6,8 @@ class CollaborativeTest < Minitest::Test
   def setup
     Y::DocumentUpdate.delete_all
     Y::Document.delete_all
+    # The unknown-node warning logs once per process; start each test fresh.
+    LexxyRealtime.instance_variable_get(:@unknown_types_seen).clear
     @post = Post.create!(title: "Doc")
     @document = @post.find_or_create_collaborative_document(:body)
   end
@@ -155,5 +157,77 @@ class CollaborativeTest < Minitest::Test
 
     assert @post.refresh_collaborative_rich_text(:body)
     assert_equal first, @post.reload.body
+  end
+
+  # Capture Rails.logger output for the duration of the block.
+  def capture_log
+    io = StringIO.new
+    original = Rails.logger
+    Rails.logger = Logger.new(io)
+    yield
+    io.string
+  ensure
+    Rails.logger = original
+  end
+
+  # A model with the field's rules, reading the same row as @post.
+  def post_with_rules(nodes)
+    klass = Class.new(Post) do
+      def self.name = "Post"
+      has_collaborative_rich_text :body, nodes:
+    end
+    klass.find(@post.id)
+  end
+
+  # custom_nodes.bin is a document from two live demo editors: "Collab
+  # #ruby rocks and #peer too", with "rocks" wrapped in an @lexical/mark
+  # MarkNode. Hashtags are TextNode subclasses and sync as text runs.
+  def test_unknown_inline_node_keeps_its_text
+    append(custom_nodes_state)
+
+    log = capture_log { assert @post.refresh_collaborative_rich_text(:body) }
+
+    body = @post.reload.body
+
+    assert_includes body, "rocks"
+    assert_includes body, "#ruby"
+    refute_includes body, "<mark"
+    assert_includes log, "no Y::Lexxy render rule: mark."
+  end
+
+  def test_unknown_node_warning_is_logged_once
+    append(custom_nodes_state)
+
+    log = capture_log do
+      assert @post.refresh_collaborative_rich_text(:body)
+      assert @post.refresh_collaborative_rich_text(:body)
+    end
+
+    assert_equal 1, log.scan("no Y::Lexxy render rule").length
+  end
+
+  def test_a_rule_renders_the_node_and_silences_the_warning
+    record = post_with_rules("mark" => { tag: "mark", attrs: { "class" => "comment-mark" } })
+    append(custom_nodes_state, record)
+
+    log = capture_log { assert record.refresh_collaborative_rich_text(:body) }
+
+    assert_includes record.reload.body, %(<mark class="comment-mark">rocks</mark>)
+    refute_includes log, "render rule"
+  end
+
+  def test_macro_does_not_freeze_the_callers_rules
+    rules = { "mark" => { tag: "mark" } }
+    post_with_rules(rules)
+
+    refute_predicate rules, :frozen?
+  end
+
+  def test_macro_rules_reach_materialization
+    record = post_with_rules("paragraph" => { tag: "section" })
+    append(lexxy_full_state, record)
+
+    assert record.refresh_collaborative_rich_text(:body)
+    assert_includes record.reload.body, "<section>", "the field's rules apply to the materialized render"
   end
 end
