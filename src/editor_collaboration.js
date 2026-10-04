@@ -40,8 +40,14 @@ function resolveConsumer() {
   return configuredConsumer || (sharedConsumer ??= createConsumer());
 }
 
-export class Collaboration extends HTMLElement {
+// Node (SSR, unit tests) has no HTMLElement; the module must still load
+// there, so only registration is browser-gated (see index.js).
+const Base = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
+
+export class Collaboration extends Base {
   #teardown = null;
+  #ownsEverything = false;
+  #lastRecoveryAt = 0;
 
   connectedCallback() {
     this.editorElement = this.closest('lexxy-editor');
@@ -125,7 +131,13 @@ export class Collaboration extends HTMLElement {
     const excludedProperties = attachmentExclusions(this.editor);
     const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
     patchCollabElementSplice(binding);
-    const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
+    this.#ownsEverything = ownsProvider && ownsDoc;
+    const unsubscribeListeners = registerCollaborationListeners(
+      this.editor,
+      provider,
+      binding,
+      (error) => this.#recoverFromDesync(error)
+    );
     const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
 
     // Remote cursors/selections are rendered by @lexical/yjs (syncCursorPositions)
@@ -173,6 +185,40 @@ export class Collaboration extends HTMLElement {
       }
       if (ownsDoc) this.doc = null;
     };
+  }
+
+  // A remote update failed to apply (see createRemoteApplier). When this
+  // element owns its document and provider, it heals itself: tear everything
+  // down and re-init with a fresh Y.Doc and provider, so the server's full
+  // state repopulates a fresh binding through the normal sync path — the only
+  // event-driven way to rebuild, since Yjs never re-emits on the same doc,
+  // and the one that also discards the poisoned collab offset caches. The
+  // trade: edits not yet acked at the moment of desync are lost with the old
+  // doc, and undo history resets — consistency over the unacked tail.
+  //
+  // A host-supplied document or provider cannot be swapped out from under the
+  // host, so those setups only get the event; the host recreates the element
+  // (or reloads) on 'lexxy-realtime:desync'. Rebuilds are rate-limited: a
+  // fault that recurs immediately after a rebuild is permanent, and looping
+  // teardown/init would thrash the server.
+  #recoverFromDesync(error) {
+    const canRebuild = this.#ownsEverything && Date.now() - this.#lastRecoveryAt > 15000;
+    this.dispatchEvent(
+      new CustomEvent('lexxy-realtime:desync', {
+        bubbles: true,
+        detail: { error, recovering: canRebuild },
+      })
+    );
+    if (!canRebuild) return;
+
+    this.#lastRecoveryAt = Date.now();
+    // Deferred: the desync surfaces from inside the provider's own message
+    // handling (observer -> Y.applyUpdate -> cable callback), and tearing the
+    // provider down re-entrantly from that stack is asking for trouble.
+    queueMicrotask(() => {
+      this.#teardown?.();
+      this.#init();
+    });
   }
 
   // An absolutely-positioned overlay covering the editor; @lexical/yjs positions
@@ -258,7 +304,37 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
   };
 }
 
-function registerCollaborationListeners(editor, provider, binding) {
+// The Yjs->Lexical apply, wrapped so a throw cannot silently desync the
+// editor. The failure mode without this: the observer fires from inside
+// Y.applyUpdate, which y-protocols wraps in a catch-and-log — so by the time
+// anything throws in Lexical's apply, the Y.Doc already holds the update, the
+// exception is swallowed upstream, and this editor permanently shows less
+// than the document (a reconnect is a doc no-op, so no observer ever fires
+// again for the lost content). One throw also poisons the binding's collab
+// offset caches, which can delete further visible text on later applies.
+//
+// onDesync fires once per binding — the recovery replaces the binding (and
+// this observer with it), so a persistent fault surfaces once per rebuild
+// rather than once per frame. `sync` is injectable for tests.
+export function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
+  let desynced = false;
+  return (events, transaction) => {
+    if (transaction.origin === binding) return;
+    if (desynced) return;
+    try {
+      sync(binding, provider, events, false);
+    } catch (error) {
+      desynced = true;
+      console.error(
+        'lexxy-realtime: a remote update failed to apply; the editor is out of sync with the document.',
+        error
+      );
+      onDesync?.(error);
+    }
+  };
+}
+
+function registerCollaborationListeners(editor, provider, binding, onDesync) {
   const unsubscribeUpdateListener = editor.registerUpdateListener(
     ({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
       editor.getEditorState().read(() => {
@@ -278,11 +354,7 @@ function registerCollaborationListeners(editor, provider, binding) {
     }
   );
 
-  const observer = (events, transaction) => {
-    if (transaction.origin !== binding) {
-      syncYjsChangesToLexical(binding, provider, events, false);
-    }
-  };
+  const observer = createRemoteApplier(provider, binding, { onDesync });
 
   binding.root.getSharedType().observeDeep(observer);
 

@@ -92,7 +92,7 @@ try {
     if (run("npx", ["tsc", "-p", join(here, "types")]).status !== 0) exitCode = 1;
 
     console.log("\n=== headless durability suite ===");
-    for (const name of ["convergence", "durability", "loss"]) {
+    for (const name of ["remote_apply", "convergence", "durability", "loss"]) {
       console.log(`\n--- ${name} ---`);
       const r = run("bun", [join(here, "headless", `${name}.mjs`)]);
       if (r.status !== 0) exitCode = 1;
@@ -212,7 +212,7 @@ try {
           exitCode = 1;
         } else {
           console.log("\n--- headless durability suite over anycable-go ---");
-          for (const name of ["convergence", "durability", "loss"]) {
+          for (const name of ["remote_apply", "convergence", "durability", "loss"]) {
             console.log(`\n--- ${name} (anycable) ---`);
             const r = run("bun", [join(here, "headless", `${name}.mjs`)], { env: { ...process.env, PORT, CABLE_URL } });
             if (r.status !== 0) exitCode = 1;

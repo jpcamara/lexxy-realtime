@@ -46,6 +46,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   bundle runs against Lexxy's re-exported Lexical namespace, so the ceiling
   keeps a future major release from reaching apps before it's tested.
 
+### Fixed
+
+- A throw inside the Yjs->Lexical apply no longer silently desyncs the
+  editor. The remote-update observer fires from inside `Y.applyUpdate`,
+  which y-protocols wraps in a catch-and-log — so an exception during
+  Lexical's apply left the Y.Doc holding content the editor never showed,
+  permanently (reconnecting is a doc no-op, so nothing ever re-fired), and
+  poisoned collab offset caches could delete further visible text later.
+  The apply is now wrapped: on failure the element dispatches a bubbling
+  `lexxy-realtime:desync` event and, when it owns its document and
+  provider, rebuilds itself against a fresh Y.Doc so the server's state
+  repopulates a fresh binding (unacked local edits at the moment of
+  failure are lost; consistency wins). Host-supplied documents get the
+  event only — recreate the element to recover. Rebuilds are rate-limited
+  to avoid thrashing on a permanent fault.
+
 ## [0.7.1] - 2026-10-03
 
 ### Changed
