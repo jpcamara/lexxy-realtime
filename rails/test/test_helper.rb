@@ -7,6 +7,8 @@ require "action_cable"
 require "global_id"
 require "y"
 require "y/action_cable"
+require "active_support/testing/time_helpers"
+require "y/collaborative"
 require "lexxy_realtime"
 # Load the yrby models directly because this test helper does not boot
 # the engine.

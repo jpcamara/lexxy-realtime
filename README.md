@@ -67,8 +67,10 @@ package and use the same imports. npm and bun install its peers
 npm install lexxy-realtime
 ```
 
-Finally, authorize access: implement `authorized?` in the generated channel
-(everyone is denied until you do). Open the page in two browsers and type.
+There is no channel to write, and access rides the form: render it only
+where the request may edit the record, and the signed, field-scoped token
+it mints is what the gem's channel accepts. Open the page in two browsers
+and type.
 
 ## Try it
 
@@ -140,12 +142,16 @@ and `on_change`.
 
 ### The document channel
 
-`DocumentChannel` runs Yjs sync over Action Cable or AnyCable and stores
-updates in `Y::Document`. It saves each update before acknowledging or
-broadcasting it, so the stored log can rebuild the document.
+`LexxyRealtime::DocumentChannel` ships in the gem. It's yrby-rails'
+`Y::DocumentChannel` with one addition: after it saves each update, it
+renders the document to HTML and saves it to the Action Text field. It saves
+each update before acknowledging or broadcasting it, so the stored log can
+rebuild the document.
 
-The form helper gives the client a signed GlobalID scoped to one record and
-field. Use `authorized?` for your application's user access check.
+The form helper gives the browser yrby's signed grant for one record and
+field. To also check the user's permissions when they subscribe, use
+`LexxyRealtime::DocumentChannel.authorize_document`. The
+[Rails gem README](rails/README.md#access-control) shows how.
 
 ### Encrypted storage
 
@@ -231,13 +237,14 @@ LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil
 <%= form.collaborative_rich_textarea :body, name: "Reviewer", color: "#0ea5e9" %>
 ```
 
-Cursor names and colors are sent as presence metadata. The channel uses the
-signed GlobalID to find the record and `authorized?` to check access.
+Cursor names and colors are sent as presence metadata. The channel finds the
+record from the signed grant and checks access with your `authorize_document`
+block, if you set one.
 
 The client sends its own cursor name, so a modified client can show any
 name it likes. Under AnyCable, presence travels as whispers that the server
 never sees. A client can't give itself access, though. The server checks
-the signed GlobalID and your `authorized?` method before any read or write.
+the signed grant and your `authorize_document` block before any read or write.
 Don't use the name on a cursor to decide who someone is.
 
 ## The JavaScript client

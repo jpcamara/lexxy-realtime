@@ -9,16 +9,14 @@ class CollaborativeTest < Minitest::Test
     # The unknown-node warning logs once per process; start each test fresh.
     LexxyRealtime.instance_variable_get(:@unknown_types_seen).clear
     @post = Post.create!(title: "Doc")
-    @document = @post.find_or_create_collaborative_document(:body)
   end
 
-  # Append by document key, then reload the cached document so tests see
-  # the updated changed_at value.
-  def append(state, record = nil)
-    doc = record ? record.find_or_create_collaborative_document(:body) : @document
-    Y::Document.append(doc.key, state)
-    doc.reload
+  # Append through the record's document, the way the channel does.
+  def append(state, record = @post)
+    record.collaborative_document(:body).append(state)
   end
+
+  def document_row(record = @post) = record.collaborative_document(:body).document_row
 
   def test_models_without_the_macro_get_no_instance_api
     bare = Class.new(ActiveRecord::Base) do
@@ -27,8 +25,7 @@ class CollaborativeTest < Minitest::Test
     end
 
     assert_respond_to bare, :has_collaborative_rich_text, "the macro is available"
-    refute bare.method_defined?(:find_or_create_collaborative_document), "instance API arrives only with a declaration"
-    refute bare.method_defined?(:refresh_collaborative_rich_text)
+    refute bare.method_defined?(:refresh_collaborative_rich_text), "instance API arrives only with a declaration"
   end
 
   # A Post whose attribute is declared encrypted. Subclassing keeps the
@@ -41,26 +38,22 @@ class CollaborativeTest < Minitest::Test
     end
   end
 
-  def test_encrypted_attribute_wires_the_encrypted_document_class
+  def test_encrypted_attribute_uses_the_encrypted_document_class
     klass = encrypted_post_class
 
-    assert_equal Y::EncryptedDocument,
-                 klass.reflect_on_association(:collaborative_document_body).klass
-    record = klass.create!
-
-    assert_instance_of Y::EncryptedDocument, record.find_or_create_collaborative_document(:body)
+    assert_equal Y::EncryptedDocument, klass.collaborative_document_class(:body)
+    assert_instance_of Y::EncryptedDocument, document_row(klass.create!)
   end
 
   def test_encrypted_attribute_materializes_and_stores_ciphertext
     record = encrypted_post_class.create!
-    document = record.find_or_create_collaborative_document(:body)
-    document.append(lexxy_full_state)
+    append(lexxy_full_state, record)
 
     assert record.refresh_collaborative_rich_text(:body)
     assert_equal lexxy_full_html, record.reload.body, "rendering is unchanged by encryption"
 
     raw = Y::Document.connection.select_value(
-      "SELECT payload FROM y_document_updates WHERE document_id = #{document.id} LIMIT 1"
+      "SELECT payload FROM y_document_updates WHERE document_id = #{document_row(record).id} LIMIT 1"
     )
 
     assert_includes raw, '"p":', "payload rows hold the Active Record encryption envelope"
@@ -73,11 +66,12 @@ class CollaborativeTest < Minitest::Test
     refute @post.collaborative_rich_text?(:title)
   end
 
-  def test_document_is_the_action_text_shape
-    assert_equal @post, @document.record
-    assert_equal "body", @document.name
-    assert_equal @document, @post.collaborative_document_body, "has_one, like rich_text_body"
-    assert_equal @document, @post.find_or_create_collaborative_document(:body), "created once, found after"
+  def test_document_row_is_bound_to_the_record_and_field
+    row = document_row
+
+    assert_equal @post, row.record
+    assert_equal "body", row.name
+    assert_equal row, document_row, "created once, found after"
   end
 
   def test_distinct_classes_get_distinct_documents_and_sti_shares
@@ -91,13 +85,13 @@ class CollaborativeTest < Minitest::Test
       has_collaborative_rich_text :body
     end
 
-    refute_equal @document, other_class.find(@post.id).find_or_create_collaborative_document(:body)
+    refute_equal document_row, document_row(other_class.find(@post.id))
 
     # STI subclasses use the base class record_type, so they share the
     # document.
     sti = Class.new(Post) { def self.name = "FeaturedPost" }
 
-    assert_equal @document, sti.find(@post.id).find_or_create_collaborative_document(:body)
+    assert_equal document_row, document_row(sti.find(@post.id))
   end
 
   def test_destroying_the_record_sweeps_document_and_log

@@ -14,7 +14,10 @@ class ReadmeExamplesTest < Minitest::Test
   # Blocks that are configuration fragments rather than runnable Ruby.
   SKIP = [
     /\A# Gemfile/,
-    %r{\A# config/importmap\.rb}
+    %r{\A# config/importmap\.rb},
+    # Initializers run inside Rails.application.config.to_prepare, which
+    # needs a booted app. document_channel_test covers authorize_document.
+    %r{\A# config/initializers/}
   ].freeze
 
   PRELUDE = <<~RUBY
@@ -41,6 +44,8 @@ class ReadmeExamplesTest < Minitest::Test
 
   def teardown
     LexxyRealtime.identity = @identity_before
+    # Examples must not leak configuration into other tests.
+    LexxyRealtime.channel_name = nil
   end
 
   def ruby_blocks(path)

@@ -8,7 +8,7 @@
 post = Post.create!(title: "Custom nodes render check")
 begin
   state = Base64.strict_decode64(Rails.root.join("script/fixtures/custom_nodes_body.update.b64").read)
-  post.find_or_create_collaborative_document(:body).append(state)
+  post.collaborative_document(:body).append(state)
   post.refresh_collaborative_rich_text(:body) || abort("the fixture document rendered no HTML")
 
   html = post.reload.body.to_s
