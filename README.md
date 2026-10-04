@@ -233,6 +233,12 @@ LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil
 Cursor names and colors are sent as presence metadata. The channel uses the
 signed GlobalID to find the record and `authorized?` to check access.
 
+The client sends its own cursor name, so a modified client can show any
+name it likes. Under AnyCable, presence travels as whispers that the server
+never sees. A client can't give itself access, though. The server checks
+the signed GlobalID and your `authorized?` method before any read or write.
+Don't use the name on a cursor to decide who someone is.
+
 ## The JavaScript client
 
 `lexxy-realtime` registers the `<lexxy-collaboration>` custom element. In a
