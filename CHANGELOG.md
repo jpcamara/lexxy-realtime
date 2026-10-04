@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `has_collaborative_rich_text` takes `nodes:`, the `Y::Lexxy` render rules
+  for the app's custom Lexical nodes. Without a rule, a custom node can
+  disappear from the stored HTML while the editors still show it.
+- A warning in the log names node types that have no render rule. It logs
+  once per model, field, and set of types.
+
 ### Changed
 
 - Requires yrby 0.8.1 or later, yrby-rails 0.7, and yrby-client 0.6.

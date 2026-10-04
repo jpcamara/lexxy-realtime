@@ -34,5 +34,15 @@ module LexxyRealtime
     def collaborator_color(name)
       "hsl(#{name.to_s.each_byte.reduce(0) { |acc, b| ((acc * 31) + b) % 360 }}, 70%, 45%)"
     end
+
+    # Returns true the first time this process sees the key. The
+    # unknown-node warning uses it to log once per class, field, and set
+    # of types.
+    def first_sighting_of_unknown_types?(key)
+      @unknown_types_mutex.synchronize { !@unknown_types_seen.add?(key).nil? }
+    end
   end
+
+  @unknown_types_seen = Set.new
+  @unknown_types_mutex = Mutex.new
 end

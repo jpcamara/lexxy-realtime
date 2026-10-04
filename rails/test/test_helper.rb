@@ -109,4 +109,5 @@ end
 FIXTURES = File.expand_path("fixtures", __dir__)
 
 def lexxy_full_state = File.binread(File.join(FIXTURES, "lexxy_full.bin"))
+def custom_nodes_state = File.binread(File.join(FIXTURES, "custom_nodes.bin"))
 def lexxy_full_html = File.read(File.join(FIXTURES, "lexxy_full.html")).chomp

@@ -177,6 +177,45 @@ before either finishes syncing, which duplicates the initial content.
 Lexical's `CollaborationPlugin` behaves the same way. The duplicate is
 visible and can be deleted.
 
+### Custom Lexical nodes
+
+Editors render custom nodes with your JavaScript. The stored HTML comes from
+`Y::Lexxy` on the server, which only knows core Lexical and Lexxy's own
+nodes. When it meets a node type it doesn't know, it renders what it can:
+
+- An element node (a container or an inline wrapper) renders its children
+  without its own tag. The text is kept.
+- A decorator node (an embed, a poll, a widget that keeps its content in
+  attributes) renders nothing.
+- A `TextNode` subclass, such as a hashtag, syncs as a plain text run and
+  renders as its text. Rules can't target text runs.
+
+The editors still show the node, but `post.body` doesn't, and neither does
+anything that reads it: mailers, search, read-only views. A node registered
+through Lexical's node replacement counts as custom, because its type name
+is what syncs.
+
+Add render rules for your node types to the field:
+
+```ruby
+has_collaborative_rich_text :body, nodes: {
+  "poll" => ->(node) {
+    %(<div class="poll" data-poll-id="#{Y::RenderRules.escape_attr(node.attrs["__pollId"])}"></div>)
+  }
+}
+```
+
+These are `Y::Lexxy` rules. yrby's
+[custom nodes docs](https://github.com/jpcamara/yrby#custom-nodes-and-marks)
+cover the forms they take. Escape every attribute value you put into markup
+with `Y::RenderRules.escape_attr` or `escape_text`. Collaborators write
+those attributes, and every reader's page shows the result.
+
+When a document has node types with no rule, lexxy-realtime logs a warning
+that names them. It logs once per model, field, and set of types. To catch
+a missing rule in CI, render a real document from your editor in a test
+and assert that `Y::Lexxy.new(doc, nodes: rules).unknown_types` is empty.
+
 ### Cursor identity
 
 The helper uses the first available `current_user` value from `name`,
