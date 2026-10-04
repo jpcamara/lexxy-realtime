@@ -4,11 +4,10 @@ module LexxyRealtime
   # Renders a Lexxy editor with collaboration configured for the record
   # and field. LexxyRealtime.identity supplies the cursor name and color.
   #
-  # The element subscribes with the record's signed grant for this field,
-  # the same token yrby-rails' collaborative_document_tag renders. Pass
-  # expires_in: to limit how long it lasts; without it, GlobalID's default
-  # of one month applies. An editor whose grant expires reconnects only
-  # after the page reloads.
+  # The element subscribes with a signed grant for this record and field.
+  # Pass expires_in: to limit how long it lasts. Without it, GlobalID's
+  # default of one month applies. An editor whose grant expires reconnects
+  # only after the page reloads.
   module FormBuilder
     def collaborative_rich_textarea(method, name: nil, color: nil, expires_in: nil, **options)
       record = object
@@ -29,7 +28,8 @@ module LexxyRealtime
                               "color" => color || identity[:color] || LexxyRealtime.collaborator_color(collaborator),
                               "channel-name" => LexxyRealtime.channel_name,
                               "channel-params" => {
-                                grant: record.collaborative_sgid(method, **{ expires_in: expires_in }.compact),
+                                grant: record.to_sgid(for: LexxyRealtime.grant_purpose(method),
+                                                      **{ expires_in: expires_in }.compact).to_s,
                                 name: method
                               }.to_json)
       end

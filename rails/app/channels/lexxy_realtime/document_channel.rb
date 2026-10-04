@@ -5,12 +5,13 @@ module LexxyRealtime
   # Y::DocumentChannel with one addition: after each change is saved, the
   # Action Text attribute is rendered again from the full document.
   #
-  # Everything else comes from Y::DocumentChannel. The browser subscribes
-  # with the signed grant the form helper rendered, and the channel looks up
-  # the record from it. It rejects a missing, tampered, expired, or
-  # wrong-field grant, a deleted record, and a field that isn't declared with
-  # has_collaborative_rich_text. To also check the user's permissions, give
-  # it an authorize_document block:
+  # The browser subscribes with the signed grant the form helper rendered,
+  # and the channel looks up the record from it. It rejects a missing,
+  # tampered, expired, or wrong-field grant, a deleted record, and a field
+  # that isn't declared with has_collaborative_rich_text. The grant has its
+  # own purpose (LexxyRealtime.grant_purpose), so it doesn't open
+  # Y::DocumentChannel. To also check the user's permissions, give this
+  # channel an authorize_document block:
   #
   #   # config/initializers/lexxy_realtime.rb
   #   Rails.application.config.to_prepare do
@@ -23,6 +24,8 @@ module LexxyRealtime
     # saved. The next change renders the document again. Raising here would
     # make the browser resend an update the server already has.
     on_change do |key, update|
+      # On AnyCable each command gets a fresh channel. document loads the
+      # record, so it has to run before anything reads record.
       document.append(update)
       begin
         record.refresh_collaborative_rich_text(params[:name])
@@ -33,9 +36,16 @@ module LexxyRealtime
 
     private
 
-    # Only fields declared with has_collaborative_rich_text open here. A
-    # grant for another collaborative attribute of the same record belongs to
-    # Y::DocumentChannel.
+    # Looks up the record with lexxy-realtime's grant purpose instead of
+    # yrby-rails'. Returns nil for a missing, tampered, expired, or
+    # wrong-field grant, and for a deleted record.
+    def locate_record
+      @record = GlobalID::Locator.locate_signed(params[:grant], for: LexxyRealtime.grant_purpose(params[:name]))
+    rescue ActiveRecord::RecordNotFound
+      @record = nil
+    end
+
+    # Only fields declared with has_collaborative_rich_text open here.
     def authorized?(key)
       record.respond_to?(:collaborative_rich_text?) && record.collaborative_rich_text?(params[:name]) && super
     end

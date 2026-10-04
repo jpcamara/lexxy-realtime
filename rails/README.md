@@ -21,10 +21,10 @@ bin/rails generate lexxy_realtime:install
 bin/rails db:migrate
 ```
 
-The generator installs yrby's table migration — that is the whole
-install. The channel ships in the gem (`LexxyRealtime::DocumentChannel`),
-and the `Y::Document` and `Y::DocumentUpdate` models come from
-`yrby-rails`.
+The generator adds yrby's table migration, plus import-map pins if the app
+uses import maps. The channel ships in the gem
+(`LexxyRealtime::DocumentChannel`), and the `Y::Document` and
+`Y::DocumentUpdate` models come from `yrby-rails`.
 
 With a bundler, install the JavaScript package and import it next to
 your Lexxy import:
@@ -73,11 +73,11 @@ end
 <% end %>
 ```
 
-Render that form only where the request is already authorized to edit the
-record, then open the page in two browsers and edit together. There is no
-channel to write: the helper mints a signed, field-scoped token, and the
-gem-shipped `LexxyRealtime::DocumentChannel` accepts nothing else. The
-record must be persisted (the document key derives from it). A record with
+Render the form only for users who may edit the record, then open the page
+in two browsers and edit together. You don't write a channel. The helper
+renders a signed grant for the record and field, and
+`LexxyRealtime::DocumentChannel` only opens a document for a valid grant.
+The record must be persisted (the document key derives from it). A record with
 an existing body works: the first collaborative open seeds the document
 from it.
 
@@ -114,10 +114,11 @@ The next successful update renders the full document again. Until then,
 
 ## Access control
 
-The form helper renders yrby's signed grant for the record and field, the
-same token yrby-rails' `collaborative_document_tag` uses.
+The form helper renders a signed grant for the record and field.
 `LexxyRealtime::DocumentChannel` is yrby-rails' `Y::DocumentChannel` with
-Action Text rendering added. It rejects a missing, tampered, expired, or
+Action Text rendering added. The grant has its own purpose, so yrby-rails'
+`Y::DocumentChannel` rejects it, and the block below can't be skipped by
+subscribing there instead. The channel rejects a missing, tampered, expired, or
 wrong-field grant, a deleted record, and a field that isn't declared with
 `has_collaborative_rich_text`. A valid grant means your app rendered the
 form for this user.

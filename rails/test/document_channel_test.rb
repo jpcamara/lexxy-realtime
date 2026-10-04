@@ -24,7 +24,7 @@ class DocumentChannelTest < ActionCable::Channel::TestCase
     LexxyRealtime::DocumentChannel.document_authorizer = nil
   end
 
-  def grant(field = :body) = @post.collaborative_sgid(field)
+  def grant(field = :body, **) = @post.to_sgid(for: LexxyRealtime.grant_purpose(field), **).to_s
 
   def test_the_form_helpers_grant_subscribes_and_gets_the_opening_handshake
     subscribe grant: grant, name: "body"
@@ -77,6 +77,12 @@ class DocumentChannelTest < ActionCable::Channel::TestCase
     assert_predicate subscription, :rejected?
   end
 
+  def test_a_yrby_rails_grant_is_rejected
+    subscribe grant: @post.collaborative_sgid(:body), name: "body"
+
+    assert_predicate subscription, :rejected?, "only the form helper's grant opens this channel"
+  end
+
   def test_authorize_document_can_deny_a_valid_grant
     LexxyRealtime::DocumentChannel.authorize_document { |record, _name| record.title == "someone else's" }
 
@@ -86,10 +92,28 @@ class DocumentChannelTest < ActionCable::Channel::TestCase
   end
 
   def test_an_expired_grant_is_rejected
-    token = @post.collaborative_sgid(:body, expires_in: 1.second)
+    token = grant(:body, expires_in: 1.second)
     travel_to(2.seconds.from_now) do
       subscribe grant: token, name: "body"
     end
+
+    assert_predicate subscription, :rejected?
+  end
+end
+
+# A lexxy-realtime grant must not open yrby-rails' channel. That channel
+# neither renders the field nor runs LexxyRealtime::DocumentChannel's
+# authorize_document block.
+class YrbyDocumentChannelTest < ActionCable::Channel::TestCase
+  tests Y::DocumentChannel
+
+  def setup
+    @post = Post.create!(title: "granted")
+    stub_connection
+  end
+
+  def test_a_lexxy_realtime_grant_is_rejected
+    subscribe grant: @post.to_sgid(for: LexxyRealtime.grant_purpose(:body)).to_s, name: "body"
 
     assert_predicate subscription, :rejected?
   end

@@ -1,9 +1,8 @@
 Description:
-    Installs the database tables for collaborative Lexxy editing and the
-    import-map pins. The channel ships in the gem
-    (LexxyRealtime::DocumentChannel): it locates records by the form
-    helper's signed, field-scoped GlobalID and saves rendered updates to
-    the attribute — nothing else lands in the app.
+    Installs the database tables for collaborative Lexxy editing, and the
+    import-map pins when the app uses import maps. The channel ships in the
+    gem as LexxyRealtime::DocumentChannel, so the generator doesn't add one
+    to the app.
 
 Example:
     bin/rails generate lexxy_realtime:install

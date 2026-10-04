@@ -19,6 +19,12 @@ module LexxyRealtime
       @channel_name || "LexxyRealtime::DocumentChannel"
     end
 
+    # The signed-GlobalID purpose of a field's grant. It differs from
+    # yrby-rails' purpose, so the grant opens LexxyRealtime::DocumentChannel
+    # and not Y::DocumentChannel, which doesn't render the field or run
+    # LexxyRealtime::DocumentChannel's authorize_document block.
+    def grant_purpose(name) = "lexxy_realtime/#{name}"
+
     # Cursor identity, called with the view context; returns { name:, color: }
     # (a nil color gets a stable one derived from the name).
     attr_writer :identity

@@ -5,10 +5,10 @@ require "generators/yrby/tables/tables_generator"
 
 module LexxyRealtime
   module Generators
-    # Installs the storage migration (via yrby's generator) and the
-    # import-map pins. The channel ships in the gem
-    # (LexxyRealtime::DocumentChannel), the way Turbo ships
-    # Turbo::StreamsChannel — nothing else lands in the app.
+    # Installs the storage migration (through yrby's generator) and the
+    # import-map pins. The channel ships in the gem as
+    # LexxyRealtime::DocumentChannel, the way Turbo ships
+    # Turbo::StreamsChannel.
     class InstallGenerator < Rails::Generators::Base
       # The gem's channel needs Action Cable at runtime; fail at install
       # time, not on the first subscribe.
@@ -58,10 +58,9 @@ module LexxyRealtime
                asset. With a bundler, install the lexxy-realtime npm
                package and import it.
             3. Declare `has_collaborative_rich_text :body` on a model and
-               render it with `<%= form.collaborative_rich_textarea :body %>`
-               — only on pages already authorized to edit the record. The
-               helper mints a signed, field-scoped token, and the gem's
-               LexxyRealtime::DocumentChannel accepts nothing else.
+               render it with `<%= form.collaborative_rich_textarea :body %>`.
+               Render it only for users who may edit the record. The
+               helper's signed grant is what lets the browser connect.
 
           Optional: set cursor names with `LexxyRealtime.identity`.
         NEXT

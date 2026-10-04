@@ -67,10 +67,10 @@ package and use the same imports. npm and bun install its peers
 npm install lexxy-realtime
 ```
 
-There is no channel to write, and access rides the form: render it only
-where the request may edit the record, and the signed, field-scoped token
-it mints is what the gem's channel accepts. Open the page in two browsers
-and type.
+You don't write a channel. The form helper renders a signed grant for the
+record and field, and the gem's channel only opens a document for a valid
+grant. Render the form only for users who may edit the record. Open the
+page in two browsers and type.
 
 ## Try it
 
@@ -148,8 +148,8 @@ renders the document to HTML and saves it to the Action Text field. It saves
 each update before acknowledging or broadcasting it, so the stored log can
 rebuild the document.
 
-The form helper gives the browser yrby's signed grant for one record and
-field. To also check the user's permissions when they subscribe, use
+The form helper gives the browser a signed grant for one record and
+field. Only `LexxyRealtime::DocumentChannel` accepts it. To also check the user's permissions when they subscribe, use
 `LexxyRealtime::DocumentChannel.authorize_document`. The
 [Rails gem README](rails/README.md#access-control) shows how.
 

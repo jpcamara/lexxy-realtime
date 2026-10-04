@@ -34,11 +34,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   yrby's document handle, and `find_or_create_collaborative_document` and
   the `collaborative_document_<name>` association are gone. Existing
   documents keep working, because both versions use the same rows.
-- **Breaking:** the form helper renders yrby's grant
-  (`record.collaborative_sgid`) as the `grant` channel param, in place of a
-  lexxy-realtime token in `sgid`. Pages open during the upgrade need a
-  reload to reconnect. `LexxyRealtime.sgid_purpose` and `SGID_PURPOSE` are
-  removed.
+- **Breaking:** the form helper's channel params are now `grant` and
+  `name`, in place of `sgid` and `field`. Pages open during the upgrade need
+  a reload to reconnect. `LexxyRealtime.sgid_purpose` and `SGID_PURPOSE`
+  are replaced by `LexxyRealtime.grant_purpose`. The grant's purpose is
+  separate from yrby-rails', so yrby-rails' `Y::DocumentChannel` rejects
+  it.
 - Requires yrby 0.8.1 or later, yrby-rails 0.7, and yrby-client 0.6.
 - The `lexxy` gem dependency gains a `< 2.0` ceiling. The collaboration
   bundle runs against Lexxy's re-exported Lexical namespace, so the ceiling

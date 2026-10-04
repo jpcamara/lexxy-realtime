@@ -37,6 +37,10 @@ class HelperTest < Minitest::Test
     end
   end
 
+  def locate(grant, field)
+    GlobalID::Locator.locate_signed(grant, for: LexxyRealtime.grant_purpose(field))
+  end
+
   def element_attributes(html)
     fragment = html[/<lexxy-collaboration[^>]*>/]
     fragment.scan(/([\w-]+)="([^"]*)"/).to_h.transform_values { |v| CGI.unescapeHTML(v) }
@@ -70,14 +74,14 @@ class HelperTest < Minitest::Test
     params = JSON.parse(attrs["channel-params"])
 
     assert_equal "body", params["name"]
-    assert_equal @post, Y::Collaborative.locate(params["grant"], :body),
-                 "the grant is yrby's signed GlobalID for this record and field"
+    assert_equal @post, locate(params["grant"], :body), "the grant is a signed GlobalID for this record and field"
+    assert_nil Y::Collaborative.locate(params["grant"], :body), "yrby-rails' channel must not accept it"
   end
 
   def test_grant_is_field_scoped
     params = JSON.parse(element_attributes(@form.collaborative_rich_textarea(:body))["channel-params"])
 
-    assert_nil Y::Collaborative.locate(params["grant"], :internal_notes),
+    assert_nil locate(params["grant"], :internal_notes),
                "a grant for one collaborative field must not open another"
   end
 
@@ -86,7 +90,7 @@ class HelperTest < Minitest::Test
     params = JSON.parse(element_attributes(html)["channel-params"])
 
     travel_to(2.seconds.from_now) do
-      assert_nil Y::Collaborative.locate(params["grant"], :body), "an expired grant locates nothing"
+      assert_nil locate(params["grant"], :body), "an expired grant locates nothing"
     end
   end
 
