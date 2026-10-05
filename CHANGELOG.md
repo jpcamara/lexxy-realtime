@@ -26,7 +26,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Breaking:** `lexxy_realtime:install` no longer generates
   `app/channels/document_channel.rb` or the Action Cable boilerplate. It
-  only adds the storage migration. An app upgrading from the generated
+  adds the storage migration, plus import-map pins if the app uses import
+  maps. An app upgrading from the generated
   channel can delete it. Move any access check from its `authorized?` into
   an `authorize_document` block.
 - **Breaking:** collaborative fields are built on yrby-rails'

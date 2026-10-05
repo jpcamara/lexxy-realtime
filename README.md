@@ -149,7 +149,8 @@ each update before acknowledging or broadcasting it, so the stored log can
 rebuild the document.
 
 The form helper gives the browser a signed grant for one record and
-field. Only `LexxyRealtime::DocumentChannel` accepts it. To also check the user's permissions when they subscribe, use
+field. Only `LexxyRealtime::DocumentChannel` accepts it. To also check
+the user's permissions when they subscribe, use
 `LexxyRealtime::DocumentChannel.authorize_document`. The
 [Rails gem README](rails/README.md#access-control) shows how.
 
