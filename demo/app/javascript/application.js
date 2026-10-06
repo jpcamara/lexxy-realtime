@@ -2,9 +2,9 @@
 import "@hotwired/turbo-rails"
 import "./controllers"
 
-// collaborative_rich_textarea renders a configured <lexxy-collaboration>.
-// The imported custom element creates and connects its Action Cable
-// provider.
+// collaborative_rich_textarea renders <yrby-document> around the editor and
+// <lexxy-collaboration> inside it. Importing lexxy-realtime registers both,
+// and <yrby-document> opens the Action Cable subscription.
 import "@37signals/lexxy"
 import "lexxy-realtime"
 

@@ -1,7 +1,7 @@
 // Compile-only consumer. Exercises every public export against the shipped
 // declarations, so a missing or wrong declaration fails `tsc`.
 import { Collaboration, setConsumer, YrbyProvider } from "lexxy-realtime";
-import type { CableConsumer, ProviderStatus, StatusEvent } from "lexxy-realtime";
+import type { CableConsumer, DesyncDetail, ProviderStatus, StatusEvent } from "lexxy-realtime";
 import * as Y from "yjs";
 
 const consumer: CableConsumer = {
@@ -33,7 +33,17 @@ provider.connect();
 provider.disconnect();
 provider.destroy();
 
-const element: HTMLElement = new Collaboration();
+const element = new Collaboration();
+element.doc = new Y.Doc();
+element.provider = provider;
+const bound: Y.Doc | null = element.doc;
+void bound;
+element.addEventListener("lexxy-realtime:desync", (event) => {
+  const detail: DesyncDetail = event.detail;
+  const recovering: boolean = detail.recovering;
+  void recovering;
+});
+document.addEventListener("lexxy-realtime:desync", (event) => void event.detail.error);
 
 // @anycable/web works through its ActionCable-compat consumer.
 import { createCable, createConsumer } from "@anycable/web";
