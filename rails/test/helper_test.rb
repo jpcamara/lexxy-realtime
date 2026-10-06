@@ -5,6 +5,8 @@ require "action_view"
 require "json"
 
 class HelperTest < Minitest::Test
+  include ActiveSupport::Testing::TimeHelpers
+
   # A view context with real tag helpers. The test uses ActionView's
   # FormBuilder and stubs Lexxy's editor method to yield its child
   # content.
@@ -35,6 +37,10 @@ class HelperTest < Minitest::Test
     end
   end
 
+  def locate(grant, field)
+    GlobalID::Locator.locate_signed(grant, for: LexxyRealtime.grant_purpose(field))
+  end
+
   def element_attributes(html)
     fragment = html[/<lexxy-collaboration[^>]*>/]
     fragment.scan(/([\w-]+)="([^"]*)"/).to_h.transform_values { |v| CGI.unescapeHTML(v) }
@@ -63,27 +69,29 @@ class HelperTest < Minitest::Test
 
     assert_equal "post-#{@post.id}-body", attrs["doc-id"]
     assert_equal "Ada", attrs["name"]
-    assert_equal LexxyRealtime::CHANNEL_NAME, attrs["channel-name"]
+    assert_equal "LexxyRealtime::DocumentChannel", attrs["channel-name"]
 
     params = JSON.parse(attrs["channel-params"])
 
-    assert_equal "body", params["field"]
-    assert_equal @post, GlobalID::Locator.locate_signed(params["sgid"], for: LexxyRealtime.sgid_purpose(:body)),
-                 "the signed GlobalID round-trips to the record"
+    assert_equal "body", params["name"]
+    assert_equal @post, locate(params["grant"], :body), "the grant is a signed GlobalID for this record and field"
+    assert_nil Y::Collaborative.locate(params["grant"], :body), "yrby-rails' channel must not accept it"
   end
 
-  def test_sgid_is_purpose_scoped
+  def test_grant_is_field_scoped
     params = JSON.parse(element_attributes(@form.collaborative_rich_textarea(:body))["channel-params"])
 
-    assert_nil GlobalID::Locator.locate_signed(params["sgid"], for: :something_else),
-               "a signed id minted for collaboration must not verify for another purpose"
+    assert_nil locate(params["grant"], :internal_notes),
+               "a grant for one collaborative field must not open another"
   end
 
-  def test_sgid_is_field_scoped
-    params = JSON.parse(element_attributes(@form.collaborative_rich_textarea(:body))["channel-params"])
+  def test_expires_in_limits_the_grant
+    html = @form.collaborative_rich_textarea(:body, expires_in: 1.second)
+    params = JSON.parse(element_attributes(html)["channel-params"])
 
-    assert_nil GlobalID::Locator.locate_signed(params["sgid"], for: LexxyRealtime.sgid_purpose(:internal_notes)),
-               "a token minted for one collaborative field must not open another"
+    travel_to(2.seconds.from_now) do
+      assert_nil locate(params["grant"], :body), "an expired grant locates nothing"
+    end
   end
 
   def test_identity_overrides_and_stable_color

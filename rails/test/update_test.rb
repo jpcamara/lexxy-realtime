@@ -2,8 +2,7 @@
 
 require "test_helper"
 
-# These tests cover the gem's Y::Document association and the calls made
-# by DocumentChannel.
+# These tests cover how a record's document is keyed and stored.
 class UpdateTest < Minitest::Test
   def setup
     Y::DocumentUpdate.delete_all
@@ -12,16 +11,16 @@ class UpdateTest < Minitest::Test
 
   def test_the_macro_binds_documents_with_a_deterministic_key
     post = Post.create!(title: "Doc")
-    document = post.find_or_create_collaborative_document(:body)
+    document = post.collaborative_document(:body)
 
     assert_equal "post/#{post.id}/body", document.key
-    assert_equal post, document.record
-    assert_equal "body", document.name
+    assert_equal post, document.document_row.record
+    assert_equal "body", document.document_row.name
   end
 
   def test_channel_appends_by_key_reach_the_bound_document
     post = Post.create!(title: "Doc")
-    document = post.find_or_create_collaborative_document(:body)
+    document = post.collaborative_document(:body)
 
     Y::Document.append(document.key, lexxy_full_state)
 

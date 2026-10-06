@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `LexxyRealtime::DocumentChannel`, shipped in the gem. It's yrby-rails'
+  `Y::DocumentChannel` plus rendering the Action Text field after each
+  saved change. It rejects a missing, tampered, expired, or wrong-field
+  grant, a deleted record, and a field without `has_collaborative_rich_text`.
+  Add a permission check with
+  `LexxyRealtime::DocumentChannel.authorize_document`.
+- `collaborative_rich_textarea` accepts `expires_in:` to limit how long the
+  grant lasts.
 - `has_collaborative_rich_text` takes `nodes:`, the `Y::Lexxy` render rules
   for the app's custom Lexical nodes. Without a rule, a custom node can
   disappear from the stored HTML while the editors still show it.
@@ -16,7 +24,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Breaking:** `lexxy_realtime:install` no longer generates
+  `app/channels/document_channel.rb` or the Action Cable boilerplate. It
+  adds the storage migration, plus import-map pins if the app uses import
+  maps. An app upgrading from the generated
+  channel can delete it. Move any access check from its `authorized?` into
+  an `authorize_document` block.
+- **Breaking:** collaborative fields are built on yrby-rails'
+  `Y::Collaborative`. `record.collaborative_document(:body)` now returns
+  yrby's document handle, and `find_or_create_collaborative_document` and
+  the `collaborative_document_<name>` association are gone. Existing
+  documents keep working, because both versions use the same rows.
+- **Breaking:** the form helper's channel params are now `grant` and
+  `name`, in place of `sgid` and `field`. Pages open during the upgrade need
+  a reload to reconnect. `LexxyRealtime.sgid_purpose` and `SGID_PURPOSE`
+  are replaced by `LexxyRealtime.grant_purpose`. The grant's purpose is
+  separate from yrby-rails', so yrby-rails' `Y::DocumentChannel` rejects
+  it.
 - Requires yrby 0.8.1 or later, yrby-rails 0.7, and yrby-client 0.6.
+- The `lexxy` gem dependency gains a `< 2.0` ceiling. The collaboration
+  bundle runs against Lexxy's re-exported Lexical namespace, so the ceiling
+  keeps a future major release from reaching apps before it's tested.
 
 ## [0.7.1] - 2026-10-03
 

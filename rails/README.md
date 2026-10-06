@@ -21,10 +21,10 @@ bin/rails generate lexxy_realtime:install
 bin/rails db:migrate
 ```
 
-The generator creates `app/channels/document_channel.rb`, installs
-yrby's table migration, and adds the standard Action Cable files when
-they are missing. The `Y::Document` and `Y::DocumentUpdate` models come
-from `yrby-rails`.
+The generator adds yrby's table migration, plus import-map pins if the app
+uses import maps. The channel ships in the gem
+(`LexxyRealtime::DocumentChannel`), and the `Y::Document` and
+`Y::DocumentUpdate` models come from `yrby-rails`.
 
 With a bundler, install the JavaScript package and import it next to
 your Lexxy import:
@@ -73,10 +73,13 @@ end
 <% end %>
 ```
 
-Add your app's access check to `authorized?` in the generated channel,
-then open the page in two browsers and edit together. The record must be persisted
-(the document key derives from it). A record with an existing body works: the
-first collaborative open seeds the document from it.
+Render the form only for users who may edit the record, then open the page
+in two browsers and edit together. You don't write a channel. The helper
+renders a signed grant for the record and field, and
+`LexxyRealtime::DocumentChannel` only opens a document for a valid grant.
+The record must be persisted (the document key derives from it). A record with
+an existing body works: the first collaborative open seeds the document
+from it.
 
 Encryption works the way Action Text's does:
 
@@ -111,10 +114,36 @@ The next successful update renders the full document again. Until then,
 
 ## Access control
 
-The form helper gives clients a signed GlobalID scoped to one record and
-field. `DocumentChannel` uses it to locate the record. Put the user
-access check in `authorized?` (for example,
-`record.editable_by?(current_user)`).
+The form helper renders a signed grant for the record and field.
+`LexxyRealtime::DocumentChannel` is yrby-rails' `Y::DocumentChannel` with
+Action Text rendering added. The grant has its own purpose, so yrby-rails'
+`Y::DocumentChannel` rejects it, and the block below can't be skipped by
+subscribing there instead. The channel rejects a missing, tampered, expired, or
+wrong-field grant, a deleted record, and a field that isn't declared with
+`has_collaborative_rich_text`. A valid grant means your app rendered the
+form for this user.
+
+To also check the user's current permissions when they subscribe, give
+the channel a block:
+
+```ruby
+# config/initializers/lexxy_realtime.rb
+Rails.application.config.to_prepare do
+  LexxyRealtime::DocumentChannel.authorize_document do |record, name|
+    record.editable_by?(current_user, attribute: name)
+  end
+end
+```
+
+The block runs inside the channel, so `current_user` and your other
+connection identifiers are available. `editable_by?` stands for your own
+permission check. If the block returns false or nil, the channel rejects
+the subscription before sending anything.
+
+To limit how long a grant lasts, pass `expires_in:` to the form helper,
+as in `form.collaborative_rich_textarea :body, expires_in: 1.hour`.
+Without it, GlobalID's default of one month applies. An editor whose
+grant has expired reconnects after the page reloads.
 
 ## Configuration
 

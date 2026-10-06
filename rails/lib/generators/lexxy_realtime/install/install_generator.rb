@@ -5,13 +5,13 @@ require "generators/yrby/tables/tables_generator"
 
 module LexxyRealtime
   module Generators
-    # Installs the document channel, the storage migration (via yrby's
-    # generator), and the Action Cable boilerplate when missing.
+    # Installs the storage migration (through yrby's generator) and the
+    # import-map pins. The channel ships in the gem as
+    # LexxyRealtime::DocumentChannel, the way Turbo ships
+    # Turbo::StreamsChannel.
     class InstallGenerator < Rails::Generators::Base
-      source_root File.expand_path("templates", __dir__)
-
-      # rails new --skip-action-cable leaves nothing for the channel to
-      # inherit from.
+      # The gem's channel needs Action Cable at runtime; fail at install
+      # time, not on the first subscribe.
       def check_action_cable
         return if defined?(ActionCable)
 
@@ -19,19 +19,6 @@ module LexxyRealtime
             'Add `require "action_cable/engine"` to config/application.rb, ' \
             "create config/cable.yml, and re-run this generator.", :red
         raise Thor::Error, "lexxy_realtime:install requires Action Cable"
-      end
-
-      def create_application_cable
-        %w[connection channel].each do |file|
-          destination = "app/channels/application_cable/#{file}.rb"
-          next if File.exist?(File.join(destination_root, destination))
-
-          template "application_cable_#{file}.rb", destination
-        end
-      end
-
-      def create_channel
-        template "document_channel.rb", "app/channels/document_channel.rb"
       end
 
       # yrby owns the models and their migration.
@@ -72,8 +59,8 @@ module LexxyRealtime
                package and import it.
             3. Declare `has_collaborative_rich_text :body` on a model and
                render it with `<%= form.collaborative_rich_textarea :body %>`.
-            4. Update `authorized?` in app/channels/document_channel.rb
-               to check the current user.
+               Render it only for users who may edit the record. The
+               helper's signed grant is what lets the browser connect.
 
           Optional: set cursor names with `LexxyRealtime.identity`.
         NEXT

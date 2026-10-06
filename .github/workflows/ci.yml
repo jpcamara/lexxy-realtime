@@ -41,6 +41,36 @@ jobs:
           bundle exec rake test
           bundle exec rubocop
 
+  demo:
+    name: Demo app (Ruby 3.4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          working-directory: demo
+          bundler-cache: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Build the demo bundle
+        working-directory: demo
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+      # The custom-nodes check renders a document from two live editors
+      # through Post's nodes: rules.
+      - name: Boot and custom-nodes check
+        working-directory: demo
+        run: |
+          bin/rails db:prepare
+          bin/rails runner 'Post.first; puts :boot_ok'
+          bin/rails runner script/check_custom_nodes.rb
+
   headless:
     name: Headless durability (Ruby ${{ matrix.ruby }})
     runs-on: ubuntu-latest

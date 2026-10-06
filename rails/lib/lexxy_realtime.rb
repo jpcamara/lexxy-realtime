@@ -8,15 +8,22 @@ require "lexxy_realtime/engine"
 
 # Rails integration for collaborative Lexxy editing with yrby.
 module LexxyRealtime
-  # Signed ids from the form helper carry this purpose scoped per field
-  # (sgid_purpose), so a token minted elsewhere can't join a document.
-  SGID_PURPOSE = :lexxy_realtime
-
-  # The channel the installer generates and the form helper points elements at.
-  CHANNEL_NAME = "DocumentChannel"
-
   class << self
-    def sgid_purpose(field) = "#{SGID_PURPOSE}/#{field}"
+    # The channel the form helper points elements at. It defaults to the
+    # gem's LexxyRealtime::DocumentChannel. To add a permission check, use
+    # LexxyRealtime::DocumentChannel.authorize_document instead of a
+    # subclass. Set this only when you need a different channel entirely.
+    attr_writer :channel_name
+
+    def channel_name
+      @channel_name || "LexxyRealtime::DocumentChannel"
+    end
+
+    # The signed-GlobalID purpose of a field's grant. It differs from
+    # yrby-rails' purpose, so the grant opens LexxyRealtime::DocumentChannel
+    # and not Y::DocumentChannel, which doesn't render the field or run
+    # LexxyRealtime::DocumentChannel's authorize_document block.
+    def grant_purpose(name) = "lexxy_realtime/#{name}"
 
     # Cursor identity, called with the view context; returns { name:, color: }
     # (a nil color gets a stable one derived from the name).

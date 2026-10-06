@@ -25,10 +25,13 @@ Gem::Specification.new do |spec|
   spec.files = Dir.chdir(__dir__) { Dir["lib/**/*", "app/**/*", "LICENSE", "README.md"] }
   spec.require_paths = ["lib"]
 
-  # 0.9.29 is the floor the editor JS is built against (attachments
-  # construct bare, basecamp/lexxy#1196); the gem floor matches so an
-  # import-map app riding the lexxy gem's own asset gets a compatible one.
-  spec.add_dependency "lexxy", ">= 0.9.29"
+  # 0.9.29 is the first Lexxy whose attachment nodes can be constructed
+  # without arguments (basecamp/lexxy#1196), which the editor JS needs.
+  # Import-map apps use the lexxy gem's own asset, so the gem floor matches.
+  # The collaboration bundle runs against Lexxy's re-exported Lexical
+  # namespace, so a major Lexxy release that changes it would fail in the
+  # browser. The ceiling keeps that from reaching apps until it's tested.
+  spec.add_dependency "lexxy", ">= 0.9.29", "< 2.0"
   # lexxy 0.9 requires Rails >= 8.0.2.
   spec.add_dependency "rails", ">= 8.0.2"
   # yrby 0.8.1 reports unknown node types and keeps the text of unknown
