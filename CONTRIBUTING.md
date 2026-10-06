@@ -47,18 +47,26 @@ app), runs the suites, and shuts the server down.
   scheduling and sometimes fail at random. Rerun one before you treat it as
   a real regression.
 
-## The compatibility patch
+## The compatibility patches
 
-The package patches `@lexical/yjs` at runtime. `editor_binding.js` applies
-the patch when it binds an editor, so apps don't have to change their
-`node_modules`.
+The package patches `@lexical/yjs` at runtime, so apps don't have to change
+their `node_modules`. `editor_collaboration.js` applies both patches when it
+binds an editor.
 
 `patchCollabElementSplice` works around an `@lexical/yjs` bug with empty
 trees. When neither the existing child nor the replacement exists, `splice`
 throws in development builds and records `undefined` in production builds.
 Binding an empty document hits exactly that case. The prototype isn't
 exported, so we reach it through the live binding's root and make that one
-case a no-op.
+case a no-op. The patch lives in `attachment_sync.js`.
+
+`registerTextReconciliation`, in `text_reconciliation.js`, overrides
+`applyChildrenYjsDelta` for bindings this package creates. A peer can
+receive the deletion of a text node's metadata before the metadata of the
+text that absorbed it, and the stock code then deletes text that should
+survive. The override rebuilds the children from the shared value instead.
+`test/headless/text_integrity.mjs` covers it, and
+`LEXXY_TEST_LEGACY=1` runs the same checks without the fixes.
 
 `attachmentExclusions` uses the `excludedProperties` option of
 `createBinding` to keep browser-only values out of the shared document: the
@@ -69,16 +77,19 @@ attachment nodes without arguments
 ([basecamp/lexxy#1196](https://github.com/basecamp/lexxy/pull/1196)), which
 the binding needs.
 
-If you change the patch, run `bun run test:browser`. Only the browser suite
-exercises the real editor binding.
+If you change a patch, run `bun run test:headless` and
+`bun run test:browser`. Only the browser suite exercises the real editor
+binding.
 
 ### Upstream tracking
 
-- `@lexical/yjs`: `CollabElementNode.splice` should accept the empty case.
-  This could be fixed upstream in facebook/lexical.
+- `@lexical/yjs`: `CollabElementNode.splice` should accept the empty case,
+  and `applyChildrenYjsDelta` should keep text whose metadata arrives late.
+  Both could be fixed upstream in facebook/lexical.
 
 ## Pull requests
 
-- Keep the comment above `patchCollabElementSplice` that explains why the patch exists.
+- Keep the comments above `patchCollabElementSplice` and
+  `registerTextReconciliation` that explain why each patch exists.
 - Run `bun run test` before you open a PR.
 - Add an entry to `CHANGELOG.md` under **[Unreleased]**.
