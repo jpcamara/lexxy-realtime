@@ -39,13 +39,15 @@ export function registerUploadCleanup(editorElement, editor, provider, awareness
   };
 }
 
-// A synced client that has seen no other awareness state for the whole
-// settle delay removes file-less upload nodes, presuming their uploader
-// gone. The delay must outlast y-protocols' ~15s awareness renewal, or
-// the last client into a quiet room sweeps a live upload; sweeping has no
-// deadline, so long is safe. Awareness stays best-effort: a tab throttled
-// past the delay looks absent while its upload runs. Own file-bearing
-// nodes are never touched, since being alone while uploading is normal.
+// A synced client that sees no other awareness state for the whole settle
+// delay removes upload nodes that have no File, assuming their uploader
+// left. The delay has to be longer than y-protocols' awareness renewal,
+// which is about 15 seconds. Otherwise the last client to join a quiet room
+// could remove a live upload. Nothing needs the sweep to happen quickly, so
+// a long delay is fine. Awareness is best-effort, though. A tab throttled
+// past the delay looks absent while its upload is still running. The sweep
+// never removes this client's own nodes that hold a File, because being
+// alone while uploading is normal.
 const ORPHAN_SWEEP_SETTLE_MS = 25000;
 
 function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
@@ -97,8 +99,8 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
   schedule();
 
   return () => {
-    // The flag also covers the whenSynced continuation, which can fire
-    // after teardown and would otherwise re-arm the timer.
+    // The flag also stops the whenSynced callback, which can run after
+    // teardown and would otherwise start the timer again.
     cancelled = true;
     clearTimeout(timer);
     timer = null;
@@ -107,9 +109,9 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
   };
 }
 
-// Remove this client's own in-flight upload nodes -- the ones still holding
-// a local File. Remote copies have `file` excluded from sync, so a
-// file-bearing node is always ours.
+// Removes this client's own in-flight upload nodes, the ones that still hold
+// a local File. `file` is excluded from sync, so a node with a File always
+// belongs to this client.
 function removePendingUploadNodes(editor) {
   const uploadType = 'action_text_attachment_upload';
   const info = editor?._nodes?.get?.(uploadType);

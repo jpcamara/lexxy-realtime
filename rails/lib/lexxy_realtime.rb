@@ -9,36 +9,36 @@ require "lexxy_realtime/engine"
 # Rails integration for collaborative Lexxy editing with yrby.
 module LexxyRealtime
   class << self
-    # The channel the form helper points elements at. It defaults to the
-    # gem's LexxyRealtime::DocumentChannel. To add a permission check, use
-    # LexxyRealtime::DocumentChannel.authorize_document instead of a
-    # subclass. Set this only when you need a different channel entirely.
+    # The channel the form helper tells each editor to subscribe to. It
+    # defaults to LexxyRealtime::DocumentChannel. For a permission check,
+    # give that channel an authorize_document block. Set this only if you
+    # need a different channel.
     attr_writer :channel_name
 
     def channel_name
       @channel_name || "LexxyRealtime::DocumentChannel"
     end
 
-    # The signed-GlobalID purpose of a field's grant. It differs from
-    # yrby-rails' purpose, so the grant opens LexxyRealtime::DocumentChannel
-    # and not Y::DocumentChannel, which doesn't render the field or run
-    # LexxyRealtime::DocumentChannel's authorize_document block.
+    # The signed GlobalID purpose for a field's grant. yrby-rails uses a
+    # different purpose, so Y::DocumentChannel rejects this grant. That
+    # matters because Y::DocumentChannel doesn't render the field or run
+    # the authorize_document block.
     def grant_purpose(name) = "lexxy_realtime/#{name}"
 
-    # Cursor identity, called with the view context; returns { name:, color: }
-    # (a nil color gets a stable one derived from the name).
+    # Called with the view context to get the cursor name and color, as
+    # { name:, color: }. When color is nil, the form helper picks one
+    # based on the name.
     attr_writer :identity
 
     def identity
       @identity ||= lambda do |view|
         user = view.respond_to?(:current_user) ? view.current_user : nil
-        # Use Anonymous when no display name is available.
         name = user && %i[name username handle].lazy.filter_map { |a| user.try(a).presence }.first
         { name: name || "Anonymous", color: nil }
       end
     end
 
-    # A stable, readable cursor color per collaborator name.
+    # Returns a readable cursor color. The same name always gets the same color.
     def collaborator_color(name)
       "hsl(#{name.to_s.each_byte.reduce(0) { |acc, b| ((acc * 31) + b) % 360 }}, 70%, 45%)"
     end

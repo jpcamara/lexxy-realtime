@@ -1,14 +1,14 @@
 Description:
-    Installs the database tables for collaborative Lexxy editing, and the
-    import-map pins when the app uses import maps. The channel ships in the
-    gem as LexxyRealtime::DocumentChannel, so the generator doesn't add one
-    to the app.
+    Adds the migration for the collaborative document tables. If the app
+    uses import maps, it also adds pins to config/importmap.rb. The channel
+    ships in the gem as LexxyRealtime::DocumentChannel, so the generator
+    doesn't add one to the app.
 
 Example:
     bin/rails generate lexxy_realtime:install
 
     This will create:
         db/migrate/XXXXXXXX_create_y_tables.rb
-    The models ship in the gems (Y::Document, Y::DocumentUpdate).
-    The generator will remind you to add `import "lexxy-realtime"` to
-    your JavaScript entrypoint.
+    The Y::Document and Y::DocumentUpdate models come from yrby-rails.
+    The generator then reminds you to import "lexxy-realtime" from your
+    JavaScript entrypoint.

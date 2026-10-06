@@ -21,10 +21,10 @@ bin/rails generate lexxy_realtime:install
 bin/rails db:migrate
 ```
 
-The generator adds yrby's table migration, plus import-map pins if the app
-uses import maps. The channel ships in the gem
-(`LexxyRealtime::DocumentChannel`), and the `Y::Document` and
-`Y::DocumentUpdate` models come from `yrby-rails`.
+The generator adds yrby's table migration. If the app uses import maps, it
+also adds pins. The channel, `LexxyRealtime::DocumentChannel`, ships in the
+gem. The `Y::Document` and `Y::DocumentUpdate` models come from
+`yrby-rails`.
 
 With a bundler, install the JavaScript package and import it next to
 your Lexxy import:
@@ -81,10 +81,10 @@ end
 Render the form only for users who may edit the record, then open the page
 in two browsers and edit together. You don't write a channel. The helper
 renders a signed grant for the record and field, and
-`LexxyRealtime::DocumentChannel` only opens a document for a valid grant.
-The record must be persisted (the document key derives from it). A record with
-an existing body works: the first collaborative open seeds the document
-from it.
+`LexxyRealtime::DocumentChannel` opens a document only for a valid grant.
+The record must be saved first, because the document key comes from its id.
+If the record already has a body, the first editor to open it copies that
+body into the new document.
 
 Encryption works the way Action Text's does:
 
@@ -92,41 +92,39 @@ Encryption works the way Action Text's does:
 has_collaborative_rich_text :body, encrypted: true
 ```
 
-The rendered body goes through `ActionText::EncryptedRichText`, and the
-collaborative document (CRDT state and update payloads) is stored through
-yrby's `Y::EncryptedDocument`. Both use Active Record encryption, so the
-app must configure encryption keys. Without Action Text, declare
-`encrypts` on the plain attribute yourself.
+Action Text stores the rendered body with `ActionText::EncryptedRichText`.
+yrby's `Y::EncryptedDocument` stores the collaborative document, both the
+CRDT state and each update. Both use Active Record encryption, so the app
+needs encryption keys configured. Without Action Text, declare `encrypts`
+on the plain attribute yourself.
 
-Use it for new attributes. Existing plaintext rows need migration
-before you add `encrypted: true`: enable `support_unencrypted_data`,
-rewrite each document, update, and rich-text row through its encrypted
-class, then turn it back off. There is no built-in task for that yet.
-And if your channel came from an earlier pre-release checkout, update it
-to the current record-based storage first; a channel calling
-`Y::Document` directly stores encrypted attributes as plaintext.
+This works best on new attributes. To encrypt an attribute that already
+has plaintext rows, enable `support_unencrypted_data`, rewrite each
+document, update, and rich-text row through its encrypted class, then
+turn the setting off again. The gem doesn't include a task for this.
 
 ## How the body stays current
 
-The channel records each CRDT update, renders the full document with
+The channel saves each CRDT update, renders the full document with
 `Y::Lexxy`, and saves the HTML through the Action Text writer. This
-happens synchronously in `refresh_collaborative_rich_text`, so
-reads use the stored `post.body` value.
+happens in `refresh_collaborative_rich_text`, inside the channel's handler
+for each update. No background job is involved, so `post.body` holds the
+rendered HTML.
 
-If rendering fails, the update remains stored and the error is logged.
-The next successful update renders the full document again. Until then,
-`post.body` keeps its previous value.
+If rendering fails, the channel logs the error and keeps the update. The
+next update renders the full document again. Until then, `post.body`
+keeps its previous value.
 
 ## Access control
 
 The form helper renders a signed grant for the record and field.
-`LexxyRealtime::DocumentChannel` is yrby-rails' `Y::DocumentChannel` with
-Action Text rendering added. The grant has its own purpose, so yrby-rails'
-`Y::DocumentChannel` rejects it, and the block below can't be skipped by
-subscribing there instead. The channel rejects a missing, tampered, expired, or
-wrong-field grant, a deleted record, and a field that isn't declared with
-`has_collaborative_rich_text`. A valid grant means your app rendered the
-form for this user.
+`LexxyRealtime::DocumentChannel` extends yrby-rails' `Y::DocumentChannel`
+and adds Action Text rendering. The grant uses its own purpose, so
+`Y::DocumentChannel` rejects it. A client can't get around the block below
+by subscribing to that channel. The channel rejects a missing, tampered,
+expired, or wrong-field grant, a deleted record, and a field that isn't
+declared with `has_collaborative_rich_text`. A valid grant means your app
+rendered the form for this user.
 
 To also check the user's current permissions when they subscribe, give
 the channel a block:
@@ -140,10 +138,10 @@ Rails.application.config.to_prepare do
 end
 ```
 
-The block runs inside the channel, so `current_user` and your other
-connection identifiers are available. `editable_by?` stands for your own
+The block runs inside the channel, so you can use `current_user` and your
+other connection identifiers. `editable_by?` is a placeholder for your own
 permission check. If the block returns false or nil, the channel rejects
-the subscription before sending anything.
+the subscription before it sends anything.
 
 ## Grant lifetime and refresh
 
@@ -203,8 +201,8 @@ server.
 LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil } }
 ```
 
-By default, identity uses the first available `current_user` value from
-`name`, `username`, or `handle`, then falls back to `"Anonymous"`.
+By default, the cursor name is the first of `current_user.name`,
+`username`, or `handle` that has a value. Without one it's `"Anonymous"`.
 
 Full documentation, the demo app, and the JavaScript package:
 [repository README](https://github.com/jpcamara/lexxy-realtime#readme).

@@ -14,14 +14,14 @@ class InstallGeneratorTest < Rails::Generators::TestCase
   def test_generates_only_the_migration
     run_generator
 
-    # The channel ships in the gem (LexxyRealtime::DocumentChannel);
-    # install lands only the migration.
+    # The gem provides LexxyRealtime::DocumentChannel, so the generator
+    # only adds the migration.
     assert_no_file "app/channels/document_channel.rb"
     assert_no_file "app/channels/application_cable/channel.rb"
     assert_no_file "app/channels/application_cable/connection.rb"
     assert_no_file "app/models/yrby_document_store.rb"
     assert_no_file "app/models/yrby_document_update.rb"
-    # Storage migration comes from yrby's tables generator.
+    # yrby's tables generator writes the storage migration.
     assert_migration "db/migrate/create_y_tables.rb" do |migration|
       assert_match ":y_documents", migration
       assert_match "t.references :record, polymorphic: true", migration
@@ -29,7 +29,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     end
   end
 
-  def test_no_pins_without_importmap
+  def test_adds_no_pins_without_an_importmap
     run_generator
 
     assert_no_file "config/importmap.rb"

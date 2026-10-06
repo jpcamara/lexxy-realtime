@@ -1,5 +1,5 @@
-// yrby-client's ActionCableProvider, re-exported under this package's
-// name. `<lexxy-collaboration>` accepts any provider exposing `awareness`
-// and `synced` (`whenSynced` and `doc` are optional), so apps can supply
-// their own instead.
+// yrby-client's ActionCableProvider, exported under this package's name.
+// `<lexxy-collaboration>` works with any provider that has `awareness` and
+// `synced`. `whenSynced` and `doc` are optional. Apps can pass their own
+// provider.
 export { ActionCableProvider as YrbyProvider } from "yrby-client";

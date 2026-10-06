@@ -6,7 +6,8 @@ class CollaborativeTest < Minitest::Test
   def setup
     Y::DocumentUpdate.delete_all
     Y::Document.delete_all
-    # The unknown-node warning logs once per process; start each test fresh.
+    # The unknown-node warning is logged once per process. Clear what it
+    # has seen so each test starts fresh.
     LexxyRealtime.instance_variable_get(:@unknown_types_seen).clear
     @post = Post.create!(title: "Doc")
   end
@@ -25,12 +26,12 @@ class CollaborativeTest < Minitest::Test
     end
 
     assert_respond_to bare, :has_collaborative_rich_text, "the macro is available"
-    refute bare.method_defined?(:refresh_collaborative_rich_text), "instance API arrives only with a declaration"
+    refute bare.method_defined?(:refresh_collaborative_rich_text), "the macro adds the instance API"
   end
 
-  # A Post whose attribute is declared encrypted. Subclassing keeps the
-  # writer-fidelity shim and record_type ("Post"), so keys and adoption
-  # behave exactly as the plain class.
+  # A Post subclass with an encrypted body. It keeps Post's body= override
+  # and its record_type of "Post", so document keys and row lookup match
+  # the plain class.
   def encrypted_post_class
     Class.new(Post) do
       def self.name = "Post"
@@ -50,13 +51,13 @@ class CollaborativeTest < Minitest::Test
     append(lexxy_full_state, record)
 
     assert record.refresh_collaborative_rich_text(:body)
-    assert_equal lexxy_full_html, record.reload.body, "rendering is unchanged by encryption"
+    assert_equal lexxy_full_html, record.reload.body, "encryption doesn't change the rendered HTML"
 
     raw = Y::Document.connection.select_value(
       "SELECT payload FROM y_document_updates WHERE document_id = #{document_row(record).id} LIMIT 1"
     )
 
-    assert_includes raw, '"p":', "payload rows hold the Active Record encryption envelope"
+    assert_includes raw, '"p":', "the stored payload is an Active Record encryption envelope"
   end
 
   def test_macro_registers_the_attribute
@@ -71,10 +72,10 @@ class CollaborativeTest < Minitest::Test
 
     assert_equal @post, row.record
     assert_equal "body", row.name
-    assert_equal row, document_row, "created once, found after"
+    assert_equal row, document_row, "the second call finds the same row"
   end
 
-  def test_distinct_classes_get_distinct_documents_and_sti_shares
+  def test_each_model_class_gets_its_own_document_and_sti_subclasses_share
     # A separate model class on the same table gets a separate document.
     other_class = Class.new(ActiveRecord::Base) do
       self.table_name = "posts"
@@ -94,12 +95,12 @@ class CollaborativeTest < Minitest::Test
     assert_equal document_row, document_row(sti.find(@post.id))
   end
 
-  def test_destroying_the_record_sweeps_document_and_log
+  def test_destroying_the_record_deletes_its_document_and_updates
     append(lexxy_full_state)
     @post.destroy!
 
     assert_equal 0, Y::Document.count
-    assert_equal 0, Y::DocumentUpdate.count, "the log follows the record's lifecycle"
+    assert_equal 0, Y::DocumentUpdate.count, "destroying the record deletes its stored updates"
   end
 
   def test_plain_model_without_action_text_materializes_into_the_attribute
@@ -114,7 +115,7 @@ class CollaborativeTest < Minitest::Test
     assert_raises(ArgumentError) { @post.refresh_collaborative_rich_text(:title) }
   end
 
-  def test_materialize_is_false_with_no_recorded_document
+  def test_materialize_returns_false_without_a_stored_document
     refute @post.refresh_collaborative_rich_text(:body)
     assert_nil @post.reload.body
   end
@@ -123,14 +124,14 @@ class CollaborativeTest < Minitest::Test
     append(lexxy_full_state)
 
     assert @post.refresh_collaborative_rich_text(:body)
-    # Byte-identical to the Lexxy editor's own serialization of the same
-    # session (the fixture pair is captured from a real editor).
+    # Both fixtures were captured from the same Lexxy editor session, so
+    # this checks that the render matches Lexxy's own HTML byte for byte.
     assert_equal lexxy_full_html, @post.reload.body
   end
 
-  def test_materialize_saves_past_unrelated_model_validations
-    # Materializing collaboration updates bypasses unrelated model
-    # validations.
+  def test_materialize_saves_when_another_validation_fails
+    # A failing validation on another attribute doesn't block saving the
+    # rendered body.
     invalid = Class.new(Post) do
       def self.name = "Post"
       validates :title, absence: true
@@ -164,7 +165,7 @@ class CollaborativeTest < Minitest::Test
     Rails.logger = original
   end
 
-  # A model with the field's rules, reading the same row as @post.
+  # A Post subclass with render rules for body, loaded from @post's row.
   def post_with_rules(nodes)
     klass = Class.new(Post) do
       def self.name = "Post"
@@ -173,9 +174,10 @@ class CollaborativeTest < Minitest::Test
     klass.find(@post.id)
   end
 
-  # custom_nodes.bin is a document from two live demo editors: "Collab
-  # #ruby rocks and #peer too", with "rocks" wrapped in an @lexical/mark
-  # MarkNode. Hashtags are TextNode subclasses and sync as text runs.
+  # custom_nodes.bin was captured from two demo editors. Its text is
+  # "Collab #ruby rocks and #peer too", with "rocks" wrapped in an
+  # @lexical/mark MarkNode. Hashtags are TextNode subclasses, so they sync
+  # as plain text runs.
   def test_unknown_inline_node_keeps_its_text
     append(custom_nodes_state)
 
@@ -222,6 +224,6 @@ class CollaborativeTest < Minitest::Test
     append(lexxy_full_state, record)
 
     assert record.refresh_collaborative_rich_text(:body)
-    assert_includes record.reload.body, "<section>", "the field's rules apply to the materialized render"
+    assert_includes record.reload.body, "<section>", "the field's rules apply when rendering"
   end
 end

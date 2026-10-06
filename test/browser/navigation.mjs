@@ -62,7 +62,7 @@ for (const framework of ['turbo', 'turbolinks']) {
         await wait(session, `(() => { const s = ${text}; return ${condition}; })()`);
       }
       const texts = await Promise.all(sessions.map(session => value(session, `return ${text};`)));
-      check(new Set(texts).size === 1, `${framework}: all three editors converge exactly`);
+      check(new Set(texts).size === 1, `${framework}: all three editors have the same text`);
     }
     // Remote A reaches peers whose caret still points at the paragraph.
     // Typing there must extend A's text in the shared document. A copy of
@@ -84,7 +84,7 @@ for (const framework of ['turbo', 'turbolinks']) {
     await Promise.all(sessions.slice(1).map((session, i) => ab(session, 'press', ['B', 'C'][i])));
     expected.B++; expected.C++;
     await converge();
-    check(true, `${framework}: concurrent first keys preserve the single pre-existing A`);
+    check(true, `${framework}: first keys typed at the same time keep the single existing A`);
 
     await Promise.all(sessions.map((session, i) => type(session, ['A', 'B', 'C'][i], 24)));
     await converge();
@@ -109,12 +109,12 @@ for (const framework of ['turbo', 'turbolinks']) {
     await type(sessions[0], 'A', 24);
     await converge();
     const summary = await value(sessions[0], `return { instance: window.__navigation.instance, visits: window.__navigation.visits, errors: window.__navigation.errors, overlays: document.querySelectorAll('.lexxy-collab-cursors').length, text: ${text} };`);
-    check(summary.instance === originalInstance && summary.visits === 7, `${framework}: visits and history use the framework without full reloads`);
+    check(summary.instance === originalInstance && summary.visits === 7, `${framework}: visits and history navigation happen without full page reloads`);
     check(summary.overlays === 1, `${framework}: one cursor overlay after navigation`);
     const keys = await Promise.all(sessions.map(s => value(s, 'return window.__navigation.keys;')));
-    check(keys.every((events, i) => events.length === expected[['A', 'B', 'C'][i]] && events.every(key => key === ['A', 'B', 'C'][i])), `${framework}: every intended key reached its editor`);
+    check(keys.every((events, i) => events.length === expected[['A', 'B', 'C'][i]] && events.every(key => key === ['A', 'B', 'C'][i])), `${framework}: every key press reached its editor`);
     const inputTimes = await Promise.all(sessions.map(s => value(s, 'return window.__navigation.inputs;')));
-    check(Math.max(...inputTimes[1]) > Math.min(...inputTimes[2]) && Math.max(...inputTimes[2]) > Math.min(...inputTimes[1]), `${framework}: peer keyboard input overlapped`);
+    check(Math.max(...inputTimes[1]) > Math.min(...inputTimes[2]) && Math.max(...inputTimes[2]) > Math.min(...inputTimes[1]), `${framework}: B and C typed at overlapping times`);
     for (const session of sessions) {
       check((await value(session, 'return window.__navigation.errors;')).length === 0, `${session}: no uncaught errors`);
     }
@@ -125,7 +125,7 @@ for (const framework of ['turbo', 'turbolinks']) {
     await ab(reader, 'open', url('Fresh reader'));
     await wait(reader, ready);
     await wait(reader, `(${text}) === ${JSON.stringify(summary.text)}`);
-    check(true, `${framework}: fresh reader recovers every edit`);
+    check(true, `${framework}: a new reader sees every edit`);
     writeFileSync(resolve(output, `${framework}.json`), JSON.stringify({ ...summary, expected, keyEvents: keys.map(events => events.length), inputEvents: inputTimes.map(t => t.length), checks: checks - initialChecks }, null, 2));
   } catch (error) {
     const editors = await Promise.allSettled(sessions.map(session => value(session, `
@@ -143,4 +143,4 @@ for (const framework of ['turbo', 'turbolinks']) {
     await Promise.allSettled(sessions.map(session => ab(session, 'close')));
   }
 }
-console.log(`PASS: ${checks} real-navigation checks; evidence: ${output}`);
+console.log(`PASS: ${checks} navigation checks. Screenshots and results are in ${output}`);

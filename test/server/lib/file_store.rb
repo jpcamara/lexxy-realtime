@@ -1,11 +1,10 @@
 require "base64"
 require "fileutils"
 
-# Dead-simple durable log for the test server: every recorded CRDT delta is
-# appended (base64, one per line) to a per-document file, so state survives idle
-# eviction and full server restarts. `replay` merges the log back into a single
-# update by applying it to a fresh yrby Doc -- the same record-then-replay
-# model yrby's authoritative mode is built around.
+# A simple update log for the test server. Each recorded update is appended to
+# a per-document file as one base64 line, so documents survive idle eviction
+# and server restarts. `replay` applies the log to a new yrby Doc and returns
+# the result as a single update.
 module FileStore
   DIR = File.expand_path("../data", __dir__)
 
@@ -21,7 +20,7 @@ module FileStore
     File.open(path(key), "ab") { |f| f.puts(Base64.strict_encode64(update)) }
   end
 
-  # The merged durable state for a key, or nil if nothing has been recorded.
+  # Returns the merged state for a key, or nil if nothing has been recorded.
   def replay(key)
     file = path(key)
     return nil unless File.exist?(file)

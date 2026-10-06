@@ -17,8 +17,8 @@ jobs:
       - run: bun run build
       - run: bun run build:test
       - run: bun run build:importmap
-      # The gem ships these assets; a build that changes them means the
-      # committed copies are stale.
+      # The gem ships these assets. If the build changes them, the committed
+      # copies are out of date.
       - run: git diff --exit-code rails/app/assets
 
   rails-gem:
@@ -35,7 +35,7 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           working-directory: rails
           bundler-cache: true
-      - name: Rails gem tests (unit + engine boot)
+      - name: Rails gem tests and RuboCop
         working-directory: rails
         run: |
           bundle exec rake test
@@ -62,8 +62,8 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm run build
-      # The custom-nodes check renders a document from two live editors
-      # through Post's nodes: rules.
+      # Renders a document captured from two live editors with Post's
+      # nodes: rules.
       - name: Boot and custom-nodes check
         working-directory: demo
         run: |
@@ -80,8 +80,8 @@ jobs:
       matrix:
         ruby: ["3.4"]
     steps:
-      # lexxy-realtime and yrby are checked out as siblings so the test
-      # server's path-pinned gems (../../../yrby from test/server) resolve.
+      # Check out lexxy-realtime and yrby side by side. The test server's
+      # Gemfile loads yrby from ../../../yrby.
       - uses: actions/checkout@v5
         with:
           path: lexxy-realtime
@@ -100,8 +100,8 @@ jobs:
         working-directory: lexxy-realtime
         run: bun install --frozen-lockfile
 
-      # Build the yrby native extension in place, then install the test
-      # server's bundle (which depends on it via path).
+      # Build yrby's native extension in place. The test server's bundle
+      # loads yrby from that checkout.
       - name: Compile yrby native extension
         working-directory: yrby
         run: |
@@ -121,8 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      # Same sibling layout as the headless job: the test server's gems are
-      # path-pinned to ../../../yrby.
+      # Same side-by-side checkout as the headless job, for ../../../yrby.
       - uses: actions/checkout@v5
         with:
           path: lexxy-realtime
@@ -151,9 +150,8 @@ jobs:
         working-directory: lexxy-realtime/test/server
         run: bundle install
 
-      # The browser suite is the only thing that exercises the real editor
-      # binding (and the splice patch). It drives the runner's preinstalled
-      # Chrome through agent-browser.
+      # Only the browser suite runs the real editor binding and the splice
+      # patch. It drives the runner's preinstalled Chrome with agent-browser.
       - name: Browser e2e suite
         working-directory: lexxy-realtime
         run: |
@@ -170,7 +168,7 @@ jobs:
         ports: ["6379:6379"]
         options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
-      # Same sibling layout as the other e2e jobs.
+      # Same side-by-side checkout as the other e2e jobs.
       - uses: actions/checkout@v5
         with:
           path: lexxy-realtime
@@ -185,7 +183,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: oven-sh/setup-bun@v2
 
-      # Pinned binary from releases (no extra action dependency).
+      # Download a pinned anycable-go release binary.
       - name: Install anycable-go
         run: |
           curl -fsSL https://github.com/anycable/anycable/releases/download/v1.6.14/anycable-go-linux-amd64 -o /tmp/anycable-go
@@ -206,8 +204,8 @@ jobs:
         working-directory: lexxy-realtime/test/server
         run: bundle install
 
-      # The same headless + browser suites, through anycable-go and the RPC
-      # server, plus the @anycable/web consumer at runtime.
+      # Runs the headless and browser suites through anycable-go and the RPC
+      # server, and checks the @anycable/web consumer.
       - name: AnyCable e2e suite
         working-directory: lexxy-realtime
         run: |

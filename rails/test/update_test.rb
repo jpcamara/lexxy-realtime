@@ -18,7 +18,7 @@ class UpdateTest < Minitest::Test
     assert_equal "body", document.document_row.name
   end
 
-  def test_channel_appends_by_key_reach_the_bound_document
+  def test_appending_by_key_updates_the_records_document
     post = Post.create!(title: "Doc")
     document = post.collaborative_document(:body)
 

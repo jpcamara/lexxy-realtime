@@ -1,15 +1,16 @@
 # lexxy-realtime tests
 
 These tests run the real collaboration stack against a **yrby** server and
-exercise its durability guarantees.
+check that edits aren't lost.
 
 ```
-npm test              # headless durability suite + browser editor e2e
-npm run test:headless # just the headless suite
-npm run test:browser  # just the browser e2e
+npm test              # headless suites, browser suites, and AnyCable when available
+npm run test:headless # just the headless suites
+npm run test:browser  # just the browser suites
+npm run test:anycable # the AnyCable suites (needs anycable-go and redis)
 ```
 
-`test/run.mjs` boots the server, runs the suites against it, and tears it down.
+`test/run.mjs` starts the server, runs the suites against it, and stops it.
 
 ## Pieces
 

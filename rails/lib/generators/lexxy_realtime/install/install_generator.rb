@@ -5,13 +5,13 @@ require "generators/yrby/tables/tables_generator"
 
 module LexxyRealtime
   module Generators
-    # Installs the storage migration (through yrby's generator) and the
+    # Adds the storage migration, using yrby's generator, and the
     # import-map pins. The channel ships in the gem as
     # LexxyRealtime::DocumentChannel, the way Turbo ships
     # Turbo::StreamsChannel.
     class InstallGenerator < Rails::Generators::Base
-      # The gem's channel needs Action Cable at runtime; fail at install
-      # time, not on the first subscribe.
+      # The gem's channel needs Action Cable. Stopping here is clearer than
+      # an error on the first subscription.
       def check_action_cable
         return if defined?(ActionCable)
 
@@ -21,7 +21,7 @@ module LexxyRealtime
         raise Thor::Error, "lexxy_realtime:install requires Action Cable"
       end
 
-      # yrby owns the models and their migration.
+      # yrby's generator writes the migration for its document models.
       def create_tables
         invoke "yrby:tables"
       end
@@ -82,7 +82,7 @@ module LexxyRealtime
             3. Declare `has_collaborative_rich_text :body` on a model and
                render it with `<%= form.collaborative_rich_textarea :body %>`.
                Render it only for users who may edit the record. The
-               helper's signed grant is what lets the browser connect.
+               browser connects with the signed grant the helper renders.
 
           Optional: set cursor names with `LexxyRealtime.identity`.
         NEXT

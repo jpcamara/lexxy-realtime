@@ -1,19 +1,17 @@
 source "https://rubygems.org"
 
-# Minimal Rails for ActionCable + a controller; ActiveRecord is never loaded.
+# config/application.rb loads only the Rails frameworks the test server uses.
 gem "rails", "~> 8.0"
 gem "puma"
 
-# The AnyCable leg of the harness: RPC server (bundle exec anycable) for
-# channel logic behind an anycable-go gateway.
+# For the AnyCable run. `bundle exec anycable` starts the RPC server that runs
+# channel code behind anycable-go.
 gem "anycable-rails", "~> 1.6"
-gem "redis"   # AnyCable broadcast adapter (rails -> anycable-go)
-gem "webrick" # AnyCable RPC health endpoint the harness gates boot on
-gem "sqlite3"  # ActiveStorage blobs for the real-upload e2e
+gem "redis"   # AnyCable broadcasts to anycable-go through Redis
+gem "webrick" # serves the RPC health endpoint that test/run.mjs waits for
+gem "sqlite3"  # Active Storage tables for the uploads e2e
 
-# The library under test. Path-pinned to the local checkout so tests exercise
-# the latest yrby (reliable delivery + causal-gap protection), not a
-# published version. The ActionCable concern (Y::ActionCable::Sync) lives
-# in the companion yrby-rails gem (same repo).
+# yrby comes from the sibling checkout, so the tests run against its current
+# code. Y::ActionCable::Sync is in yrby-rails, which lives in the same repo.
 gem "yrby", path: "../../../yrby"
 gem "yrby-rails", path: "../../../yrby"

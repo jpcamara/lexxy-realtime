@@ -11,8 +11,8 @@ import { dirname, join } from "node:path";
 
 const PORT = process.env.PORT || 4111;
 const here = dirname(fileURLToPath(import.meta.url));
-// Resolve the local binary directly: `npx` per-call overhead is too slow for the
-// polling loops below.
+// Call the local binary directly. Starting `npx` on every call is too slow for
+// the polling loops below.
 const AB = process.env.AB_BIN || join(here, "..", "..", "node_modules", ".bin", "agent-browser");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -29,7 +29,7 @@ const ab = (session, ...args) => {
 };
 
 const S = "lifecycle";
-// agent-browser prints booleans as a bare `true`/`false`; assert on that.
+// agent-browser prints booleans as a bare true or false, so match on that.
 const isTrue = (js) => /\btrue\b/.test(ab(S, "eval", js));
 
 async function waitEval(js, label, ms = 30000) {
@@ -42,7 +42,7 @@ async function waitEval(js, label, ms = 30000) {
   return false;
 }
 
-// Run a scenario and wait for its result object to land (or an error).
+// Runs a scenario and waits for its result object or an error.
 async function runScenario(name) {
   ab(S, "eval", `window.__lc.run(${JSON.stringify(name)})`);
   const ok = await waitEval(`window.__lc.results[${JSON.stringify(name)}] != null`, `${name} completed`, 60000);
@@ -54,7 +54,7 @@ async function runScenario(name) {
   }
   return ok;
 }
-// Assert a boolean field on a completed scenario result.
+// Checks an expression against a finished scenario's result.
 const field = (name, expr) =>
   isTrue(`(() => { const r = window.__lc.results[${JSON.stringify(name)}]; return !!r && (${expr}); })()`);
 
@@ -65,8 +65,8 @@ const check = (label, ok) => {
 };
 
 ab(S, "open", `http://localhost:${PORT}/lifecycle.html`);
-if (!(await waitEval("document.body.dataset.lcReady === 'true'", "lifecycle harness ready"))) {
-  console.log("FAILED: harness did not load");
+if (!(await waitEval("document.body.dataset.lcReady === 'true'", "lifecycle page ready"))) {
+  console.log("FAILED: lifecycle page did not load");
   process.exit(1);
 }
 

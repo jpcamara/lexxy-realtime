@@ -7,11 +7,10 @@
 // collaboration UI. The stylesheet also holds the one layout rule the
 // package needs for <yrby-document>.
 //
-// The same rules also ship as a real stylesheet (dist/lexxy-realtime.css
-// on npm, lexxy_realtime.css in the gem) for apps whose
-// Content-Security-Policy blocks injected style tags. The file stamps a
-// :root marker; when it is present the runtime injection stays out of the
-// way.
+// The same rules ship as a stylesheet (dist/lexxy-realtime.css on npm,
+// lexxy_realtime.css in the gem) for apps whose Content-Security-Policy
+// blocks injected style tags. That file sets a marker property on :root.
+// When the marker is present, we don't inject the styles.
 
 export const CURSOR_CSS = `
 /* <yrby-document> only groups the editor with its session. Custom
@@ -59,7 +58,7 @@ yrby-document {
 
 export function registerCursorTheme(editor) {
   const theme = editor._config.theme;
-  if (theme.collaboration) return; // the app themed cursors itself; keep its look
+  if (theme.collaboration) return; // The app styles cursors itself.
 
   theme.collaboration = {
     cursor: 'lexxy-collab-cursor',

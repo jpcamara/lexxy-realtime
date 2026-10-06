@@ -10,19 +10,18 @@ require "y/action_cable"
 require "active_support/testing/time_helpers"
 require "y/collaborative"
 require "lexxy_realtime"
-# Load the yrby models directly because this test helper does not boot
-# the engine.
+# This helper doesn't boot the engine, so load the yrby models directly.
 yrby_rails = Gem.loaded_specs.fetch("yrby-rails").full_gem_path
 require File.join(yrby_rails, "app/models/y/document")
 require File.join(yrby_rails, "app/models/y/document_update")
 require File.join(yrby_rails, "app/models/y/encrypted_document")
 require File.join(yrby_rails, "app/models/y/encrypted_document_update")
 
-# Use in-memory Active Record, yrby rendering fixtures, and signed
-# GlobalIDs without booting Rails. The engine boot test covers the Action
-# Text integration.
+# These tests run without booting Rails. Active Record uses an in-memory
+# SQLite database, and GlobalIDs are signed with a test secret.
+# engine_boot_test.rb covers the Action Text integration.
 ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
-# Test-only keys so encrypted collaborative attributes can round-trip.
+# Test keys for the encrypted collaborative attribute tests.
 ActiveRecord::Encryption.configure(
   primary_key: "test-primary-key" * 2,
   deterministic_key: "test-deterministic-key" * 2,
@@ -64,15 +63,14 @@ class Post < ActiveRecord::Base
   include GlobalID::Identification
   include LexxyRealtime::Collaborative
 
-  # Stub has_rich_text so this model exercises the Action Text branch of
-  # the macro.
+  # Stub has_rich_text so the macro takes its Action Text path.
   def self.has_rich_text(name, **); end
 
   has_collaborative_rich_text :body
 
-  # Match Action Text's writer, which reads the attribute while finding
-  # or building the rich text record. This catches recursive
-  # materialization.
+  # Action Text's writer reads the attribute while it finds or builds the
+  # rich text record. Doing the same here makes the tests fail if that
+  # read triggers materialization recursively.
   def body=(value)
     body
     super
@@ -88,8 +86,7 @@ class PlainPost < ActiveRecord::Base
   has_collaborative_rich_text :body
 end
 
-# A store double implementing the load/append contract, for the
-# store-swap config test. Everything else runs against the real
+# A store double implementing load and append. The tests use the real
 # Y::DocumentUpdate model.
 class TestStore
   class << self

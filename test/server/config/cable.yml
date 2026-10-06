@@ -1,6 +1,6 @@
-# Async adapter: in-process pub/sub, fine for a single-process test server.
-# The AnyCable leg boots with CABLE_ADAPTER=any_cable, which routes
-# broadcasts through AnyCable's adapter to anycable-go instead.
+# The async adapter does pub/sub inside one process, which is enough for this
+# test server. The AnyCable run sets CABLE_ADAPTER=any_cable so broadcasts go
+# to anycable-go.
 development:
   adapter: <%= ENV.fetch("CABLE_ADAPTER", "async") %>
 production:

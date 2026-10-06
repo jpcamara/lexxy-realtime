@@ -12,7 +12,7 @@ class ConfigTest < Minitest::Test
     def try(attribute) = respond_to?(attribute) ? public_send(attribute) : nil
   end
 
-  def test_defaults
+  def test_default_channel_name
     assert_equal "LexxyRealtime::DocumentChannel", LexxyRealtime.channel_name
   end
 
@@ -30,7 +30,7 @@ class ConfigTest < Minitest::Test
     assert_equal({ name: "Ada", color: nil }, LexxyRealtime.identity.call(view))
   end
 
-  def test_default_identity_never_exposes_an_email_on_a_cursor
+  def test_default_identity_falls_back_to_username_then_anonymous
     view = FakeView.new(FakeUser.new(nil, "ada42", "ada@example.com"))
 
     assert_equal "ada42", LexxyRealtime.identity.call(view)[:name], "uses username when name is blank"

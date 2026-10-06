@@ -1,4 +1,4 @@
 # frozen_string_literal: true
 
-# Bundler requires by gem name; the code lives under the underscored path.
+# Bundler requires the gem by its name. The code lives under lexxy_realtime.
 require "lexxy_realtime"

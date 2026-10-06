@@ -62,11 +62,11 @@ check(
 );
 
 check(
-  "attachment created through the pins",
+  "attachment created through the pinned modules",
   /\bok\b/.test(ab("ima", "eval", 'window.__test.insertAttachment("IMAP-SGID-1")'))
 );
 check(
-  "attachment materialized on the peer",
+  "attachment appears in Ben's editor",
   await waitEval("imb", 'window.__test.attachmentSgids().includes("IMAP-SGID-1")', "attachment to ben")
 );
 

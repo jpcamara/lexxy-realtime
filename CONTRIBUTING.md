@@ -1,78 +1,84 @@
 # Contributing to lexxy-realtime
 
-Issues and PRs welcome. This repository contains the browser package and
-the Rails integration (`rails/`). The sibling
-[`yrby`](https://github.com/jpcamara/yrby) repository provides the server
-and `yrby-client`, so most of the test suite drives a real yrby Rails
-server.
+Issues and PRs are welcome. This repository holds the browser package and
+the Rails integration (`rails/`). The server and `yrby-client` live in the
+[`yrby`](https://github.com/jpcamara/yrby) repository, and most of the test
+suite runs against a real yrby Rails server.
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) (build + test runner)
-- A local checkout of [`yrby`](https://github.com/jpcamara/yrby) **as a
-  sibling directory** (`../yrby`). The test server's `Gemfile` path-pins the
-  `yrby` and `yrby-rails` gems to that checkout.
-- For the server-backed tests: Ruby 3.4+ and a Rust toolchain (the `yrby`
-  gem has a native extension that compiles on `bundle install`).
-- For the browser tests: a Chrome/Chromium that [agent-browser](https://www.npmjs.com/package/agent-browser)
-  can drive.
+- [Bun](https://bun.sh), for builds and tests.
+- A checkout of [`yrby`](https://github.com/jpcamara/yrby) in a sibling
+  directory (`../yrby`). The test server's `Gemfile` points the `yrby` and
+  `yrby-rails` gems at that checkout.
+- For the server-backed tests, Ruby 3.4+ and a Rust toolchain. The `yrby`
+  gem has a native extension that compiles during `bundle install`.
+- For the browser tests, a Chrome or Chromium that
+  [agent-browser](https://www.npmjs.com/package/agent-browser) can drive.
 
 ## Build
 
 ```bash
 bun install
-bun run build        # the published bundle; dist/ is built, never committed (npm install runs it via prepare)
+bun run build        # the published bundle; dist/ isn't committed (npm install builds it via prepare)
 bun run build:test   # the browser test bundle
 ```
 
 ## Tests
 
 ```bash
-bun run test            # headless durability + browser suites
-bun run test:headless   # protocol-level convergence / durability / loss
-bun run test:browser    # real Lexxy editors driven via agent-browser
+bun run test            # headless and browser suites
+bun run test:headless   # protocol-level convergence, durability, and loss
+bun run test:browser    # real Lexxy editors driven by agent-browser
+bun run test:anycable   # the suites again through anycable-go (needs anycable-go and Redis)
 ```
 
-`test/run.mjs` boots the `yrby` test server (`test/server`, a minimal Rails
-app), runs the suites, and tears it down.
+`test/run.mjs` boots the yrby test server (`test/server`, a minimal Rails
+app), runs the suites, and shuts the server down.
 
-- **Headless** (`test/headless/*.mjs`) drives Yjs directly over the cable
-  protocol. Deterministic, and runs in CI alongside the browser suite.
-- **Browser** (`test/browser/{e2e,cursors,lifecycle}.mjs`) opens real Lexxy editors and
-  asserts live convergence, durability, and remote-cursor fidelity. The cursor
-  presence-timing checks (focus/blur/refocus/disconnect) are sensitive to
-  agent-browser scheduling and can flake; rerun before treating one as a real
-  regression.
+- The headless suite (`test/headless/*.mjs`) drives Yjs directly over the
+  cable protocol. It's deterministic, and CI runs it next to the browser
+  suite.
+- The browser suite (`test/browser/*.mjs`) opens real Lexxy editors. It
+  checks that editors converge, that edits are stored, and that remote
+  cursors render correctly. It also covers uploads, element lifecycle,
+  Turbo navigation, and the import-map build. The cursor presence timing
+  checks (focus, blur, refocus, disconnect) depend on agent-browser
+  scheduling and sometimes fail at random. Rerun one before you treat it as
+  a real regression.
 
 ## The compatibility patch
 
-One runtime patch remains, applied from inside `editor_collaboration.js`'s
-bind path so consumers don't have to touch their `node_modules`:
+The package patches `@lexical/yjs` at runtime. `editor_binding.js` applies
+the patch when it binds an editor, so apps don't have to change their
+`node_modules`.
 
-`patchCollabElementSplice` works around an `@lexical/yjs` empty-tree bug:
-`splice` throws in dev builds (and appends `undefined` in prod) when both
-the existing child and the replacement are missing, which is what the
-empty-collab-tree bootstrap does. We reach the unexported prototype
-through the live binding root and make that one case a no-op.
+`patchCollabElementSplice` works around an `@lexical/yjs` bug with empty
+trees. When neither the existing child nor the replacement exists, `splice`
+throws in development builds and records `undefined` in production builds.
+Binding an empty document hits exactly that case. The prototype isn't
+exported, so we reach it through the live binding's root and make that one
+case a no-op.
 
-The attachment exclusions (`attachmentExclusions`) use `createBinding`'s
-supported `excludedProperties` option to keep browser-only values (a raw
-`File`, `editor`, `previewSrc`, upload config) out of the shared doc.
+`attachmentExclusions` uses the `excludedProperties` option of
+`createBinding` to keep browser-only values out of the shared document: the
+raw `File`, `editor`, `previewSrc`, and the upload settings.
 
-The constructor shims are gone. Lexxy constructs attachment nodes bare as of
-[basecamp/lexxy#1196](https://github.com/basecamp/lexxy/pull/1196), shipped
-in Lexxy 0.9.29; the `@37signals/lexxy` peer floor requires that release.
+The `@37signals/lexxy` peer range starts at 0.9.29. That release constructs
+attachment nodes without arguments
+([basecamp/lexxy#1196](https://github.com/basecamp/lexxy/pull/1196)), which
+the binding needs.
 
-If you change the patch, revalidate with `bun run test:browser`; the browser
-suite is the only thing that exercises the real editor binding.
+If you change the patch, run `bun run test:browser`. Only the browser suite
+exercises the real editor binding.
 
 ### Upstream tracking
 
-- `@lexical/yjs`: `CollabElementNode.splice` still needs the empty case
-  tolerated, and a candidate for an upstream fix in facebook/lexical.
+- `@lexical/yjs`: `CollabElementNode.splice` should accept the empty case.
+  This could be fixed upstream in facebook/lexical.
 
 ## Pull requests
 
-- Keep the bind-path comment that explains why the patch exists.
-- Run `bun run test` before opening a PR.
-- Update `CHANGELOG.md` under **[Unreleased]**.
+- Keep the comment above `patchCollabElementSplice` that explains why the patch exists.
+- Run `bun run test` before you open a PR.
+- Add an entry to `CHANGELOG.md` under **[Unreleased]**.

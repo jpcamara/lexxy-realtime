@@ -19,8 +19,7 @@ module LexxyRealtime
       app.config.to_prepare { ActionView::Helpers::FormBuilder.prepend(LexxyRealtime::FormBuilder) }
     end
 
-    # The import-map assets under app/assets/javascript need no
-    # initializer: Rails adds every app/assets subdirectory of an engine
-    # to the asset paths itself.
+    # Rails adds each app/assets subdirectory of an engine to the asset
+    # paths, so the import-map assets don't need an initializer.
   end
 end

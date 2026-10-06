@@ -1,7 +1,7 @@
 require "base64"
 
-# Read/clear the durable server-side state for a document, so tests can assert
-# what actually persisted (durability) independent of any connected client.
+# Reads and clears a document's stored state, so tests can check what the
+# server saved without going through a connected client.
 class ContentController < ActionController::Base
   def show
     state = FileStore.replay(params[:id])

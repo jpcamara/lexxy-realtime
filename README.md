@@ -11,11 +11,11 @@ Each side sees the other's cursor and selection:
 
 ![Two browsers side by side, each showing the other's selection and caret live](docs/images/presence.gif)
 
-Under the hood: Yjs CRDTs synced over Action Cable or AnyCable through
-[yrby](https://github.com/jpcamara/yrby), every update stored durably before
-it is acknowledged, and the document rendered back into Action Text on the
-server. `post.body` stays a normal rich text attribute that the rest of your
-app (rendering, search, mailers) reads as usual.
+The editors sync Yjs updates over Action Cable or AnyCable through
+[yrby](https://github.com/jpcamara/yrby). The server stores every update
+before acknowledging it, then renders the document back into Action Text.
+`post.body` is still a normal rich text attribute, so the rest of your app
+(rendering, search, mailers) reads it as usual.
 
 ## Quick start
 
@@ -31,8 +31,8 @@ bin/rails generate lexxy_realtime:install
 bin/rails db:migrate
 ```
 
-The generator creates the sync channel and the document tables, and adds
-import-map pins when the app uses import maps.
+The generator creates the document tables. If the app uses import maps, it
+also adds the import-map pins. The channel ships in the gem.
 
 Make a rich text attribute collaborative:
 
@@ -59,24 +59,24 @@ import "@37signals/lexxy"
 import "lexxy-realtime"
 ```
 
-**With a JavaScript bundler** (esbuild, webpack, bun), install the npm
-package and use the same imports. npm and bun install its peers
-(`lexical`, `yjs`, and friends) automatically; yarn only warns, so add
-`@lexical/yjs yjs y-protocols` yourself there:
+With a JavaScript bundler (esbuild, webpack, bun), install the npm package
+and use the same imports. npm and bun install its peers (`lexical`, `yjs`,
+and the rest) automatically. Yarn only warns about them, so with Yarn add
+`@lexical/yjs yjs y-protocols` yourself:
 
 ```bash
 npm install lexxy-realtime
 ```
 
-You don't write a channel. The form helper renders a signed grant for the
-record and field, and the gem's channel only opens a document for a valid
-grant. Render the form only for users who may edit the record. Open the
-page in two browsers and type.
+You don't need to write a channel. The form helper renders a signed grant
+for the record and field, and the gem's channel opens a document only when
+the grant is valid. Render the form only for users who may edit the record.
+Then open the page in two browsers and type.
 
 ## Try it
 
-A working app using this exact setup lives in [`demo/`](demo/): run
-`bin/setup`, create a post, and open its edit page in two windows.
+The app in [`demo/`](demo/) uses this exact setup. Run `bin/setup`, create a
+post, and open its edit page in two windows.
 
 ## Contents
 
@@ -88,6 +88,7 @@ A working app using this exact setup lives in [`demo/`](demo/): run
   - [The document channel](#the-document-channel)
   - [Encrypted storage](#encrypted-storage)
   - [How it stays in sync with Action Text](#how-it-stays-in-sync-with-action-text)
+  - [Custom Lexical nodes](#custom-lexical-nodes)
   - [Cursor identity](#cursor-identity)
 - [The JavaScript client](#the-javascript-client)
   - [Install](#install)
@@ -128,74 +129,75 @@ most test coverage.
 
 ## The Rails side
 
-What `bin/rails generate lexxy_realtime:install` sets up, and how the gem
-keeps Action Text in sync with the collaborative document.
+This section covers what `bin/rails generate lexxy_realtime:install` sets up
+and how the gem keeps Action Text in sync with the collaborative document.
 
 ### Database tables
 
 The migration creates `y_documents` and `y_document_updates`. Their models,
-`Y::Document` and `Y::DocumentUpdate`, are provided by `yrby-rails`.
+`Y::Document` and `Y::DocumentUpdate`, come from `yrby-rails`.
 
 A document belongs to a model through `record` and `name`, much like
 `ActionText::RichText`. It also has a unique transport `key` and stores the
-compacted CRDT state. Destroying the model removes its document and update
+compacted Yjs state. Destroying the model deletes its document and update
 rows.
 
-Each incoming delta is appended to `y_document_updates`. At the compaction
-threshold, yrby merges those updates into `y_documents.state` and removes the
+Each incoming update is appended to `y_document_updates`. At the compaction
+threshold, yrby merges those updates into `y_documents.state` and deletes the
 old rows. The channel renders the document into `post.body` after each
-change. Apps using yrby directly can provide another store through `on_load`
-and `on_change`.
+change. Apps that use yrby directly can plug in a different store through
+`on_load` and `on_change`.
 
 ### The document channel
 
-`LexxyRealtime::DocumentChannel` ships in the gem. It's yrby-rails'
-`Y::DocumentChannel` with one addition: after it saves each update, it
-renders the document to HTML and saves it to the Action Text field. It saves
-each update before acknowledging or broadcasting it, so the stored log can
-rebuild the document.
+`LexxyRealtime::DocumentChannel` ships in the gem. It is yrby-rails'
+`Y::DocumentChannel` with one extra step: after it saves an update, it
+renders the document to HTML and saves that to the Action Text field. Each
+update is saved before it is acknowledged or broadcast, so the stored log
+can always rebuild the document.
 
-The form helper gives the browser a signed grant for one record and
-field. Only `LexxyRealtime::DocumentChannel` accepts it. To also check
-the user's permissions when they subscribe, use
+The form helper gives the browser a signed grant for one record and field.
+Only `LexxyRealtime::DocumentChannel` accepts it. To also check the user's
+permissions when they subscribe, use
 `LexxyRealtime::DocumentChannel.authorize_document`. The
 [Rails gem README](rails/README.md#access-control) shows how.
 
 ### Encrypted storage
 
 `has_collaborative_rich_text :body, encrypted: true` stores the rendered body
-with `ActionText::EncryptedRichText`. The CRDT state and updates use yrby's
-encrypted document models. Active Record encryption handles both.
+with `ActionText::EncryptedRichText`. The Yjs state and updates use yrby's
+encrypted document models. Both are encrypted with Active Record encryption.
 
 ### How it stays in sync with Action Text
 
 `has_collaborative_rich_text :body` is a regular `has_rich_text` attribute
-underneath. After recording each change, the channel renders the
-collaborative document to HTML **on the server** and saves it through the
-normal Action Text writer. yrby's `Y::Lexxy` produces byte-identical markup
-to the editor's own serializer, in Ruby. So `post.body` tracks the
-collaborative state, and everything downstream (rendering, search, mailers)
-is plain Action Text.
+underneath. After storing each change, the channel renders the collaborative
+document to HTML on the server and saves it through the normal Action Text
+writer. yrby's `Y::Lexxy` does the rendering in Ruby and produces the same
+markup as the editor's own serializer. So `post.body` follows
+the collaborative document, and everything that reads it (rendering, search,
+mailers) sees plain Action Text.
 
 Each update is rendered synchronously, so `post.body` is current when the
-channel call returns. Once an update is stored, closing the browser does not
-affect it. If rendering fails, the next successful update renders the full
-document again.
+channel call returns. Once the server has stored an update, closing the
+browser doesn't lose it. If rendering fails, the next successful update
+renders the whole document again.
 
-When collaboration starts for a record with existing Action Text content, the
-client seeds the Yjs document from the editor's rendered value. Clearing the
-editor later saves an empty body as expected.
+When collaboration starts on a record that already has Action Text content,
+the client seeds the Yjs document from the editor's rendered value. If
+someone clears the editor later, an empty body is saved.
 
-There is a race during the first open: two clients can seed the document
-before either finishes syncing, which duplicates the initial content.
-Lexical's `CollaborationPlugin` behaves the same way. The duplicate is
-visible and can be deleted.
+There is one race on the first open. If two clients both seed the document
+before either finishes syncing, the initial content appears twice. Lexical's
+`CollaborationPlugin` behaves the same way. The duplicate is visible and can
+be deleted.
 
 ### Custom Lexical nodes
 
-Editors render custom nodes with your JavaScript. The stored HTML comes from
-`Y::Lexxy` on the server, which only knows core Lexical and Lexxy's own
-nodes. When it meets a node type it doesn't know, it renders what it can:
+Your JavaScript renders custom nodes in the editor. The stored HTML comes
+from `Y::Lexxy` on the server, which only knows core Lexical nodes and
+Lexxy's own. When it finds a node type it doesn't know, it renders what it
+can:
 
 - An element node (a container or an inline wrapper) renders its children
   without its own tag. The text is kept.
@@ -206,9 +208,8 @@ nodes. When it meets a node type it doesn't know, it renders what it can:
 
 The editors still draw the node with your JavaScript. `post.body` gets the
 reduced version, and so does everything that reads it: mailers, search,
-read-only views. A node registered
-through Lexical's node replacement counts as custom, because its type name
-is what syncs.
+read-only views. A node registered through Lexical's node replacement counts
+as custom, because its type name is what syncs.
 
 Add render rules for your node types to the field:
 
@@ -222,20 +223,22 @@ has_collaborative_rich_text :body, nodes: {
 
 These are `Y::Lexxy` rules. yrby's
 [custom nodes docs](https://github.com/jpcamara/yrby#custom-nodes-and-marks)
-cover the forms they take. Escape every attribute value you put into markup
-with `Y::RenderRules.escape_attr` or `escape_text`. Collaborators write
-those attributes, and every reader's page shows the result.
+describe the forms they can take. Escape every attribute value you put into
+markup with `Y::RenderRules.escape_attr` or `escape_text`. Collaborators can
+write any value into those attributes, and the result appears on every
+reader's page.
 
-When a document has node types with no rule, lexxy-realtime logs a warning
-that names them. It logs once per model, field, and set of types. To catch
-a missing rule in CI, render a real document from your editor in a test
+When a document contains node types that have no rule, lexxy-realtime logs a
+warning that names them. It logs once per model, field, and set of types. To
+catch a missing rule in CI, render a real document from your editor in a test
 and assert that `Y::Lexxy.new(doc, nodes: rules).unknown_types` is empty.
 
 ### Cursor identity
 
-The helper uses the first available `current_user` value from `name`,
-`username`, or `handle`. It falls back to `"Anonymous"` and derives a stable
-cursor color from the result. Customize either globally or per render:
+The helper takes the cursor name from `current_user`, using the first of
+`name`, `username`, or `handle` that has a value. If none does, it uses
+`"Anonymous"`. The cursor color is derived from the name, so it's the same
+on every page load. You can change either globally or per render:
 
 ```ruby
 LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil } }
@@ -249,11 +252,11 @@ Cursor names and colors are sent as presence metadata. The channel finds the
 record from the signed grant and checks access with your `authorize_document`
 block, if you set one.
 
-The client sends its own cursor name, so a modified client can show any
-name it likes. Under AnyCable, presence travels as whispers that the server
-never sees. A client can't give itself access, though. The server checks
-the signed grant and your `authorize_document` block before any read or write.
-Don't use the name on a cursor to decide who someone is.
+The client sends its own cursor name, so a modified client can show any name
+it likes. Under AnyCable, presence goes out as whispers that the server never
+sees. A client can't give itself access, though. The server checks the signed
+grant and your `authorize_document` block before any read or write. Don't use
+the name on a cursor to decide who someone is.
 
 ## The JavaScript client
 
@@ -288,8 +291,8 @@ Yjs. `@rails/actioncable` is Rails' own file. A pin your app already has
 is kept, and re-running the generator adds only missing pins. Nothing to
 install; import the packages in your entry point.
 
-**Bundlers**: install the npm package. npm and bun install its peers
-automatically; with yarn, add `@lexical/yjs yjs y-protocols` yourself:
+**Bundlers.** Install the npm package. npm and bun install its peers
+automatically. With Yarn, add `@lexical/yjs yjs y-protocols` yourself:
 
 ```bash
 npm install lexxy-realtime
@@ -384,11 +387,11 @@ collab.doc = doc;
 collab.provider = provider;
 document.querySelector("lexxy-editor").appendChild(collab);
 
-provider.connect(); // YrbyProvider does not auto-connect
+provider.connect(); // YrbyProvider does not connect on its own
 ```
 
-The element waits for the editor to initialize on its own, so you can append
-it as soon as the `<lexxy-editor>` is in the DOM.
+The element waits for the editor to initialize, so you can append it as soon
+as the `<lexxy-editor>` is in the DOM.
 
 ### When a remote update fails
 
@@ -419,46 +422,47 @@ Lexical's later commit phase don't reach it.
 
 ### A single copy of `lexical` and `yjs`
 
-Lexxy and lexxy-realtime both leave `lexical` (and lexxy-realtime leaves
-`yjs` / `@lexical/yjs`) as external peers, so your bundler can resolve them
-to one shared instance. Both libraries must resolve to one installed copy.
-Lexical depends on class identity, and Yjs depends on constructor identity;
-duplicate copies break syncing. Bundlers normally deduplicate matching
-versions (`lexical ^0.44`, `yjs ^13.6`). Configure an alias if yours does
-not (e.g. esbuild `--alias:yjs=./node_modules/yjs`). Import-map apps get
-this for free: the generator's pins resolve each module to exactly one
+Lexxy and lexxy-realtime both list `lexical` as an external peer, and
+lexxy-realtime does the same for `yjs` and `@lexical/yjs`. Your bundler has
+to resolve each of them to a single shared copy. Lexical relies on
+class identity and Yjs relies on constructor identity, so duplicate copies
+break syncing. Bundlers normally deduplicate matching versions
+(`lexical ^0.44`, `yjs ^13.6`). If yours doesn't, configure an alias, for
+example esbuild's `--alias:yjs=./node_modules/yjs`. Import-map apps don't
+need to do anything, because the generator's pins resolve each module to one
 build.
 
 ## Providers
 
-The element works with any Yjs provider that satisfies the contract below.
-The yrby stack is the default and has the most test coverage.
+The element works with any Yjs provider that meets the contract below. The
+yrby stack is the default and has the most test coverage.
 
 ### The yrby provider API
 
-`YrbyProvider` is a thin alias for `yrby-client`'s `ActionCableProvider`:
+`YrbyProvider` is `yrby-client`'s `ActionCableProvider`, exported under this
+package's name:
 
 ```js
 provider.connect();        // open the subscription and start syncing
 provider.disconnect();     // pause; queued edits are kept
-provider.destroy();        // tear down (also clears presence)
+provider.destroy();        // tear down and clear presence
 
 provider.synced;           // caught up with the server?
 await provider.whenSynced; // resolves on the first catch-up (immediately if already synced)
 provider.status;           // "connecting" | "connected" | "synced" | "disconnected"
-provider.onStatusChange(({ status }) => render(status)); // returns an unsubscribe fn
-provider.awareness;        // the Yjs Awareness instance (presence/cursors)
-provider.hasPending;       // unacknowledged local edits in flight?
+provider.onStatusChange(({ status }) => render(status)); // returns an unsubscribe function
+provider.awareness;        // the Yjs Awareness instance (presence and cursors)
+provider.hasPending;       // local edits the server hasn't acknowledged yet?
 ```
 
-`YrbyProvider` creates and owns its `Awareness` instance; the element uses
-and exposes `provider.awareness`. Read it for presence data such as the
-current collaborators.
+`YrbyProvider` creates its own `Awareness` instance. The element uses
+`provider.awareness` and exposes it as `collab.awareness`. Read it for
+presence data, such as who is editing right now.
 
 ### Bring your own Yjs provider
 
 Create the document and provider, then assign both to the element. This
-example uses a Node `y-websocket` server:
+example uses a `y-websocket` server running on Node:
 
 ```js
 import "@37signals/lexxy";
@@ -477,8 +481,8 @@ document.querySelector("lexxy-editor").appendChild(collab);
 // y-websocket connects when it is created.
 ```
 
-Point the provider at its own backend. Nothing else in the client wiring
-changes.
+Point the provider at its own backend. The rest of the client setup is the
+same.
 
 ### Provider contract
 
@@ -510,9 +514,9 @@ create yourself, include the
 class SyncChannel < ApplicationCable::Channel
   include Y::ActionCable
 
-  # Rebuild a document from storage (nil for a brand-new document):
+  # Rebuild a document from storage (nil for a new document):
   on_load   { |key| Y::Document.load_state(key) }
-  # Record each CRDT delta before it's acked and relayed:
+  # Store each update before it is acknowledged and relayed:
   on_change { |key, update| Y::Document.append(key, update) }
 
   def subscribed = sync_subscribed(params[:id])
@@ -520,20 +524,20 @@ class SyncChannel < ApplicationCable::Channel
 end
 ```
 
-`Y::Document` ships in yrby-rails and is the storage the generators use. The
-hooks accept any store that can return and append update bytes. See
-[`yrby`](https://github.com/jpcamara/yrby) for the full protocol (reliable
-delivery, causal-gap handling).
+`Y::Document` ships in yrby-rails and is the same store the gem uses. The
+hooks accept any store that can load and append update bytes. See
+[`yrby`](https://github.com/jpcamara/yrby) for the full protocol, including
+reliable delivery and causal-gap handling.
 
 ### Manual Action Text rendering
 
-The Rails gem handles this automatically. The following is for apps that
-wire yrby directly.
+The Rails gem does this for you. This section is for apps that use yrby
+directly.
 
-The collaborative document lives in your durable store as CRDT updates. When
-the rest of your app needs it as rich text (display, search, mailers),
-render it server-side with the `yrby` gem's `Y::Lexxy`, which reproduces
-Lexxy's own HTML byte for byte:
+Your durable store holds the collaborative document as Yjs updates. When the
+rest of your app needs it as rich text (display, search, mailers), render it
+on the server with the `yrby` gem's `Y::Lexxy`. It produces the same HTML as
+Lexxy, byte for byte:
 
 ```ruby
 ydoc = Y::Doc.new
@@ -544,17 +548,17 @@ note.content = html # a has_rich_text attribute
 
 The
 [yrby demo's `NoteMaterializer`](https://github.com/jpcamara/yrby/blob/main/examples/actioncable-demo/app/lib/note_materializer.rb)
-shows the same server-side rendering in a store-agnostic form.
+does the same rendering without depending on a particular store.
 
 ## AnyCable
 
-The whole setup runs unchanged on [AnyCable](https://anycable.io): the
-channel is the same `Y::ActionCable` concern, and the CI suite runs the
-full editor e2e (real uploads included) through a real anycable-go
-gateway.
+The same setup runs on [AnyCable](https://anycable.io) without changes to
+the channel. CI runs the full editor e2e suite, including real uploads,
+through a real anycable-go gateway.
 
-Server side, run the standard AnyCable pair next to your app (the RPC
-server executes the channel; anycable-go terminates the sockets):
+On the server, run the standard AnyCable pair next to your app. The RPC
+server runs the channel code, and anycable-go handles the WebSocket
+connections:
 
 ```ruby
 # Gemfile
@@ -568,7 +572,7 @@ production:
 ```
 
 ```bash
-bundle exec anycable   # channel logic (RPC)
+bundle exec anycable   # channel code (RPC)
 anycable-go            # WebSocket gateway
 ```
 
@@ -585,24 +589,24 @@ import { setConsumer } from "lexxy-realtime";
 setConsumer(() => createConsumer());
 ```
 
-Presence gets faster under AnyCable: yrby's provider sends awareness
-(cursors, selections) as client-to-client whispers, relayed entirely by
-anycable-go, so cursor traffic never touches the Ruby server.
+Presence is faster under AnyCable. yrby's provider sends awareness updates
+(cursors and selections) as client-to-client whispers. anycable-go relays
+them, so cursor traffic never reaches the Ruby server.
 
 ## Attachments
 
-File and image uploads work under collaboration. The uploader's browser does
-the ActiveStorage direct upload as usual; the attachment node syncs through
-Yjs, and peers render the finished image from its URL. While an upload is in
-flight, peers see a placeholder with the filename and a live progress bar.
-The raw `File`, preview URL, and upload settings stay in the uploader's
-browser. Other collaborators receive the attachment state without starting
-another upload.
+File and image uploads work during collaboration. The uploader's browser
+does the Active Storage direct upload as usual. The attachment node syncs
+through Yjs, and the other editors render the finished image from its URL.
+While the upload runs, they see a placeholder with the filename and a live
+progress bar. The raw `File`, the preview URL, and the upload settings stay
+in the uploader's browser, so other collaborators get the attachment without
+starting a second upload.
 
-The browser e2e suite drives a real PNG through this pipeline (DirectUpload
-to a live ActiveStorage endpoint) and asserts a live peer and a late joiner
-both render actual pixels from the served blob, over Action Cable and
-AnyCable both.
+The browser test suite uploads a real PNG this way, as a direct upload to a
+live Active Storage endpoint. It checks that a connected peer and a late
+joiner both render the image from the served blob, over Action Cable and
+over AnyCable.
 
 ## Turbo
 
@@ -622,11 +626,11 @@ in a permanent editor doesn't survive the visit.
 
 ## Requirements
 
-Ruby 3.4+, Rails 8.0.2+, and Lexxy 0.9.29+ (enforced by the npm peer range
-and the gem floor; 0.9.29 ships the attachment construction fix this package
-relies on). lexxy-realtime applies a temporary `@lexical/yjs` compatibility
-patch during binding; see [`CONTRIBUTING.md`](CONTRIBUTING.md) for details
-and upstream status.
+Ruby 3.4+, Rails 8.0.2+, and Lexxy 0.9.29+. Both the npm peer range and the
+gem's dependency require Lexxy 0.9.29, which includes an attachment
+construction fix this package needs. lexxy-realtime also patches
+`@lexical/yjs` when it binds an editor, to work around an upstream bug. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for details and upstream status.
 
 ## License
 

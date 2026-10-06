@@ -1,10 +1,12 @@
-// Browser e2e: two real Lexxy editors collaborate through the yrby server,
-// driven headlessly with agent-browser. Asserts live convergence both ways and
-// server-side durability (a fresh client, opened after the others have left,
-// is rebuilt from the durable store).
+// Browser e2e. Two Lexxy editors collaborate through the yrby server, driven
+// with agent-browser. The test checks that edits sync both ways and that a new
+// client, opened after the others leave, loads the document from the server's
+// store. It also covers attachments, upload placeholders, the zero-config
+// element, setConsumer, seeding from an existing body, and the orphaned upload
+// sweep.
 //
-// Assumes the test server is running on PORT (run.mjs handles that) and the
-// browser bundle is built (npm run build:test).
+// Expects the test server on PORT (run.mjs starts it) and a built browser
+// bundle (npm run build:test).
 import { execFileSync } from "node:child_process";
 
 const PORT = process.env.PORT || 4111;
@@ -23,8 +25,8 @@ const ab = (session, ...args) => {
   }
 };
 
-// CABLE_WS_URL (the AnyCable leg) rides every page open, pointing all
-// three consumer paths at the gateway.
+// The AnyCable run sets CABLE_WS_URL. Every page gets it as `cable`, which
+// points all three consumer setups at the gateway.
 const CABLE = process.env.CABLE_WS_URL ? `&cable=${encodeURIComponent(process.env.CABLE_WS_URL)}` : "";
 const open = (session, name) => ab(session, "open", `http://localhost:${PORT}/?room=${ROOM}&name=${name}${CABLE}`);
 const ready = (session) => waitEval(session, "!!(window.__test && window.__test.synced())", "ready+synced");
@@ -60,8 +62,8 @@ ab("alice", "click", "#editor [contenteditable]");
 ab("alice", "keyboard", "type", "ALICE-EDIT");
 check("Bob received Alice's edit", await waitEval("bob", 'window.__test.text().includes("ALICE-EDIT")', "bob sees ALICE-EDIT"));
 
-// Alice has focus + a caret, so Bob should render her remote cursor (a labeled
-// caret in the @lexical/yjs cursors overlay).
+// Alice has focus and a caret, so Bob should show her remote cursor as a
+// labeled caret in the @lexical/yjs cursor overlay.
 check(
   "Bob renders Alice's remote caret",
   await waitEval(
@@ -76,88 +78,87 @@ ab("bob", "click", "#editor [contenteditable]");
 ab("bob", "keyboard", "type", "BOB-EDIT");
 check("Alice received Bob's edit", await waitEval("alice", 'window.__test.text().includes("BOB-EDIT")', "alice sees BOB-EDIT"));
 
-// Attachments must materialize on the PEER. @lexical/yjs constructs node
-// classes with no arguments when applying a remote update; before Lexxy
-// defaulted its constructor parameters (basecamp/lexxy#1196), that threw
-// ("Cannot destructure property 'tagName' of 'undefined'") and the peer
-// silently never rendered the node, even though its Yjs doc had it.
+// Attachments must render on the peer. @lexical/yjs calls node constructors
+// with no arguments when it applies a remote update, so Lexxy's attachment
+// constructors have to accept that (basecamp/lexxy#1196). If one throws
+// ("Cannot destructure property 'tagName' of 'undefined'"), the peer's Yjs doc
+// has the node but the editor never shows it.
 ab("alice", "eval", 'window.__test.insertAttachment("TEST-SGID-123")');
 check(
-  "Bob materialized Alice's attachment node",
+  "Bob's editor shows Alice's attachment",
   await waitEval("bob", 'window.__test.attachmentSgids().includes("TEST-SGID-123")', "bob has attachment")
 );
 check(
   "no Yjs update errors on Bob",
   /\btrue\b/.test(ab("bob", "eval", 'window.__test.errors().filter(e => e.includes("destructure") || e.includes("Yjs update")).length === 0'))
 );
-// The live `editor` object reference must not be serialized into the doc
-// (excluded properties): peers used to receive editor="[object Object]".
+// The live `editor` object is an excluded property and must not reach the
+// shared doc. If it synced, peers would get editor="[object Object]".
 check(
-  "no editor object reference leaked into the shared doc",
+  "the editor object is not in the shared doc",
   /\btrue\b/.test(ab("bob", "eval", '!window.__test.docRoot().includes("editor=")'))
 );
 
-// Both leave; the server should hold the durable doc on its own.
+// Both leave. The server keeps the document.
 ab("alice", "close");
 ab("bob", "close");
 await sleep(800);
 
-// A brand-new client, opened cold, must be rebuilt from the durable store.
+// A new client must load the document from the server's store.
 open("carol", "Carol");
 check("Carol synced", await ready("carol"));
 const carolHasBoth = await waitEval(
   "carol",
   'window.__test.text().includes("ALICE-EDIT") && window.__test.text().includes("BOB-EDIT")',
-  "carol loaded persisted doc"
+  "carol loaded the stored doc"
 );
-check("fresh client rebuilt the document from the server (durability)", carolHasBoth);
-// The late joiner materializes the attachment from the initial sync too:
-// the bind-time path, not just the live-update path.
+check("a new client loaded the document from the server", carolHasBoth);
+// The late joiner gets the attachment from the initial sync when the editor
+// binds. Bob got his through a live update.
 check(
-  "fresh client materialized the attachment",
+  "a new client shows the attachment",
   await waitEval("carol", 'window.__test.attachmentSgids().includes("TEST-SGID-123")', "carol has attachment")
 );
 
-// A plain (non-collaborative) editor on the same page still creates
-// attachments: binding one editor for collaboration must not disturb
-// another editor's registered classes.
+// A second editor on the same page without collaboration can still create
+// attachments. Binding one editor must not change another editor's
+// registered classes.
 check(
   "plain editor on the same page still creates attachments",
   /\bok\b/.test(ab("carol", "eval", "window.__test.plainEditorAttachment()"))
 );
 
-// A re-bind (unmount + remount of the collaboration element) must keep the
-// excluded properties. Exclusions are recomputed per bind, and losing them
-// means the next upload node's raw File aborts the Lexical->Yjs sync.
+// Rebinding (removing and re-adding the collaboration element) must keep the
+// excluded properties. The exclusions are rebuilt on each bind. Without them,
+// an upload node's File makes the Lexical to Yjs sync throw.
 ab("carol", "eval", 'window.__test.remountCollab()');
 check("carol re-synced after remount", await waitEval("carol", "window.__test.synced()", "carol re-synced"));
 ab("carol", "eval", 'window.__test.insertUploadNode("rebind-probe.png")');
 check(
-  "upload node synced after the re-bind",
+  "upload node synced after the rebind",
   await waitEval("carol", 'window.__test.docRoot().includes("rebind-probe.png")', "upload node in doc")
 );
 check(
-  "re-bind kept the property exclusions (no mid-sync throw)",
+  "rebind kept the property exclusions, so the sync did not throw",
   /\btrue\b/.test(ab("carol", "eval", 'window.__test.errors().filter(e => /Unexpected content type|insertUploadNode/.test(e)).length === 0'))
 );
 check(
-  "re-bind kept the property exclusions (no File in the shared doc)",
+  "rebind kept the property exclusions, so no File is in the shared doc",
   /\btrue\b/.test(ab("carol", "eval", '!window.__test.docRoot().includes("file=")'))
 );
-// Lexxy's upload tracker is a mutation listener registered BEFORE the class
-// swap, keyed to the original class. Lexical buckets mutations by the
-// currently registered class, so without re-keying the listener never fires,
-// the uploads count stays at zero, and forms submit mid-upload. The pending
-// upload node inserted above must have marked the editor invalid.
+// Lexxy tracks uploads with a mutation listener on the upload node class. It
+// marks the editor invalid while an upload node exists, so a form can't
+// submit mid-upload. The pending upload node inserted above must leave the
+// editor invalid after the rebind.
 check(
-  "Lexxy's upload mutation listener still fires (editor invalid while uploading)",
+  "Lexxy's upload mutation listener still fires, so the editor is invalid while uploading",
   /\btrue\b/.test(ab("carol", "eval", "window.__test.editorInvalidWhileUploading()"))
 );
 
-// pagehide removes this client's file-bearing upload placeholders while
-// the binding can still sync the deletion. The re-bind probe above is
-// still pending on carol; after her pagehide, a fresh client must load
-// the document without it.
+// On pagehide, the element removes this client's upload placeholders that
+// hold a File, while it can still sync the deletion. Carol still has the
+// rebind probe pending. After her pagehide, a new client must load the
+// document without it.
 ab("carol", "eval", 'window.dispatchEvent(new Event("pagehide")); "fired"');
 check(
   "pagehide removed the local pending upload node",
@@ -222,21 +223,21 @@ check(
 );
 ab("uma", "close");
 
-// Seeding: a document opened for the first time on a record with an existing
-// body (the editor's server-rendered value) must adopt that content as the
-// collaborative document: visible to the seeder, durable, and delivered to a
-// later peer who has no local value.
+// Seeding: when a record with an existing body is opened for the first time,
+// the editor's server-rendered value becomes the collaborative document. The
+// first client sees it, the server stores it, and a later peer with no local
+// value receives it.
 const SEEDROOM = `${ROOM}-seed`;
 ab("sam", "open", `http://localhost:${PORT}/?room=${SEEDROOM}&name=Sam&seedHtml=${encodeURIComponent("<p>EXISTING-BODY</p>")}${CABLE}`);
 check("seeder synced", await ready("sam"));
 check(
-  "seeder kept the pre-existing content",
+  "seeder kept the existing content",
   await waitEval("sam", 'window.__test.text().includes("EXISTING-BODY")', "sam sees EXISTING-BODY")
 );
 ab("tia", "open", `http://localhost:${PORT}/?room=${SEEDROOM}&name=Tia${CABLE}`);
 check("peer synced into the seeded doc", await ready("tia"));
 check(
-  "peer received the seeded content from the document (not a local value)",
+  "peer received the seeded content from the shared document",
   await waitEval("tia", 'window.__test.text().includes("EXISTING-BODY")', "tia sees EXISTING-BODY")
 );
 ab("sam", "close");
@@ -245,18 +246,19 @@ ab("tia", "close");
 open("dave", "Dave");
 check("Dave synced", await ready("dave"));
 check(
-  "abandoned upload placeholders are gone for a fresh client",
+  "a new client sees no leftover upload placeholders",
   /\btrue\b/.test(ab(
     "dave",
     "eval",
     '!window.__test.docRoot().includes("rebind-probe.png") && !window.__test.docRoot().includes("turbo-probe.png")'
   ))
 );
-// dave stays open: he authors the next scenario's orphan.
+// Dave stays open because he creates the orphan in the next scenario.
 
-// Stage the file-less placeholder left when a pagehide deletion is
-// lost. Dave authors the node without a File, so his own cleanup skips
-// it, and erin and frank receive it before he disconnects.
+// Set up the placeholder without a File that remains when a pagehide
+// deletion never reaches the server. Dave creates the node without a File,
+// so his own cleanup skips it, and Erin and Frank receive it before he
+// disconnects.
 open("erin", "Erin");
 open("frank", "Frank");
 check("Erin synced", await ready("erin"));
@@ -264,13 +266,13 @@ check("Frank synced", await ready("frank"));
 
 ab("dave", "eval", 'window.__test.insertUploadNode("orphan-probe.png", { orphan: true })');
 check(
-  "orphan reached a live peer",
+  "orphan reached a connected peer",
   await waitEval("erin", 'window.__test.docRoot().includes("orphan-probe.png")', "orphan visible to erin")
 );
 ab("dave", "close");
 
-// Any other awareness state blocks the sweep; from each client's side,
-// the other could be the uploader.
+// Any other awareness state stops the sweep, because from each client's
+// side the other one could be the uploader.
 check(
   "erin sees another client in awareness",
   await waitEval("erin", "window.__test.provider.awareness.getStates().size >= 2", "erin sees frank")
@@ -279,18 +281,18 @@ check(
   "frank sees another client in awareness",
   await waitEval("frank", "window.__test.provider.awareness.getStates().size >= 2", "frank sees erin", 20000)
 );
-await sleep(27000); // past the settle window, with another client present
+await sleep(27000); // longer than the 25s settle delay, with another client present
 check(
-  "no sweep while another peer is present",
+  "the orphan stays while another peer is present",
   /\btrue\b/.test(ab("erin", "eval", 'window.__test.docRoot().includes("orphan-probe.png")'))
 );
 
-// Frank leaves; erin becomes alone, and after the settle window she
-// sweeps the orphan.
+// Frank leaves. Erin is now alone, and after the settle delay she removes
+// the orphan.
 ab("frank", "close");
 check(
-  "alone client sweeps the orphaned upload placeholder",
-  await waitEval("erin", '!window.__test.docRoot().includes("orphan-probe.png")', "orphan swept", 70000)
+  "a client alone in the document removes the orphaned upload placeholder",
+  await waitEval("erin", '!window.__test.docRoot().includes("orphan-probe.png")', "orphan removed", 70000)
 );
 ab("erin", "close");
 

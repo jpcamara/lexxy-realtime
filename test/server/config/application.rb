@@ -1,21 +1,21 @@
 require_relative "boot"
 
-# Load only the frameworks we need -- no ActiveRecord.
+# Load only the frameworks the test server uses.
 require "rails"
 require "action_controller/railtie"
 require "action_cable/engine"
-# Real uploads for the browser e2e: ActiveStorage's direct-upload endpoint
-# and blob serving, with ActionText loaded so a Blob answers attachable_sgid
-# (what the editor stamps on an uploaded attachment).
+# The uploads e2e uses Active Storage's direct upload endpoint and blob
+# serving, which need Active Record. Action Text is loaded so a Blob responds
+# to attachable_sgid, which the editor writes onto an uploaded attachment.
 require "active_record/railtie"
 require "active_storage/engine"
 require "action_text/engine"
-# Loaded explicitly (this app skips Bundler.require): provides the AnyCable
-# connection factory when the harness boots the RPC server.
+# This app doesn't call Bundler.require, so load anycable-rails here. The
+# AnyCable RPC server needs its connection factory.
 require "anycable-rails"
 
 require "y"
-require "y/action_cable" # Y::ActionCable::Sync (companion gem)
+require "y/action_cable" # Y::ActionCable::Sync, from yrby-rails
 require_relative "../lib/file_store"
 
 module TestServer
@@ -24,24 +24,27 @@ module TestServer
     config.eager_load = false
     config.secret_key_base = "lexxy-realtime-test-secret"
 
-    # This is a local test harness: accept any origin and skip CSRF on the
-    # cable connection so headless clients and the browser e2e can connect.
+    # This is a local test server. Accept any origin and skip forgery
+    # protection on the cable connection so the headless and browser tests can
+    # connect.
     config.action_cable.disable_request_forgery_protection = true
     config.action_cable.allowed_request_origins = [/.*/]
 
     # Serve the built browser test page out of public/.
     config.public_file_server.enabled = true
 
-    # Uploads land on the disk service under data/ (wiped per test run).
+    # Uploads go to the disk service under data/, which test/run.mjs clears on
+    # every run.
     config.active_storage.service = :local
     config.active_storage.analyzers = []
     config.active_storage.variant_processor = :disabled
     config.action_controller.default_protect_from_forgery = false
 
-    # A fresh database every run: create the ActiveStorage tables at boot.
+    # The database under data/ starts empty on every run, so create the
+    # Active Storage tables at boot.
     config.after_initialize do
-      # The static test page has no CSRF meta tag; the direct-upload POST
-      # enforces forgery protection on its own, so drop it here.
+      # The static test page has no CSRF meta tag, and the direct upload
+      # controller checks forgery protection itself, so turn it off here.
       ActiveStorage::DirectUploadsController.skip_forgery_protection
 
       ActiveRecord::Schema.verbose = false
@@ -80,10 +83,10 @@ module TestServer
     config.log_level = ENV.fetch("LOG_LEVEL", "warn").to_sym
 
     routes.append do
-      # Server-side CRDT state for assertions: the durable, merged state for a
-      # document key, base64-encoded (or null if nothing has been recorded).
+      # Returns a document's stored state as base64, or null if nothing has
+      # been recorded. Tests use it in assertions.
       get "/content/:id", to: "content#show", constraints: { id: /[^\/]+/ }
-      # Clear a document's durable log (test isolation).
+      # Clears a document's log so each test starts empty.
       post "/reset/:id", to: "content#reset", constraints: { id: /[^\/]+/ }
       # A new grant for <yrby-document refresh=...>: returns the one in the URL.
       get "/grant/:grant", to: "grants#show", constraints: { grant: /[^\/]+/ }

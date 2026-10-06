@@ -25,19 +25,20 @@ Gem::Specification.new do |spec|
   spec.files = Dir.chdir(__dir__) { Dir["lib/**/*", "app/**/*", "LICENSE", "README.md"] }
   spec.require_paths = ["lib"]
 
-  # 0.9.29 is the first Lexxy whose attachment nodes can be constructed
-  # without arguments (basecamp/lexxy#1196), which the editor JS needs.
-  # Import-map apps use the lexxy gem's own asset, so the gem floor matches.
-  # The collaboration bundle runs against Lexxy's re-exported Lexical
-  # namespace, so a major Lexxy release that changes it would fail in the
-  # browser. The ceiling keeps that from reaching apps until it's tested.
+  # Lexxy 0.9.29 is the first release whose attachment nodes can be built
+  # without arguments (basecamp/lexxy#1196). The editor JS needs that, and
+  # import-map apps use the lexxy gem's own asset, so the gem needs the same
+  # minimum. The bundle uses the Lexical namespace that Lexxy re-exports. A
+  # major Lexxy release could change it, so the ceiling holds apps below 2.0
+  # until we test it.
   spec.add_dependency "lexxy", ">= 0.9.29", "< 2.0"
   # lexxy 0.9 requires Rails >= 8.0.2.
   spec.add_dependency "rails", ">= 8.0.2"
-  # yrby 0.8.1 reports unknown node types and keeps the text of unknown
+  # yrby 0.8.1 reports unknown node types and keeps the text inside unknown
   # inline wrappers.
   spec.add_dependency "yrby", "~> 0.8", ">= 0.8.1"
-  # yrby-rails: the sync concern and the Y::Document models. 0.7 calls
-  # authorized?(key), which the generated channel accepts.
+  # yrby-rails provides the sync concern and the Y::Document models. From
+  # 0.7 it calls authorized?(key), which LexxyRealtime::DocumentChannel
+  # overrides.
   spec.add_dependency "yrby-rails", "~> 0.7"
 end

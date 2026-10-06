@@ -1,10 +1,10 @@
-// Test orchestrator. Boots the yrby test server, runs the headless
-// durability suite and/or the agent-browser editor e2e against it, then tears
-// the server down.
+// Test runner. Starts the yrby test server, runs the headless suites, the
+// agent-browser tests, or both against it, and then stops the server.
 //
-//   npm test            # headless + browser
+//   npm test              # headless, browser, and AnyCable when available
 //   npm run test:headless
 //   npm run test:browser
+//   npm run test:anycable
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -19,9 +19,10 @@ const BASE = `http://localhost:${PORT}`;
 const args = process.argv.slice(2);
 const runHeadless = args.length === 0 || args.includes("--headless");
 const runBrowser = args.length === 0 || args.includes("--browser");
-// The AnyCable leg re-runs the suites through a real anycable-go gateway +
-// RPC server. In a no-flag full run it goes when anycable-go and redis are
-// present and is skipped loudly otherwise; --anycable makes it mandatory.
+// The AnyCable run repeats the suites through anycable-go and the AnyCable
+// RPC server. A run with no flags includes it when anycable-go and Redis are
+// available and prints SKIPPED otherwise. With --anycable, a missing
+// dependency fails the run.
 const runAnycable = args.length === 0 || args.includes("--anycable");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -42,19 +43,19 @@ async function waitForServer(ms = 30000) {
   return false;
 }
 
-// Fresh durable store each run.
+// Start each run with an empty document store.
 const dataDir = join(serverDir, "data");
 rmSync(dataDir, { recursive: true, force: true });
 mkdirSync(dataDir, { recursive: true });
 
-// A stale server squatting the port makes waitForServer pass against the
-// wrong process while our own puma dies on bind. Fail fast instead.
+// If another server already has the port, waitForServer would succeed
+// against it while our puma fails to bind. Exit before starting anything.
 try {
   await fetch(`${BASE}/up`, { signal: AbortSignal.timeout(1000) });
-  console.error(`FAILED: something is already listening on :${PORT}; kill it first (lsof -ti :${PORT})`);
+  console.error(`FAILED: another process is listening on :${PORT}. Stop it first (lsof -ti :${PORT})`);
   process.exit(1);
 } catch {
-  // nothing there: good
+  // Nothing is listening, so the port is free.
 }
 
 let exitCode = 0;
@@ -90,7 +91,7 @@ process.on("SIGINT", () => {
 
 try {
   if (!(await waitForServer())) {
-    console.error("FAILED: test server did not come up");
+    console.error("FAILED: test server did not start");
     process.exit(1);
   }
 
@@ -115,7 +116,7 @@ try {
     console.log("\n=== browser editor e2e (agent-browser) ===");
     if (run("node", [join(here, "browser", "e2e.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
-    console.log("\n=== real uploads e2e (agent-browser) ===");
+    console.log("\n=== uploads e2e (agent-browser) ===");
     if (run("node", [join(here, "browser", "uploads.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
     console.log("\n=== undo and redo (agent-browser) ===");
@@ -131,8 +132,8 @@ try {
     if (run("node", [join(here, "browser", "navigation.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
     console.log("\n=== import-map assets e2e (agent-browser) ===");
-    // Build straight into the test server's public directory, so test
-    // runs never rewrite the committed gem assets.
+    // Build into the test server's public directory so a test run doesn't
+    // overwrite the gem's committed assets.
     const importmapAssets = join(serverDir, "public", "importmap-assets");
     rmSync(importmapAssets, { recursive: true, force: true });
     const importmapBuild = run("npm", ["run", "build:importmap"], {
@@ -148,8 +149,8 @@ try {
     const explicit = args.includes("--anycable");
     const REDIS_URL = process.env.ANYCABLE_REDIS_URL || "redis://localhost:6379/9";
     const goOk = spawnSync("anycable-go", ["--version"], { stdio: "ignore" }).status === 0;
-    // Probe redis over TCP; redis-cli isn't a given (CI runners have the
-    // service but not the client binary).
+    // Check Redis with a plain TCP connection. CI runners have the Redis
+    // service but not redis-cli.
     const redisOk = goOk && (await (async () => {
       try {
         const u = new URL(REDIS_URL);
@@ -166,9 +167,9 @@ try {
       }
     })());
     if (!goOk || !redisOk) {
-      const why = goOk ? `redis not reachable at ${REDIS_URL}` : "anycable-go not on PATH";
+      const why = goOk ? `Redis is not reachable at ${REDIS_URL}` : "anycable-go is not on PATH";
       if (explicit) {
-        console.error(`\nFAILED: AnyCable e2e requested but ${why}`);
+        console.error(`\nFAILED: --anycable was passed, but ${why}`);
         exitCode = 1;
       } else {
         console.log(`\n=== AnyCable e2e === SKIPPED (${why})`);
@@ -189,9 +190,10 @@ try {
         ANYCABLE_RPC_HOST: `127.0.0.1:${RPC_PORT}`,
         ANYCABLE_BROADCAST_ADAPTER: "redis",
         ANYCABLE_REDIS_URL: REDIS_URL,
-        // The RPC server's own HTTP health endpoint. The go gateway reports
-        // healthy before its RPC link is up, so readiness gates on this too;
-        // otherwise the first suite's subscribes race the RPC boot and die.
+        // The RPC server's HTTP health endpoint. anycable-go reports healthy
+        // before it can reach the RPC server, so we wait for this one too.
+        // Otherwise the first suite can subscribe before the RPC server is
+        // ready, and those subscriptions fail.
         ANYCABLE_HTTP_HEALTH_PORT: RPC_HEALTH_PORT,
       };
       const stack = [
@@ -234,7 +236,7 @@ try {
             if (r.status !== 0) exitCode = 1;
           }
 
-          console.log("\n--- AnyCable consumer, runtime (headless) ---");
+          console.log("\n--- AnyCable consumer (headless) ---");
           const ac = run("bun", [join(here, "headless", "anycable_client.mjs")], { env: { ...process.env, PORT, CABLE_URL } });
           if (ac.status !== 0) exitCode = 1;
 
@@ -244,7 +246,7 @@ try {
           if (be.status !== 0) exitCode = 1;
           spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
 
-          console.log("\n--- real uploads e2e over anycable-go (agent-browser) ---");
+          console.log("\n--- uploads e2e over anycable-go (agent-browser) ---");
           const bu = run("node", [join(here, "browser", "uploads.mjs")], { env: { ...process.env, PORT, CABLE_WS_URL: CABLE_URL } });
           if (bu.status !== 0) exitCode = 1;
           spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });

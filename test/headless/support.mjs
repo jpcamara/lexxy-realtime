@@ -1,17 +1,19 @@
-// Headless test harness: drives the real YrbyProvider (from src/) against the
-// yrby test server with no DOM. Provides a minimal raw-WebSocket ActionCable
-// consumer with an injectable lossy network, plus small assertion helpers.
+// Helpers for the headless suites, which run the YrbyProvider from src/
+// against the yrby test server with no DOM. This file has a small ActionCable
+// consumer over a raw WebSocket, a way to drop frames on that connection, and
+// a few assertion helpers.
 import * as Y from "yjs";
 
 export const PORT = process.env.PORT || 4111;
 export const BASE = `http://localhost:${PORT}`;
-// CABLE_URL points the suite at a different gateway (the AnyCable leg
-// sets it to anycable-go); default is the test server's own /cable.
+// The AnyCable run sets CABLE_URL to anycable-go. Otherwise the suites use
+// the test server's own /cable.
 export const URL = process.env.CABLE_URL || `ws://localhost:${PORT}/cable`;
 
-// Minimal ActionCable consumer over a raw WebSocket. `net` is a mutable knob the
-// tests use to simulate loss: { loss: 0..1, blackhole: bool } drop OUTBOUND
-// frames; { ackLoss: 0..1 } drops INBOUND acks. Counters report what was dropped.
+// A minimal ActionCable consumer over a raw WebSocket. Tests change the
+// returned `state` to simulate a bad network. `loss` (0 to 1) and `blackhole`
+// drop outgoing frames, and `ackLoss` (0 to 1) drops incoming acks.
+// `droppedOut` and `droppedAck` count what was dropped.
 export function rawConsumer(url, net = {}) {
   const state = { loss: 0, blackhole: false, ackLoss: 0, droppedOut: 0, droppedAck: 0, ...net };
   const subs = [];
@@ -85,7 +87,8 @@ export async function waitFor(label, pred, ms = 8000) {
   throw new Error(`TIMEOUT waiting for: ${label}`);
 }
 
-// Server-side durable state for a doc key, as a fresh Y.Doc (or null).
+// Loads the server's stored state for a document into a new Y.Doc. Returns
+// null when the server has nothing stored.
 export async function serverDoc(room) {
   const res = await fetch(`${BASE}/content/${room}`);
   const { state } = await res.json();
