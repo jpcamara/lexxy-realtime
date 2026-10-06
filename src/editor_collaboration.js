@@ -1,6 +1,5 @@
 import {
   createBinding,
-  syncLexicalUpdateToYjs,
   syncYjsChangesToLexical,
   syncCursorPositions,
   setLocalStateFocus,
@@ -13,6 +12,8 @@ import { YrbyProvider } from './yrby_provider';
 import { attachmentExclusions, patchCollabElementSplice } from './attachment_sync';
 import { registerUploadCleanup } from './upload_cleanup';
 import { registerCursorTheme } from './cursor_theme';
+import { registerTextReconciliation, syncEditorUpdate } from './text_reconciliation';
+import { registerSelectionNormalization } from './selection_normalization';
 
 // One shared Action Cable consumer for every element that isn't handed one.
 // createConsumer() reads the standard `action-cable-url` meta tag (rendered by
@@ -129,6 +130,8 @@ export class Collaboration extends Base {
     const excludedProperties = attachmentExclusions(this.editor);
     const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
     patchCollabElementSplice(binding);
+    const stopTextReconciliation = registerTextReconciliation(binding);
+    const stopSelectionNormalization = registerSelectionNormalization(this.editor);
     let restoreEditable = null;
     const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => {
       // The editor no longer matches the document, so typing into it would
@@ -179,6 +182,8 @@ export class Collaboration extends Base {
       unsubscribeCursorRender();
       unsubscribeListeners();
       restoreEditable?.();
+      stopSelectionNormalization();
+      stopTextReconciliation();
       cancelBootstrap();
       cursorsContainer.remove();
       if (ownsProvider) {
@@ -303,24 +308,9 @@ export function createRemoteApplier(provider, binding, { onDesync, sync = syncYj
 }
 
 function registerCollaborationListeners(editor, provider, binding, onDesync) {
-  const unsubscribeUpdateListener = editor.registerUpdateListener(
-    ({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
-      editor.getEditorState().read(() => {
-        if (tags.has('skip-collab') === false) {
-          syncLexicalUpdateToYjs(
-            binding,
-            provider,
-            prevEditorState,
-            editorState,
-            dirtyElements,
-            dirtyLeaves,
-            normalizedNodes,
-            tags
-          );
-        }
-      });
-    }
-  );
+  const unsubscribeUpdateListener = editor.registerUpdateListener(update => {
+    if (!update.tags.has('skip-collab')) syncEditorUpdate(binding, provider, update);
+  });
 
   // After a failed apply, the binding's caches no longer match the document,
   // so stop sending local edits through it as well.
