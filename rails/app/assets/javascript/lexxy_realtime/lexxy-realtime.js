@@ -15652,8 +15652,6 @@ function resolveConsumer() {
 const Base = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
 var Collaboration = class extends Base {
 	#teardown = null;
-	#ownsEverything = false;
-	#lastRecoveryAt = 0;
 	connectedCallback() {
 		this.editorElement = this.closest("lexxy-editor");
 		if (!this.editorElement) {
@@ -15699,8 +15697,18 @@ var Collaboration = class extends Base {
 		const excludedProperties = attachmentExclusions(this.editor);
 		const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
 		patchCollabElementSplice(binding);
-		this.#ownsEverything = ownsProvider && ownsDoc;
-		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => this.#recoverFromDesync(error));
+		let restoreEditable = null;
+		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => {
+			const wasEditable = this.editor.isEditable();
+			this.editor.setEditable(false);
+			restoreEditable = () => {
+				if (wasEditable) this.editor.setEditable(true);
+			};
+			this.dispatchEvent(new CustomEvent("lexxy-realtime:desync", {
+				bubbles: true,
+				detail: { error }
+			}));
+		});
 		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
 		registerCursorTheme(this.editor);
 		const cursorsContainer = this.#createCursorsContainer();
@@ -15728,6 +15736,7 @@ var Collaboration = class extends Base {
 			awareness.off("update", renderCursors);
 			unsubscribeCursorRender();
 			unsubscribeListeners();
+			restoreEditable?.();
 			cancelBootstrap();
 			cursorsContainer.remove();
 			if (ownsProvider) {
@@ -15736,22 +15745,6 @@ var Collaboration = class extends Base {
 			}
 			if (ownsDoc) this.doc = null;
 		};
-	}
-	#recoverFromDesync(error) {
-		const canRebuild = this.#ownsEverything && Date.now() - this.#lastRecoveryAt > 15e3;
-		this.dispatchEvent(new CustomEvent("lexxy-realtime:desync", {
-			bubbles: true,
-			detail: {
-				error,
-				recovering: canRebuild
-			}
-		}));
-		if (!canRebuild) return;
-		this.#lastRecoveryAt = Date.now();
-		queueMicrotask(() => {
-			this.#teardown?.();
-			this.#init();
-		});
 	}
 	#createCursorsContainer() {
 		const host = this.editorElement.querySelector(".lexxy-editor-container") || this.editorElement;
@@ -15820,7 +15813,10 @@ function registerCollaborationListeners(editor, provider, binding, onDesync) {
 			if (tags.has("skip-collab") === false) syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags);
 		});
 	});
-	const observer = createRemoteApplier(provider, binding, { onDesync });
+	const observer = createRemoteApplier(provider, binding, { onDesync: (error) => {
+		unsubscribeUpdateListener();
+		onDesync(error);
+	} });
 	binding.root.getSharedType().observeDeep(observer);
 	return () => {
 		unsubscribeUpdateListener();

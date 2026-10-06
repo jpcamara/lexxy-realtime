@@ -57,6 +57,17 @@ try {
   // nothing there: good
 }
 
+let exitCode = 0;
+
+// Unit checks need no server, so they run before it boots.
+if (runHeadless) {
+  console.log("\n=== unit checks ===");
+  for (const name of ["remote_apply"]) {
+    console.log(`\n--- ${name} ---`);
+    if (run("bun", [join(here, "headless", `${name}.mjs`)]).status !== 0) exitCode = 1;
+  }
+}
+
 console.log(`> booting yrby test server on :${PORT}`);
 const server = spawn("bundle", ["exec", "puma", "-p", PORT, "config.ru"], {
   cwd: serverDir,
@@ -64,7 +75,6 @@ const server = spawn("bundle", ["exec", "puma", "-p", PORT, "config.ru"], {
   stdio: "ignore",
 });
 
-let exitCode = 0;
 const shutdown = () => {
   try {
     server.kill("SIGTERM");
@@ -92,7 +102,7 @@ try {
     if (run("npx", ["tsc", "-p", join(here, "types")]).status !== 0) exitCode = 1;
 
     console.log("\n=== headless durability suite ===");
-    for (const name of ["remote_apply", "convergence", "durability", "loss"]) {
+    for (const name of ["convergence", "durability", "loss"]) {
       console.log(`\n--- ${name} ---`);
       const r = run("bun", [join(here, "headless", `${name}.mjs`)]);
       if (r.status !== 0) exitCode = 1;
@@ -212,7 +222,7 @@ try {
           exitCode = 1;
         } else {
           console.log("\n--- headless durability suite over anycable-go ---");
-          for (const name of ["remote_apply", "convergence", "durability", "loss"]) {
+          for (const name of ["convergence", "durability", "loss"]) {
             console.log(`\n--- ${name} (anycable) ---`);
             const r = run("bun", [join(here, "headless", `${name}.mjs`)], { env: { ...process.env, PORT, CABLE_URL } });
             if (r.status !== 0) exitCode = 1;

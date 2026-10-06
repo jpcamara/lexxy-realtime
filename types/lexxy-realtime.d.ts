@@ -35,3 +35,19 @@ export declare class Collaboration extends HTMLElement {
   connectedCallback(): void;
   disconnectedCallback(): void;
 }
+
+/**
+ * Detail of the `lexxy-realtime:desync` event. The element dispatches it,
+ * bubbling, when a remote update fails to apply. The editor is then
+ * read-only and no longer syncs in either direction. Recreate the element
+ * or reload the page to edit again.
+ */
+export interface DesyncEventDetail {
+  error: unknown;
+}
+
+declare global {
+  interface HTMLElementEventMap {
+    'lexxy-realtime:desync': CustomEvent<DesyncEventDetail>;
+  }
+}

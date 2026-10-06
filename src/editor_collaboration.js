@@ -46,8 +46,6 @@ const Base = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
 
 export class Collaboration extends Base {
   #teardown = null;
-  #ownsEverything = false;
-  #lastRecoveryAt = 0;
 
   connectedCallback() {
     this.editorElement = this.closest('lexxy-editor');
@@ -131,13 +129,16 @@ export class Collaboration extends Base {
     const excludedProperties = attachmentExclusions(this.editor);
     const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
     patchCollabElementSplice(binding);
-    this.#ownsEverything = ownsProvider && ownsDoc;
-    const unsubscribeListeners = registerCollaborationListeners(
-      this.editor,
-      provider,
-      binding,
-      (error) => this.#recoverFromDesync(error)
-    );
+    let restoreEditable = null;
+    const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => {
+      // The editor no longer matches the document, so typing into it would
+      // look saved without reaching anyone. Make it read-only until the
+      // element is removed.
+      const wasEditable = this.editor.isEditable();
+      this.editor.setEditable(false);
+      restoreEditable = () => { if (wasEditable) this.editor.setEditable(true); };
+      this.dispatchEvent(new CustomEvent('lexxy-realtime:desync', { bubbles: true, detail: { error } }));
+    });
     const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
 
     // Remote cursors/selections are rendered by @lexical/yjs (syncCursorPositions)
@@ -177,6 +178,7 @@ export class Collaboration extends Base {
       awareness.off('update', renderCursors);
       unsubscribeCursorRender();
       unsubscribeListeners();
+      restoreEditable?.();
       cancelBootstrap();
       cursorsContainer.remove();
       if (ownsProvider) {
@@ -185,40 +187,6 @@ export class Collaboration extends Base {
       }
       if (ownsDoc) this.doc = null;
     };
-  }
-
-  // A remote update failed to apply (see createRemoteApplier). When this
-  // element owns its document and provider, it heals itself: tear everything
-  // down and re-init with a fresh Y.Doc and provider, so the server's full
-  // state repopulates a fresh binding through the normal sync path — the only
-  // event-driven way to rebuild, since Yjs never re-emits on the same doc,
-  // and the one that also discards the poisoned collab offset caches. The
-  // trade: edits not yet acked at the moment of desync are lost with the old
-  // doc, and undo history resets — consistency over the unacked tail.
-  //
-  // A host-supplied document or provider cannot be swapped out from under the
-  // host, so those setups only get the event; the host recreates the element
-  // (or reloads) on 'lexxy-realtime:desync'. Rebuilds are rate-limited: a
-  // fault that recurs immediately after a rebuild is permanent, and looping
-  // teardown/init would thrash the server.
-  #recoverFromDesync(error) {
-    const canRebuild = this.#ownsEverything && Date.now() - this.#lastRecoveryAt > 15000;
-    this.dispatchEvent(
-      new CustomEvent('lexxy-realtime:desync', {
-        bubbles: true,
-        detail: { error, recovering: canRebuild },
-      })
-    );
-    if (!canRebuild) return;
-
-    this.#lastRecoveryAt = Date.now();
-    // Deferred: the desync surfaces from inside the provider's own message
-    // handling (observer -> Y.applyUpdate -> cable callback), and tearing the
-    // provider down re-entrantly from that stack is asking for trouble.
-    queueMicrotask(() => {
-      this.#teardown?.();
-      this.#init();
-    });
   }
 
   // An absolutely-positioned overlay covering the editor; @lexical/yjs positions
@@ -304,18 +272,18 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
   };
 }
 
-// The Yjs->Lexical apply, wrapped so a throw cannot silently desync the
-// editor. The failure mode without this: the observer fires from inside
-// Y.applyUpdate, which y-protocols wraps in a catch-and-log — so by the time
-// anything throws in Lexical's apply, the Y.Doc already holds the update, the
-// exception is swallowed upstream, and this editor permanently shows less
-// than the document (a reconnect is a doc no-op, so no observer ever fires
-// again for the lost content). One throw also poisons the binding's collab
-// offset caches, which can delete further visible text on later applies.
+// Applies Yjs changes to Lexical and reports a failure, so the editor can't
+// fall out of sync without anyone knowing. This observer runs inside
+// Y.applyUpdate, and y-protocols wraps that call in a catch that only logs.
+// When Lexical's apply throws, the Y.Doc already has the update and the
+// error goes nowhere. The editor then shows less than the document for
+// good. A reconnect brings no new updates, so the observer never runs again
+// for the missing content. A throw also leaves the binding's cached offsets
+// wrong, and later applies can delete visible text.
 //
-// onDesync fires once per binding — the recovery replaces the binding (and
-// this observer with it), so a persistent fault surfaces once per rebuild
-// rather than once per frame. `sync` is injectable for tests.
+// After the first failure the applier stops applying and reports once.
+// Errors thrown while Lexical renders the update to the DOM happen later, in
+// a microtask, and aren't caught here. Tests can pass their own `sync`.
 export function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
   let desynced = false;
   return (events, transaction) => {
@@ -354,7 +322,14 @@ function registerCollaborationListeners(editor, provider, binding, onDesync) {
     }
   );
 
-  const observer = createRemoteApplier(provider, binding, { onDesync });
+  // After a failed apply, the binding's caches no longer match the document,
+  // so stop sending local edits through it as well.
+  const observer = createRemoteApplier(provider, binding, {
+    onDesync: (error) => {
+      unsubscribeUpdateListener();
+      onDesync(error);
+    },
+  });
 
   binding.root.getSharedType().observeDeep(observer);
 
