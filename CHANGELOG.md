@@ -48,19 +48,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- A throw inside the Yjs->Lexical apply no longer silently desyncs the
-  editor. The remote-update observer fires from inside `Y.applyUpdate`,
-  which y-protocols wraps in a catch-and-log — so an exception during
-  Lexical's apply left the Y.Doc holding content the editor never showed,
-  permanently (reconnecting is a doc no-op, so nothing ever re-fired), and
-  poisoned collab offset caches could delete further visible text later.
-  The apply is now wrapped: on failure the element dispatches a bubbling
-  `lexxy-realtime:desync` event and, when it owns its document and
-  provider, rebuilds itself against a fresh Y.Doc so the server's state
-  repopulates a fresh binding (unacked local edits at the moment of
-  failure are lost; consistency wins). Host-supplied documents get the
-  event only — recreate the element to recover. Rebuilds are rate-limited
-  to avoid thrashing on a permanent fault.
+- An error while applying a remote update no longer leaves the editor out
+  of sync without a trace. Yjs runs the apply inside `Y.applyUpdate`, and
+  y-protocols catches and logs anything it throws. By then the document
+  already holds the update, so the editor stayed behind the document for
+  good, and a reconnect didn't fix it. The broken binding could also delete
+  visible text on later edits. Now the element dispatches a bubbling
+  `lexxy-realtime:desync` event. When it created its own document and
+  provider, it rebuilds against a fresh `Y.Doc` and loads the server's
+  state. Local edits the server hadn't acknowledged yet are lost. With a
+  host-supplied document it only dispatches the event, and the host
+  recreates the element to recover. It rebuilds at most once every 15
+  seconds.
 
 ## [0.7.1] - 2026-10-03
 
