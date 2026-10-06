@@ -1,9 +1,9 @@
 // Browser e2e. Two Lexxy editors collaborate through the yrby server, driven
 // with agent-browser. The test checks that edits sync both ways and that a new
 // client, opened after the others leave, loads the document from the server's
-// store. It also covers attachments, upload placeholders, the zero-config
-// element, setConsumer, seeding from an existing body, and the orphaned upload
-// sweep.
+// store. It also covers attachments, upload placeholders, a host-supplied
+// provider, setConsumer, seeding from an existing body, and the orphaned
+// upload sweep.
 //
 // Expects the test server on PORT (run.mjs starts it) and a built browser
 // bundle (npm run build:test).
@@ -165,11 +165,11 @@ check(
   await waitEval("carol", '!window.__test.docRoot().includes("rebind-probe.png")', "upload node removed locally")
 );
 
-// A Turbo page replacement discards the editor without pagehide, and
-// turbo:before-cache removes the pending upload the same way. An editor
-// inside data-turbo-permanent keeps its upload node. <yrby-document> also
-// handles turbo:before-cache: it unbinds the editor and binds it again
-// once Turbo finishes, so the doc is read from before the event.
+// A Turbo page replacement discards the editor without a pagehide, so the
+// element removes the pending upload on turbo:before-cache. An editor inside
+// data-turbo-permanent keeps its upload node. <yrby-document> also unbinds
+// the editor on turbo:before-cache and binds it again once Turbo finishes,
+// so the check reads the doc it saved before dispatching the event.
 check(
   "permanent editor keeps its pending upload through turbo:before-cache",
   /\btrue\b/.test(ab(
@@ -213,8 +213,8 @@ check("host-mode element loaded the document", zaraHasBoth);
 
 ab("zara", "close");
 
-// The app-wide consumer (setConsumer, the @anycable/web path): the
-// session must use the configured consumer instead of creating one.
+// The app-wide consumer set with setConsumer, as an @anycable/web app does.
+// The session must use that consumer.
 ab("uma", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Uma&mode=setconsumer${CABLE}`);
 check("setConsumer element connected and synced", await ready("uma"));
 check(

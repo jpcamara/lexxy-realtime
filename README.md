@@ -14,7 +14,7 @@ Each side sees the other's cursor and selection:
 The editors sync Yjs updates over Action Cable or AnyCable through
 [yrby](https://github.com/jpcamara/yrby). The server stores every update
 before acknowledging it, then renders the document back into Action Text.
-`post.body` is still a normal rich text attribute, so the rest of your app
+`post.body` is a normal rich text attribute, so the rest of your app
 (rendering, search, mailers) reads it as usual.
 
 ## Quick start
@@ -248,15 +248,14 @@ LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil
 <%= form.collaborative_rich_textarea :body, name: "Reviewer", color: "#0ea5e9" %>
 ```
 
-Cursor names and colors are sent as presence metadata. The channel finds the
-record from the signed grant and checks access with your `authorize_document`
-block, if you set one.
+Each client sends its own cursor name and color as presence data, so a
+modified client can show any name it likes. Under AnyCable, presence goes out
+as whispers that the server never sees. Don't use the name on a cursor to
+decide who someone is.
 
-The client sends its own cursor name, so a modified client can show any name
-it likes. Under AnyCable, presence goes out as whispers that the server never
-sees. A client can't give itself access, though. The server checks the signed
-grant and your `authorize_document` block before any read or write. Don't use
-the name on a cursor to decide who someone is.
+A client can't give itself access, though. Before any read or write, the
+server finds the record from the signed grant and runs your
+`authorize_document` block, if you set one.
 
 ## The JavaScript client
 
@@ -299,10 +298,10 @@ npm install lexxy-realtime
 ```
 
 You also need a Lexxy editor and `lexical` (`^0.44`), which your app already
-has. The package depends on `yrby-client` and `@rails/actioncable`, which
-`<yrby-document>` uses for its default consumer. Install `@anycable/web`
-when configuring [AnyCable](#anycable), or the client package for your own
-Yjs provider (for example, `y-websocket`).
+has. The package depends on `yrby-client` and on `@rails/actioncable`, which
+`<yrby-document>` uses to create its default consumer. To use
+[AnyCable](#anycable), install `@anycable/web`. To use your own Yjs provider,
+install its client package, for example `y-websocket`.
 
 Either way, the entry point imports are the same:
 
@@ -329,8 +328,8 @@ This is the markup the form helper renders:
 editor when that element dispatches `yrby:synced`. It handles an editor
 that initializes after the sync, and an element added after the event
 already fired. When the session's signal aborts, the element unbinds the
-editor. It never destroys the doc or provider, and never disconnects the
-consumer, because the session owns them.
+editor. It doesn't destroy the doc or provider or disconnect the consumer,
+because the session manages them.
 
 `<yrby-document>` keeps the editor inert until its session first syncs, so
 nobody types into a document that can't sync yet. A rejected grant with no
@@ -489,17 +488,18 @@ same.
 Any provider with the standard Yjs surface works:
 
 - `provider.awareness`: a [`y-protocols`](https://github.com/yjs/y-protocols)
-  `Awareness` instance (used for remote cursors/selections).
-- `provider.synced`: `true` once caught up with the server (used to seed a
-  brand-new, empty document the first time).
+  `Awareness` instance. The element uses it for remote cursors and
+  selections.
+- `provider.synced`: `true` once the provider has caught up with the server.
+  The element waits for it before it seeds a new, empty document.
 - `provider.whenSynced`: optional. A promise for the first sync. Without
   it, the element checks `synced` every 50ms until it's true.
 
-The element never connects, disconnects, or destroys a provider you
-assign. You start the connection however that provider expects
-(`provider.connect()` for `YrbyProvider`; `y-websocket` connects on
-construction) and close it when you're done. `y-websocket` and Hocuspocus
-satisfy this contract; other providers may need an adapter.
+The element doesn't connect, disconnect, or destroy a provider you assign.
+Start the connection the way that provider expects, and close it when you're
+done. `YrbyProvider` needs `provider.connect()`, and `y-websocket` connects
+when you create it. `y-websocket` and Hocuspocus meet this contract. Other
+providers may need an adapter.
 
 ### Manual server setup (yrby without the gem)
 
@@ -576,11 +576,11 @@ bundle exec anycable   # channel code (RPC)
 anycable-go            # WebSocket gateway
 ```
 
-Client side, point the page at the gateway. The stock setup needs nothing
-else: `<yrby-document>` reads the `action-cable-url` meta tag, so set
-`config.action_cable.url` to the anycable-go URL and every editor connects
-through it. To use the `@anycable/web` client instead (its ActionCable-compat
-mode), configure it once at boot:
+On the client, point the page at the gateway. `<yrby-document>` reads the
+`action-cable-url` meta tag, so set `config.action_cable.url` to the
+anycable-go URL and every editor connects through it. To use the
+`@anycable/web` client in its Action Cable compatible mode, set it once at
+boot:
 
 ```js
 import { createConsumer } from "@anycable/web";
@@ -610,19 +610,19 @@ over AnyCable.
 
 ## Turbo
 
-`<yrby-document>` listens for Turbo and Turbolinks 5 events. It unbinds the
-editor on `before-cache`, and a cached preview is inert with no document
-or provider. When the page renders again, it binds again, to the pending
-session if one is still delivering edits, or to a new one that loads the
-saved content. The test suite types in three browsers while one of them
-navigates with Turbo and with Turbolinks, and checks that no character is
-lost.
+`<yrby-document>` listens for Turbo and Turbolinks 5 events. On
+`before-cache` it unbinds the editor, so a cached preview is inert and has
+no document or provider. When the page renders again, the editor binds
+again. If the old session is still sending edits, it binds to that session.
+Otherwise it gets a new one that loads the saved content. The test suite
+types in three browsers while one of them navigates with Turbo and with
+Turbolinks, and checks that no character is lost.
 
 Before Turbo caches the page, the element removes this client's pending
 upload placeholders, unless the editor is inside `data-turbo-permanent`.
-`<yrby-document>` rebinds a permanent editor too, though, and the rebind
-rebuilds the editor's nodes from the document. An upload still in progress
-in a permanent editor doesn't survive the visit.
+`<yrby-document>` rebinds a permanent editor too, and the rebind rebuilds
+the editor's nodes from the document. So an upload still in progress in a
+permanent editor doesn't survive the visit.
 
 ## Requirements
 

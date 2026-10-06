@@ -108,8 +108,8 @@ turn the setting off again. The gem doesn't include a task for this.
 The channel saves each CRDT update, renders the full document with
 `Y::Lexxy`, and saves the HTML through the Action Text writer. This
 happens in `refresh_collaborative_rich_text`, inside the channel's handler
-for each update. No background job is involved, so `post.body` holds the
-rendered HTML.
+for each update. There's no background job, so `post.body` is up to date as
+soon as the channel finishes handling the update.
 
 If rendering fails, the channel logs the error and keeps the update. The
 next update renders the full document again. Until then, `post.body`
@@ -179,13 +179,14 @@ can reach the URL gets a grant, and a short `expires_in:` protects nothing.
 When a subscription is rejected, `<yrby-document>` fetches the URL with the
 session cookie, and the action runs your authorization again. If the
 response is `{ "grant": ... }`, the page resubscribes with the new grant and
-keeps the document and any edits the server hasn't acknowledged. Any other
-response, a non-2xx status, a second rejection, or a refresh that takes
-longer than 15 seconds stops syncing until the page reloads, and
-`<yrby-document>` dispatches `yrby:error`. The page doesn't renew grants on
-a timer, so it won't interrupt a healthy subscription. Every reconnect
-after expiry is a fresh permission check, which is why you'd want a short
-lifetime in the first place.
+keeps the document and any edits the server hasn't acknowledged. If the
+refresh fails, the editor stops syncing until the page reloads, and
+`<yrby-document>` dispatches `yrby:error`. A refresh fails when the response
+is an error or has no grant, when it takes longer than 15 seconds, or when
+the server rejects the new grant. The page doesn't renew grants on a timer,
+so it won't interrupt a working subscription. Every reconnect after the
+grant expires runs your permission check again, and that's the reason to
+keep the lifetime short.
 
 Without `refresh:`, an editor whose grant has expired stops syncing at its
 next reconnect and starts again after the page reloads.

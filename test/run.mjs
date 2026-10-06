@@ -176,7 +176,7 @@ try {
       }
     } else {
       console.log("\n=== AnyCable e2e (anycable-go gateway + RPC server) ===");
-      shutdown(); // the async-adapter server; the AnyCable page server takes its port
+      shutdown(); // stop the async-adapter server so the AnyCable page server can use its port
 
       const WS_PORT = process.env.ANYCABLE_WS_PORT || "8081";
       const RPC_PORT = process.env.ANYCABLE_RPC_PORT || "50061";

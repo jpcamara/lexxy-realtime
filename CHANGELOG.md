@@ -14,20 +14,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   deleted record, and a field that isn't declared with
   `has_collaborative_rich_text`. To add a permission check, use
   `LexxyRealtime::DocumentChannel.authorize_document`.
-- `collaborative_rich_textarea` accepts `expires_in:` to limit how long the
-  grant lasts, and `refresh:`, the URL of an action that returns a new
+- `collaborative_rich_textarea` accepts `expires_in:`, which limits how long
+  the grant lasts, and `refresh:`, the URL of an action that returns a new
   grant as `{ "grant": ... }`. When the server rejects the subscription,
-  the page fetches a new grant and resubscribes without losing the
-  document or unacknowledged edits.
+  the page fetches a new grant and resubscribes. It keeps the document and
+  any edits the server hasn't acknowledged.
 - `record.collaborative_rich_text_grant(:body, expires_in:)` returns the
   grant the form helper renders, for refresh actions.
 - The `lexxy-realtime:desync` event and the element's `doc`, `provider`,
   `awareness`, and `binding` properties are in the TypeScript declarations.
 - `has_collaborative_rich_text` takes `nodes:`, the `Y::Lexxy` render rules
-  for the app's custom Lexical nodes. Without a rule, a custom node can
-  disappear from the stored HTML while the editors still show it.
-- A warning in the log names node types that have no render rule. It logs
-  once per model, field, and set of types.
+  for the app's custom Lexical nodes. Without a rule, a custom node can be
+  missing from the stored HTML even though the editors show it.
+- The gem logs a warning that names node types with no render rule. It
+  logs once per model, field, and set of types.
 
 ### Changed
 
@@ -67,9 +67,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   channel can delete it. Move any access check from its `authorized?` into
   an `authorize_document` block.
 - **Breaking:** collaborative fields are built on yrby-rails'
-  `Y::Collaborative`. `record.collaborative_document(:body)` now returns
-  yrby's document handle, and `find_or_create_collaborative_document` and
-  the `collaborative_document_<name>` association are gone. Existing
+  `Y::Collaborative`. `record.collaborative_document(:body)` returns yrby's
+  document handle. `find_or_create_collaborative_document` and the
+  `collaborative_document_<name>` association are removed. Existing
   documents keep working, because both versions use the same rows.
 - **Breaking:** the form helper's channel params are now `grant` and
   `name`, in place of `sgid` and `field`. Pages open during the upgrade need

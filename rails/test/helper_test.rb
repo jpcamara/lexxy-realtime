@@ -75,7 +75,7 @@ class HelperTest < Minitest::Test
 
     assert_equal "post-#{@post.id}-body", attrs["doc-id"]
     assert_equal "Ada", attrs["name"]
-    assert_equal %w[color doc-id name], attrs.keys.sort, "the collaboration element only carries identity"
+    assert_equal %w[color doc-id name], attrs.keys.sort, "the collaboration element has only identity attributes"
 
     assert_equal "LexxyRealtime::DocumentChannel", document["channel"]
     assert_equal "body", document["name"]

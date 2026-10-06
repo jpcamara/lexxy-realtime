@@ -46,7 +46,7 @@ async function waitEval(js, label, ms = 30000) {
 async function runScenario(name) {
   ab(S, "eval", `window.__lc.run(${JSON.stringify(name)})`);
   const ok = await waitEval(`window.__lc.results[${JSON.stringify(name)}] != null`, `${name} completed`, 60000);
-  // Log the raw result object for visibility (printed by agent-browser, not parsed).
+  // Print the raw result object so a failure is easier to read.
   const raw = ab(S, "eval", `JSON.stringify(window.__lc.results[${JSON.stringify(name)}] ?? null)`).trim();
   console.log(`  ${name}: ${raw.replace(/\\(.)/g, "$1").replace(/^"|"$/g, "")}`);
   if (isTrue(`!!(window.__lc.results[${JSON.stringify(name)}] && window.__lc.results[${JSON.stringify(name)}].error)`)) {
@@ -135,8 +135,8 @@ const scenarios = [
     ["recovery discards the old session's doc", "r.oldDocDestroyed === true"],
     ["recovery loads the server's content into a new session", "r.keptText === true"],
     ["recovery makes the editor editable again", "r.editable === true"],
-    ["undo after recovery can't restore the desynced state", "r.undoKeptText === true"],
-    ["edits after recovery reach the server, local-only changes don't", "r.editsSync === true"],
+    ["undo after recovery keeps the server's content", "r.undoKeptText === true"],
+    ["edits after recovery reach the server without the local-only change", "r.editsSync === true"],
     ["a second failure inside 15 seconds reports recovering: true", "r.secondRecovering === true"],
     ["the editor stays read-only on the old doc until the window ends", "r.waitsReadOnly === true"],
     ["the second rebuild runs when the window ends", "r.secondRebuildAfterWindow === true"],
@@ -144,7 +144,7 @@ const scenarios = [
   ]],
   ["desyncThenRemove", [
     ["removing the element in the desync handler unbinds it", "r.unbound === true"],
-    ["a removed element doesn't discard the session", "r.sessionKept === true"],
+    ["removing the element keeps the session open", "r.sessionKept === true"],
     ["unbinding restores editing", "r.editable === true"],
   ]],
   ["rejectThenRefresh", [
@@ -173,7 +173,7 @@ const scenarios = [
     ["removal before the first sync clears the poll", "r.leaked === false"],
   ]],
   ["misplaced", [
-    ["a misplaced element throws nothing", "r.threw === false"],
+    ["a misplaced element doesn't throw", "r.threw === false"],
     ["an element outside a <lexxy-editor> logs an error", "r.reportedEditor === true"],
     ["an element with no <yrby-document> or host provider logs an error", "r.reportedDocument === true"],
   ]],

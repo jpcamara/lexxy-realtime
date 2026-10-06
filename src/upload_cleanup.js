@@ -1,26 +1,28 @@
 import { $nodesOfType, HISTORY_MERGE_TAG } from 'lexical';
 
 // Upload nodes sync without their File, so only the uploading client can
-// finish them. Pagehide and Turbo discard remove this client's own
-// file-bearing nodes while the binding can still sync the deletion. A
-// client alone past an awareness settle delay removes remaining file-less
-// placeholders, presuming their uploader gone -- the backstop for lost
-// pagehide sends and for discards no event covers (streams, morphing).
+// finish them. On pagehide and before Turbo discards the page, this client
+// removes its own nodes that hold a File, while the binding can still sync
+// the deletion. A client that stays alone past an awareness settle delay
+// removes any remaining placeholders without a File, because their
+// uploader is probably gone. That covers deletions from a pagehide that
+// never reached the server, and page changes that fire no event, such as
+// Turbo Streams and morphing.
 export function registerUploadCleanup(editorElement, editor, provider, awareness) {
-  // Teardown also fires on DOM moves, where the upload lives on, so it
-  // cannot remove nodes. A persisted pagehide means bfcache: the page
-  // and its upload may come back.
+  // Teardown also runs on DOM moves, where the upload keeps going, so
+  // teardown doesn't remove nodes. A persisted pagehide means the page went
+  // into the bfcache, and the page and its upload may come back.
   const removeOwnPendingUploads = (event) => {
     if (event?.persisted) return;
     removePendingUploadNodes(editor);
   };
   window.addEventListener('pagehide', removeOwnPendingUploads);
 
-  // Plain DOM events; apps without Turbo never fire them. An editor
-  // inside data-turbo-permanent survives the navigation, upload included,
-  // so it is left alone. The listeners run in the capture phase so they
-  // remove the nodes before <yrby-document> handles turbo:before-cache and
-  // unbinds the editor.
+  // These are plain DOM events, so apps without Turbo never fire them. An
+  // editor inside data-turbo-permanent survives the navigation with its
+  // upload, so we leave it alone. The listeners run in the capture phase,
+  // so they remove the nodes before <yrby-document> handles
+  // turbo:before-cache and unbinds the editor.
   const removeUploadsBeforeTurboDiscard = (event) => {
     if (editorElement.closest('[data-turbo-permanent]')) return;
     if (event.type === 'turbo:before-frame-render' && !event.target.contains(editorElement)) return;
@@ -60,7 +62,7 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
     timer = null;
     if (cancelled || !alone()) return;
     if (!provider.synced) {
-      // Not synced yet; try again after another settle delay.
+      // Not synced yet, so try again after another settle delay.
       schedule();
       return;
     }

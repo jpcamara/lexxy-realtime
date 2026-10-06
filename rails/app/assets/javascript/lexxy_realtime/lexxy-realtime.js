@@ -250,7 +250,7 @@ Lexical.setNodeIndentFromDOM;
 Lexical.shallowMergeConfig;
 Lexical.toggleTextFormatType;
 //#endregion
-//#region node_modules/@lexical/selection/LexicalSelection.dev.mjs
+//#region ../lexxy-realtime/node_modules/@lexical/selection/LexicalSelection.dev.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *
@@ -999,7 +999,7 @@ const getStyleObjectFromCSS$1 = getStyleObjectFromCSS$2;
 /** @deprecated renamed to {@link $trimTextContentFromAnchor} by @lexical/eslint-plugin rules-of-lexical */
 const trimTextContentFromAnchor$1 = $trimTextContentFromAnchor$1;
 //#endregion
-//#region node_modules/@lexical/selection/LexicalSelection.mjs
+//#region ../lexxy-realtime/node_modules/@lexical/selection/LexicalSelection.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *
@@ -1034,7 +1034,7 @@ mod$1.getCSSFromStyleObject;
 mod$1.getStyleObjectFromCSS;
 mod$1.trimTextContentFromAnchor;
 //#endregion
-//#region node_modules/@lexical/yjs/LexicalYjs.dev.mjs
+//#region ../lexxy-realtime/node_modules/@lexical/yjs/LexicalYjs.dev.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *
@@ -3069,7 +3069,7 @@ function setLocalStateFocus$1(provider, name, color, focusing, awarenessData) {
 	awareness.setLocalState(localState);
 }
 //#endregion
-//#region node_modules/@lexical/yjs/LexicalYjs.mjs
+//#region ../lexxy-realtime/node_modules/@lexical/yjs/LexicalYjs.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *

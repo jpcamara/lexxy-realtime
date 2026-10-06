@@ -1,8 +1,8 @@
-# The whole collaborative-document server: include Y::ActionCable::Sync and
-# wire durability. The memory backend (default) keeps a warm replica per
-# process. The on_change recorder stores each change before it's relayed, and
-# on_load rebuilds a document from the durable log on a cold start or after
-# idle eviction. That's the durability the lexxy-realtime tests exercise.
+# The test server's only channel. It uses Y::ActionCable::Sync with the
+# default memory backend, which keeps a copy of each open document in the
+# process. on_change stores each change before the server relays it, and
+# on_load rebuilds a document from the stored log on a cold start or after
+# the backend evicts an idle document.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable::Sync
 

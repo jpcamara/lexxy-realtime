@@ -105,7 +105,7 @@ export class Collaboration extends Base {
     }
     const yrbyDocument = this.#hostProvider ? null : this.closest('yrby-document');
 
-    // Moved in the same turn without its editor being rebuilt: keep the binding.
+    // A move within the same turn that left the editor intact keeps the binding.
     if (
       this.#bound &&
       editorElement === this.#editorElement &&
@@ -191,8 +191,8 @@ export class Collaboration extends Base {
 
   // Binds the editor to a doc and provider. `synced` is the yrby:synced
   // detail in yrby mode and null when the host supplied the provider. The
-  // element never destroys the doc or provider, because the yrby session
-  // or the host owns them.
+  // element doesn't destroy the doc or provider, because the yrby session
+  // or the host manages them.
   #bind(doc, provider, synced) {
     const editorElement = this.#editorElement;
     const editor = editorElement.editor;
@@ -262,10 +262,11 @@ export class Collaboration extends Base {
 
     // Editor updates write the local selection to awareness as Yjs relative
     // positions, which stay correct across concurrent edits. `focusing`
-    // stays true for the whole binding because @lexical/yjs only renders a
-    // peer's caret while their focusing flag is true. Turning it off on
-    // blur hid peers whenever their window lost focus. Peers that leave are
-    // removed by the provider's presence removal and the awareness timeout.
+    // is true for the whole binding because @lexical/yjs only renders a
+    // peer's caret while their focusing flag is true. If it turned off on
+    // blur, a peer's caret would disappear whenever their window lost focus.
+    // When a peer leaves, the provider's presence removal and the awareness
+    // timeout remove their caret.
     initLocalState(provider, name, color, true, { name, color });
     setLocalStateFocus(provider, name, color, true, { name, color });
 
@@ -326,8 +327,8 @@ export class Collaboration extends Base {
   // both directions and makes the editor read-only, so local typing can't
   // reach the document through the broken binding.
   //
-  // With a host provider the element only reports it. The host owns the doc
-  // and provider, and recovers by recreating the element or reloading.
+  // With a host provider the element doesn't rebuild. The host manages the
+  // doc and provider, and recovers by recreating the element or reloading.
   //
   // In yrby mode the element rebuilds. Yjs never re-emits updates the doc
   // already holds, so a rebuild needs a fresh Y.Doc, which means a fresh
