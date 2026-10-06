@@ -33,7 +33,7 @@ class HelperTest < Minitest::Test
     @view = FakeView.new(FakeUser.new("Ada"))
     @form = ActionView::Helpers::FormBuilder.new("post", @post, @view, {})
     @form.define_singleton_method(:lexxy_rich_textarea) do |method, _options = {}, &block|
-      %(<lexxy-editor name="post[#{method}]">#{block.call}</lexxy-editor>)
+      %(<lexxy-editor name="post[#{method}]">#{block.call}</lexxy-editor>).html_safe
     end
   end
 
@@ -41,22 +41,26 @@ class HelperTest < Minitest::Test
     GlobalID::Locator.locate_signed(grant, for: LexxyRealtime.grant_purpose(field))
   end
 
-  def element_attributes(html)
-    fragment = html[/<lexxy-collaboration[^>]*>/]
+  def element_attributes(html, tag = "lexxy-collaboration")
+    fragment = html[/<#{tag}[^>]*>/]
     fragment.scan(/([\w-]+)="([^"]*)"/).to_h.transform_values { |v| CGI.unescapeHTML(v) }
   end
 
-  def test_renders_the_collaboration_element_inside_the_editor
+  def document_attributes(html) = element_attributes(html, "yrby-document")
+
+  def test_renders_the_editor_inside_a_yrby_document
     html = @form.collaborative_rich_textarea(:body)
 
-    assert_match %r{<lexxy-editor[^>]*><lexxy-collaboration.*</lexxy-collaboration></lexxy-editor>}, html
+    editor = %r{<lexxy-editor[^>]*><lexxy-collaboration.*</lexxy-collaboration></lexxy-editor>}
+
+    assert_match(%r{\A<yrby-document[^>]*>#{editor}</yrby-document>\z}, html)
     assert_equal html, @form.collaborative_rich_text_area(:body), "underscore alias"
   end
 
   def test_falls_back_to_rich_text_area_when_lexxy_helper_is_absent
     @form.singleton_class.undef_method(:lexxy_rich_textarea)
     @form.define_singleton_method(:rich_text_area) do |method, _options = {}, &block|
-      %(<lexxy-editor name="post[#{method}]">#{block.call}</lexxy-editor>)
+      %(<lexxy-editor name="post[#{method}]">#{block.call}</lexxy-editor>).html_safe
     end
 
     html = @form.collaborative_rich_textarea(:body)
@@ -64,34 +68,59 @@ class HelperTest < Minitest::Test
     assert_includes html, "<lexxy-collaboration", "renders through the adapter-path helper"
   end
 
-  def test_wires_the_element_to_the_record
-    attrs = element_attributes(@form.collaborative_rich_textarea(:body))
+  def test_wires_the_elements_to_the_record
+    html = @form.collaborative_rich_textarea(:body)
+    attrs = element_attributes(html)
+    document = document_attributes(html)
 
     assert_equal "post-#{@post.id}-body", attrs["doc-id"]
     assert_equal "Ada", attrs["name"]
-    assert_equal "LexxyRealtime::DocumentChannel", attrs["channel-name"]
+    assert_equal %w[color doc-id name], attrs.keys.sort, "the collaboration element only carries identity"
 
-    params = JSON.parse(attrs["channel-params"])
+    assert_equal "LexxyRealtime::DocumentChannel", document["channel"]
+    assert_equal "body", document["name"]
+    assert_nil document["refresh"]
+    assert_equal @post, locate(document["grant"], :body), "the grant is a signed GlobalID for this record and field"
+    assert_nil Y::Collaborative.locate(document["grant"], :body), "yrby-rails' channel must not accept it"
+  end
 
-    assert_equal "body", params["name"]
-    assert_equal @post, locate(params["grant"], :body), "the grant is a signed GlobalID for this record and field"
-    assert_nil Y::Collaborative.locate(params["grant"], :body), "yrby-rails' channel must not accept it"
+  def test_uses_the_configured_channel_name
+    LexxyRealtime.channel_name = "CustomDocumentChannel"
+
+    assert_equal "CustomDocumentChannel", document_attributes(@form.collaborative_rich_textarea(:body))["channel"]
+  ensure
+    LexxyRealtime.channel_name = nil
   end
 
   def test_grant_is_field_scoped
-    params = JSON.parse(element_attributes(@form.collaborative_rich_textarea(:body))["channel-params"])
+    grant = document_attributes(@form.collaborative_rich_textarea(:body))["grant"]
 
-    assert_nil locate(params["grant"], :internal_notes),
-               "a grant for one collaborative field must not open another"
+    assert_nil locate(grant, :internal_notes), "a grant for one collaborative field must not open another"
   end
 
   def test_expires_in_limits_the_grant
-    html = @form.collaborative_rich_textarea(:body, expires_in: 1.second)
-    params = JSON.parse(element_attributes(html)["channel-params"])
+    grant = document_attributes(@form.collaborative_rich_textarea(:body, expires_in: 1.second))["grant"]
 
     travel_to(2.seconds.from_now) do
-      assert_nil locate(params["grant"], :body), "an expired grant locates nothing"
+      assert_nil locate(grant, :body), "an expired grant locates nothing"
     end
+  end
+
+  def test_refresh_renders_the_refresh_url
+    document = document_attributes(@form.collaborative_rich_textarea(:body, refresh: "/posts/1/grant"))
+
+    assert_equal "/posts/1/grant", document["refresh"]
+  end
+
+  def test_collaborative_rich_text_grant_matches_the_helper
+    grant = @post.collaborative_rich_text_grant(:body, expires_in: 1.minute)
+
+    assert_equal @post, locate(grant, :body)
+    assert_nil Y::Collaborative.locate(grant, :body)
+    travel_to(2.minutes.from_now) do
+      assert_nil locate(grant, :body), "expires_in applies"
+    end
+    assert_raises(ArgumentError) { @post.collaborative_rich_text_grant(:title) }
   end
 
   def test_identity_overrides_and_stable_color

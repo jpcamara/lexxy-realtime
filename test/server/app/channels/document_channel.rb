@@ -1,8 +1,8 @@
 # The whole collaborative-document server: include Y::ActionCable::Sync and
-# wire durability. Memory backend (default) keeps a warm replica per process; the
-# on_change recorder makes this the authoritative, record-before-distribute
-# path, and on_load rebuilds a document from the durable log on a cold start or
-# after idle eviction. That's the durability the lexxy-realtime tests exercise.
+# wire durability. The memory backend (default) keeps a warm replica per
+# process. The on_change recorder stores each change before it's relayed, and
+# on_load rebuilds a document from the durable log on a cold start or after
+# idle eviction. That's the durability the lexxy-realtime tests exercise.
 class DocumentChannel < ApplicationCable::Channel
   include Y::ActionCable::Sync
 
@@ -10,16 +10,23 @@ class DocumentChannel < ApplicationCable::Channel
   on_change { |key, update| FileStore.record(key, update) }
 
   def subscribed
-    sync_subscribed params[:id]
+    sync_subscribed document_key
   end
 
   def receive(data)
-    sync_receive(data, params[:id])
+    sync_receive(data, document_key)
   end
 
   private
 
-  # A local test server with no users, so every client may edit. yrby-rails
-  # 0.7 denies access unless the channel defines this.
-  def authorized?(_key = nil) = true
+  # The headless suites subscribe a YrbyProvider with { id: room }.
+  # <yrby-document> subscribes with { grant:, name: }. There are no real
+  # grants here, so the key is built from both.
+  def document_key
+    params[:id] || "#{params[:grant]}:#{params[:name]}"
+  end
+
+  # A local test server with no users, so every client may edit. A grant
+  # that starts with "reject" stands in for an expired or revoked one.
+  def authorized?(_key = nil) = !params[:grant].to_s.start_with?("reject")
 end

@@ -1,8 +1,8 @@
-// Lifecycle e2e: drives the real <lexxy-collaboration> element through mount /
-// unmount / DOM-move / init-race scenarios (see lifecycle_app.js) and asserts
-// teardown leaves no leaked bootstrap interval, a DOM move keeps a host-owned
-// provider synced, and a late editor init never runs #init on a detached
-// element. Assumes the test server is up and `npm run build:test` has run.
+// Lifecycle e2e: runs the scenarios in lifecycle_app.js in a real browser
+// and checks their results. They cover binding to a <yrby-document>
+// session, moves, removal with pending edits, late editor initialization,
+// seeding, desync recovery, grant refresh, and host-supplied providers.
+// Assumes the test server is up and `npm run build:test` has run.
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -43,7 +43,7 @@ async function waitEval(js, label, ms = 30000) {
 // Run a scenario and wait for its result object to land (or an error).
 async function runScenario(name) {
   ab(S, "eval", `window.__lc.run(${JSON.stringify(name)})`);
-  const ok = await waitEval(`window.__lc.results[${JSON.stringify(name)}] != null`, `${name} completed`);
+  const ok = await waitEval(`window.__lc.results[${JSON.stringify(name)}] != null`, `${name} completed`, 60000);
   // Log the raw result object for visibility (printed by agent-browser, not parsed).
   const raw = ab(S, "eval", `JSON.stringify(window.__lc.results[${JSON.stringify(name)}] ?? null)`).trim();
   console.log(`  ${name}: ${raw.replace(/\\(.)/g, "$1").replace(/^"|"$/g, "")}`);
@@ -68,41 +68,99 @@ if (!(await waitEval("document.body.dataset.lcReady === 'true'", "lifecycle harn
   process.exit(1);
 }
 
-// #0 — the element-managed wiring must connect the provider it builds.
-await runScenario("elementManaged");
-// #1 — bootstrap poll interval must be cleared on unmount-before-sync.
-await runScenario("bootstrapLeak");
-check("element-managed wiring syncs (element connects its own provider)", field("elementManaged", "r.synced === true"));
-check("element-managed provider disconnects on teardown", field("elementManaged", "r.disconnectedAfterTeardown === true"));
+const scenarios = [
+  ["yrbySession", [
+    ["binds to the <yrby-document> session's doc and provider", "r.sameResources === true"],
+    ["edits reach the server through the session", "r.stored === true"],
+    ["removing the <yrby-document> unbinds the editor", "r.unbound === true"],
+  ]],
+  ["sameTurnMove", [
+    ["moving the element within its editor keeps the binding", "r.elementMoveKeptBinding === true"],
+    ["moving the <yrby-document> keeps the session and doc", "r.sameSession === true"],
+    ["moving the <yrby-document> keeps the content", "r.keptText === true"],
+    ["edits after the move reach the doc", "r.editsReachDoc === true"],
+  ]],
+  ["removalKeepsPending", [
+    ["a removed editor's session keeps its pending edits", "r.keptWhileRemoved === true"],
+    ["the pending edit reaches the server after removal", "r.stored === true"],
+    ["the session closes and destroys its doc once acknowledged", "r.docDestroyed === true"],
+  ]],
+  ["remountWhilePending", [
+    ["remounting before the acknowledgment reuses the session", "r.sameSession === true"],
+    ["remounting before the acknowledgment keeps the content", "r.keptText === true"],
+    ["the session stays open for the remounted editor", "r.stillOpen === true"],
+  ]],
+  ["lateEditor", [
+    ["the element waits for Lexxy's editor", "r.waited === true"],
+    ["the element binds after yrby:synced already fired", "r.bound === true"],
+    ["edits from the late-bound editor reach the doc", "r.editsReachDoc === true"],
+  ]],
+  ["seedOnce", [
+    ["an existing body seeds an empty document", "r.seeded === true"],
+    ["binding again does not seed a second time", "r.noDuplicate === true"],
+    ["the seeded body reaches the server", "r.stored === true"],
+  ]],
+  ["desyncRecovery", [
+    ["a failed remote apply makes the editor read-only", "r.readOnlyAtFault === true"],
+    ["editor changes after the failure are not sent", "r.localStayedLocal === true"],
+    ["the first failure reports recovering: true", "r.firstRecovering === true"],
+    ["recovery discards the old session's doc", "r.oldDocDestroyed === true"],
+    ["recovery loads the server's content into a new session", "r.keptText === true"],
+    ["recovery makes the editor editable again", "r.editable === true"],
+    ["undo after recovery can't restore the desynced state", "r.undoKeptText === true"],
+    ["edits after recovery reach the server, local-only changes don't", "r.editsSync === true"],
+    ["a second failure inside 15 seconds reports recovering: true", "r.secondRecovering === true"],
+    ["the editor stays read-only on the old doc until the window ends", "r.waitsReadOnly === true"],
+    ["the second rebuild runs when the window ends", "r.secondRebuildAfterWindow === true"],
+    ["the second rebuild loads the server's content", "r.secondKeptText === true"],
+  ]],
+  ["desyncThenRemove", [
+    ["removing the element in the desync handler unbinds it", "r.unbound === true"],
+    ["a removed element doesn't discard the session", "r.sessionKept === true"],
+    ["unbinding restores editing", "r.editable === true"],
+  ]],
+  ["rejectThenRefresh", [
+    ["a rejected grant is replaced from the refresh URL", "r.renewedGrant === true"],
+    ["edits after the refresh reach the server", "r.stored === true"],
+    ["a successful refresh dispatches no yrby:error", "r.noErrors === true"],
+  ]],
+  ["rejectWithoutRefresh", [
+    ["a rejection without a refresh URL blocks the session", "r.reported === true"],
+    ["a blocked session leaves the editor unbound", "r.unbound === true"],
+    ["a blocked <yrby-document> stays inert", "r.inert === true"],
+  ]],
+  ["hostMode", [
+    ["host mode binds the assigned doc and provider", "r.sameResources === true"],
+    ["host mode keeps provider and content across a DOM move", "r.movedKeepsContent === true"],
+    ["host mode reports a failed remote apply and keeps the host's doc and provider", "r.reportedOnly === true"],
+    ["host mode makes the editor read-only after a failed apply", "r.readOnly === true"],
+    ["host mode stops sending editor changes after a failed apply", "r.stoppedSending === true"],
+  ]],
+  ["bootstrapLeak", [
+    ["a provider with whenSynced starts no bootstrap poll", "r.intervalFree === true"],
+    ["removal before the first sync leaves no bootstrap poll", "r.leaked === false"],
+  ]],
+  ["bootstrapLeakFallback", [
+    ["a provider without whenSynced starts the bootstrap poll", "r.started === true"],
+    ["removal before the first sync clears the poll", "r.leaked === false"],
+  ]],
+  ["misplaced", [
+    ["a misplaced element throws nothing", "r.threw === false"],
+    ["an element outside a <lexxy-editor> logs an error", "r.reportedEditor === true"],
+    ["an element with no <yrby-document> or host provider logs an error", "r.reportedDocument === true"],
+  ]],
+];
 
-check("whenSynced provider starts no bootstrap interval", field("bootstrapLeak", "r.intervalFree === true"));
-check("no leaked bootstrap interval after unmount-before-sync", field("bootstrapLeak", "r.leaked === false"));
+for (const [name, checks] of scenarios) {
+  await runScenario(name);
+  for (const [label, expr] of checks) check(label, field(name, expr));
+}
 
-await runScenario("bootstrapLeakFallback");
-check("fallback poll starts without whenSynced (scenario valid)", field("bootstrapLeakFallback", "r.started === true"));
-check("fallback poll cleared on unmount-before-sync", field("bootstrapLeakFallback", "r.leaked === false"));
-
-// #3 — a DOM move must not kill a host-owned provider.
-await runScenario("domMove");
-check("provider synced before move (scenario valid)", field("domMove", "r.syncedBefore === true"));
-check("provider still synced after DOM move", field("domMove", "r.syncedAfter === true"));
-
-// robustness — mounting outside a <lexxy-editor> must not throw opaquely.
-await runScenario("missingEditor");
-check("no opaque TypeError when mounted outside a <lexxy-editor>", field("missingEditor", "r.threwOpaque === false"));
-
-// robustness — a malformed channel-params attribute must not throw, and a
-// host-supplied provider must still work.
-await runScenario("badChannelParams");
-check("malformed channel-params does not throw", field("badChannelParams", "r.threwParse === false"));
-check("host provider still syncs with bad channel-params", field("badChannelParams", "r.synced === true"));
-
-// #2 — a late editor init must not run #init on a detached element.
 await runScenario("initRace");
 if (!field("initRace", "r.tookListenerPath === true")) {
-  console.log("  (skipped #init-race assert: the editor initializes synchronously, so the once-listener path is never taken)");
+  console.log("  (skipped the init-race check: the editor initialized synchronously)");
 } else {
-  check("#init does not run on a detached element", field("initRace", "r.ranOnDetached === false"));
+  check("an editor that initializes after removal is not bound", field("initRace", "r.boundWhileDetached === false"));
 }
 
 const errs = ab(S, "eval", "JSON.stringify(window.__err || [])");

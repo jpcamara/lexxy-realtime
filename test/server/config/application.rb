@@ -85,6 +85,8 @@ module TestServer
       get "/content/:id", to: "content#show", constraints: { id: /[^\/]+/ }
       # Clear a document's durable log (test isolation).
       post "/reset/:id", to: "content#reset", constraints: { id: /[^\/]+/ }
+      # A new grant for <yrby-document refresh=...>: returns the one in the URL.
+      get "/grant/:grant", to: "grants#show", constraints: { grant: /[^\/]+/ }
       get "/up", to: proc { [200, {}, ["ok"]] }
     end
   end

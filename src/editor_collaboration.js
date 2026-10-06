@@ -5,206 +5,384 @@ import {
   setLocalStateFocus,
   initLocalState,
 } from '@lexical/yjs';
-import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG } from 'lexical';
+import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG, COLLABORATION_TAG, CLEAR_HISTORY_COMMAND } from 'lexical';
 import { Doc } from 'yjs';
-import { createConsumer } from '@rails/actioncable';
-import { YrbyProvider } from './yrby_provider';
+import { YrbyDocumentElement } from 'yrby-client/element';
 import { attachmentExclusions, patchCollabElementSplice } from './attachment_sync';
 import { registerUploadCleanup } from './upload_cleanup';
 import { registerCursorTheme } from './cursor_theme';
 import { registerTextReconciliation, syncEditorUpdate, reconciliationOrigin } from './text_reconciliation';
 import { registerSelectionNormalization } from './selection_normalization';
 
-// One shared Action Cable consumer for every element that isn't handed one.
-// createConsumer() reads the standard `action-cable-url` meta tag (rendered by
-// Rails' action_cable_meta_tag) and falls back to /cable, so a server-rendered
-// element works with no host JavaScript at all. Shared so multiple editors on
-// a page ride one WebSocket, like Rails' own consumer module.
-let sharedConsumer;
-let configuredConsumer;
-
-// The app-wide default consumer, for transports the element can't build
-// itself: call once at boot, before editors mount. Accepts the consumer or
-// a function returning one, resolved lazily on first use.
+// Sets the Action Cable consumer that every <yrby-document> on the page
+// uses. Call it once at boot, before editors mount. It accepts a consumer
+// or a function that returns one, and calls the function right away.
 //
 //   import { createConsumer } from "@anycable/web";
 //   import { setConsumer } from "lexxy-realtime";
 //   setConsumer(() => createConsumer());
 //
-// A consumer assigned directly on an element still wins.
+// Without it, <yrby-document> creates an @rails/actioncable consumer from
+// the page's action-cable-url meta tag, or /cable.
 export function setConsumer(consumerOrFactory) {
-  configuredConsumer = consumerOrFactory;
+  YrbyDocumentElement.consumer =
+    typeof consumerOrFactory === 'function' ? consumerOrFactory() : consumerOrFactory;
 }
 
-function resolveConsumer() {
-  if (typeof configuredConsumer === 'function') configuredConsumer = configuredConsumer();
-  return configuredConsumer || (sharedConsumer ??= createConsumer());
+// <yrby-document> dispatches yrby:synced once per session it acquires. An
+// element that connects later, for example inside an editor that moved,
+// still needs that event's session, so we keep the latest one for each
+// <yrby-document>. The listener runs in the capture phase, so an app
+// handler that stops propagation doesn't hide the event from us.
+const syncedSessions = new WeakMap();
+if (typeof document !== 'undefined') {
+  document.addEventListener('yrby:synced', (event) => syncedSessions.set(event.target, event.detail), true);
 }
 
-// Node (SSR, unit tests) has no HTMLElement; the module must still load
+// @lexical/yjs caches its collab nodes on the Yjs types, so two bindings on
+// one Y.Doc would overwrite each other's caches.
+const boundDocs = new WeakMap();
+
+// After a remote update fails to apply, the element replaces its session
+// at most once in this window. A fault that comes back right after a
+// rebuild waits for the window to end, so a fault that repeats every time
+// costs the server one new session every 15 seconds.
+const RECOVERY_INTERVAL_MS = 15000;
+
+// Node (SSR, unit tests) has no HTMLElement. The module still has to load
 // there, so only registration is browser-gated (see index.js).
 const Base = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
 
 export class Collaboration extends Base {
-  #teardown = null;
+  #hostDoc = null;
+  #hostProvider = null;
+  #editorElement = null;
+  #yrbyDocument = null;
+  #cancelWait = null;
+  #bound = null;
+  #lastRecoveryAt = 0;
+  #recoveryTimer = null;
+  // True from discarding a broken session until the next session binds.
+  #recovering = false;
+
+  // Assign doc and provider before the element connects to use your own
+  // Yjs provider. Without them the element binds to the session of its
+  // closest <yrby-document>. Once bound, these return what the editor is
+  // bound to.
+  get doc() {
+    return this.#bound?.doc ?? this.#hostDoc;
+  }
+
+  set doc(doc) {
+    this.#hostDoc = doc ?? null;
+  }
+
+  get provider() {
+    return this.#bound?.provider ?? this.#hostProvider;
+  }
+
+  set provider(provider) {
+    this.#hostProvider = provider ?? null;
+  }
+
+  get awareness() {
+    return this.#bound?.provider.awareness;
+  }
+
+  get binding() {
+    return this.#bound?.binding;
+  }
 
   connectedCallback() {
-    this.editorElement = this.closest('lexxy-editor');
-    if (!this.editorElement) {
+    const editorElement = this.closest('lexxy-editor');
+    if (!editorElement) {
       console.error('<lexxy-collaboration> must be placed inside a <lexxy-editor>.');
       return;
     }
-    this.editor = this.editorElement.editor;
+    const yrbyDocument = this.#hostProvider ? null : this.closest('yrby-document');
 
-    if (this.editor) {
-      this.#init();
-    } else {
-      this.editorElement.addEventListener(
-        'lexxy:initialize',
-        () => {
-          this.editor = this.editorElement.editor;
-          this.#init();
-        },
-        { once: true }
-      );
+    // Moved in the same turn without its editor being rebuilt: keep the binding.
+    if (
+      this.#bound &&
+      editorElement === this.#editorElement &&
+      yrbyDocument === this.#yrbyDocument &&
+      editorElement.editor === this.#bound.editor
+    ) {
+      return;
     }
+
+    this.#stop();
+    this.#editorElement = editorElement;
+    if (!this.#hostProvider) {
+      if (!yrbyDocument) {
+        console.error(
+          '<lexxy-collaboration> needs a <yrby-document> ancestor, or a doc and provider assigned before it connects.'
+        );
+        return;
+      }
+      this.#yrbyDocument = yrbyDocument;
+      yrbyDocument.addEventListener('yrby:synced', this.#onSynced);
+    }
+    this.#start();
   }
 
   disconnectedCallback() {
-    this.#teardown?.();
+    // A move within the same turn reconnects before this microtask runs.
+    queueMicrotask(() => {
+      if (!this.isConnected) this.#stop();
+    });
   }
 
-  #init() {
+  #onSynced = (event) => {
+    if (event.target === this.#yrbyDocument) this.#start();
+  };
+
+  #start() {
+    if (this.#cancelWait || !this.isConnected) return;
+    const editorElement = this.#editorElement;
+    if (!editorElement.editor) {
+      const onInitialize = () => {
+        this.#cancelWait = null;
+        this.#start();
+      };
+      editorElement.addEventListener('lexxy:initialize', onInitialize, { once: true });
+      this.#cancelWait = () => editorElement.removeEventListener('lexxy:initialize', onInitialize);
+      return;
+    }
+
+    if (this.#hostProvider) {
+      if (this.#bound) return;
+      const provider = this.#hostProvider;
+      this.#bind(this.#hostDoc ?? provider.doc ?? new Doc(), provider, null);
+      return;
+    }
+
+    // Wait for the next yrby:synced when the <yrby-document> has no live session.
+    const synced = syncedSessions.get(this.#yrbyDocument);
+    if (!synced || synced.signal.aborted) return;
+    if (this.#bound?.synced === synced && this.#bound.editor === editorElement.editor) return;
+    this.#unbind();
+    this.#bind(synced.doc, synced.provider, synced);
+  }
+
+  #stop() {
+    this.#cancelWait?.();
+    this.#cancelWait = null;
+    this.#yrbyDocument?.removeEventListener('yrby:synced', this.#onSynced);
+    this.#yrbyDocument = null;
+    this.#editorElement = null;
+    this.#recovering = false;
+    this.#unbind();
+  }
+
+  #unbind() {
+    const bound = this.#bound;
+    if (!bound) return;
+    this.#bound = null;
+    clearTimeout(this.#recoveryTimer);
+    this.#recoveryTimer = null;
+    bound.teardown();
+  }
+
+  // Binds the editor to a doc and provider. `synced` is the yrby:synced
+  // detail in yrby mode and null when the host supplied the provider. The
+  // element never destroys the doc or provider, because the yrby session
+  // or the host owns them.
+  #bind(doc, provider, synced) {
+    const editorElement = this.#editorElement;
+    const editor = editorElement.editor;
+    if (boundDocs.has(doc)) {
+      console.error('<lexxy-collaboration>: this Y.Doc is already bound to another editor.');
+      return;
+    }
+
     // The Yjs document id, used as the @lexical/yjs binding key.
     const id = this.getAttribute('doc-id') || 'main';
     const name = this.getAttribute('name') || 'Example User';
     const color = this.getAttribute('color') || '#958DF1';
-    const channelName = this.getAttribute('channel-name') || 'SyncChannel';
-    const rawParams = this.getAttribute('channel-params') || '{}';
-    let channelParams;
-    try {
-      channelParams = typeof rawParams === 'string' ? JSON.parse(rawParams) : rawParams;
-    } catch {
-      console.error(
-        '<lexxy-collaboration>: invalid channel-params attribute (expected JSON); using {}.',
-        rawParams
-      );
-      channelParams = {};
-    }
-
-    // A provider created here is connected and disconnected with the
-    // element. A host-supplied provider keeps its own lifecycle:
-    // disconnecting it on teardown broke DOM moves, which reconnect and
-    // reuse it.
-    const ownsProvider = !this.provider;
-    const ownsDoc = !this.doc;
-    const doc = this.doc || new Doc();
-    const provider =
-      this.provider ||
-      new YrbyProvider(doc, this.consumer || resolveConsumer(), channelName, channelParams);
-    // YrbyProvider does not auto-connect.
-    if (ownsProvider) provider.connect();
 
     // Every presence operation goes through the provider, so cursor
-    // re-rendering must listen on the provider's own Awareness instance.
-    // A separate instance never sees awareness-only cursor moves.
+    // rendering listens on the provider's own Awareness instance. A
+    // separate instance never sees awareness-only cursor moves.
     const awareness = provider.awareness;
 
-    const docMap = new Map();
-    docMap.set(id, doc);
+    // What Lexxy loaded before the bind, usually an existing Action Text
+    // body. If the document is still empty after the first sync, this
+    // state seeds it (see bootstrapWhenSynced). After a desync the editor
+    // shows a state that doesn't match any document, so a recovery bind
+    // takes everything from the new session and seeds nothing.
+    const recovery = !!synced && this.#recovering;
+    this.#recovering = false;
+    const initialEditorState = recovery ? null : editor.getEditorState();
 
-    // Capture what Lexxy loaded before aligning the editor with the collab
-    // tree: the server-rendered field value (an existing Action Text body).
-    // If the document turns out to be brand-new at first sync, this state
-    // seeds it (see bootstrapWhenSynced), so pre-existing content becomes the
-    // collaborative document instead of being lost to an empty bootstrap.
-    const initialEditorState = this.editor.getEditorState();
+    // Start the editor empty so Lexical and the Yjs collab tree match at
+    // bind time. Otherwise Lexxy's default paragraph never enters the
+    // collab tree, and @lexical/yjs >= 0.44 stops syncing edits.
+    editor.update(() => $getRoot().clear(), { tag: HISTORY_MERGE_TAG, discrete: true });
 
-    // Start the editor empty so Lexical and the Yjs collab tree align at bind
-    // time. Lexxy otherwise seeds a paragraph that the binding never captures,
-    // and @lexical/yjs >= 0.44 then silently refuses to sync edits. New docs are
-    // seeded once the first sync confirms the doc is empty (see
-    // bootstrapWhenSynced); existing docs are loaded by the Yjs->Lexical observer.
-    this.editor.update(() => $getRoot().clear(), { tag: HISTORY_MERGE_TAG, discrete: true });
-
-    const excludedProperties = attachmentExclusions(this.editor);
-    const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
+    const binding = createBinding(editor, provider, id, doc, new Map([[id, doc]]), attachmentExclusions(editor));
+    boundDocs.set(doc, this);
     patchCollabElementSplice(binding);
     const stopTextReconciliation = registerTextReconciliation(binding);
-    const stopSelectionNormalization = registerSelectionNormalization(this.editor);
-    let restoreEditable = null;
-    const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => {
-      // The editor no longer matches the document, so typing into it would
-      // look saved without reaching anyone. Make it read-only until the
-      // element is removed.
-      const wasEditable = this.editor.isEditable();
-      this.editor.setEditable(false);
-      restoreEditable = () => { if (wasEditable) this.editor.setEditable(true); };
-      this.dispatchEvent(new CustomEvent('lexxy-realtime:desync', { bubbles: true, detail: { error } }));
-    });
-    const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
+    const stopSelectionNormalization = registerSelectionNormalization(editor);
 
-    // Remote cursors/selections are rendered by @lexical/yjs (syncCursorPositions)
-    // into a positioned overlay it manages via `binding.cursorsContainer`.
-    registerCursorTheme(this.editor);
-    const cursorsContainer = this.#createCursorsContainer();
+    // Yjs only reports changes, so content the doc already holds (a synced
+    // session, or a host provider after a DOM move) is rendered here.
+    editor.update(
+      () => {
+        binding.root.syncPropertiesFromYjs(binding, null);
+        binding.root.applyChildrenYjsDelta(binding, binding.root.getSharedType().toDelta());
+        binding.root.syncChildrenFromYjs(binding);
+      },
+      { tag: COLLABORATION_TAG, discrete: true }
+    );
+
+    let bound;
+    const sync = registerCollaborationListeners(editor, provider, binding, (error) => this.#desync(bound, error));
+    const cancelBootstrap = bootstrapWhenSynced(editor, provider, binding, initialEditorState);
+
+    // @lexical/yjs renders remote carets and selections (syncCursorPositions)
+    // into this overlay through `binding.cursorsContainer`.
+    registerCursorTheme(editor);
+    const cursorsContainer = createCursorsContainer(editorElement);
     binding.cursorsContainer = cursorsContainer;
 
-    // Seed local presence. Editor updates write the local selection to
-    // awareness as Yjs relative positions, which stay correct across
-    // concurrent edits. `focusing` stays true for the whole session:
-    // @lexical/yjs only renders a peer's caret while their focusing flag
-    // is true, and toggling it off on blur made peers vanish whenever
-    // their window lost focus. Departed peers are removed by the
-    // provider's presence removal and the awareness timeout.
+    // Editor updates write the local selection to awareness as Yjs relative
+    // positions, which stay correct across concurrent edits. `focusing`
+    // stays true for the whole binding because @lexical/yjs only renders a
+    // peer's caret while their focusing flag is true. Turning it off on
+    // blur hid peers whenever their window lost focus. Peers that leave are
+    // removed by the provider's presence removal and the awareness timeout.
     initLocalState(provider, name, color, true, { name, color });
     setLocalStateFocus(provider, name, color, true, { name, color });
 
     // Upload placeholders sync to peers, but only this client can finish
-    // its own. Discards (pagehide, Turbo) remove ours; a lone client
-    // sweeps orphans.
-    const cancelUploadCleanup = registerUploadCleanup(this.editorElement, this.editor, provider, awareness);
+    // its own. Discards (pagehide, Turbo) remove ours, and a client alone
+    // in the document removes orphans.
+    const cancelUploadCleanup = registerUploadCleanup(editorElement, editor, provider, awareness);
 
     // Re-render remote cursors when presence changes or the document reflows.
     const renderCursors = () => syncCursorPositions(binding, provider);
     awareness.on('update', renderCursors);
-    const unsubscribeCursorRender = this.editor.registerUpdateListener(renderCursors);
-    syncCursorPositions(binding, provider); // initial paint of anyone already present
+    const unsubscribeCursorRender = editor.registerUpdateListener(renderCursors);
+    renderCursors();
 
-    this.provider = provider;
-    this.doc = doc; // expose the doc (created or host-supplied) to the host
-    this.awareness = awareness; // expose the real (provider-owned) instance to the host
-    this.binding = binding;
-    this.#teardown = () => {
-      this.#teardown = null;
-      cancelUploadCleanup();
-      awareness.off('update', renderCursors);
-      unsubscribeCursorRender();
-      unsubscribeListeners();
-      restoreEditable?.();
-      stopSelectionNormalization();
-      stopTextReconciliation();
-      cancelBootstrap();
-      cursorsContainer.remove();
-      if (ownsProvider) {
-        provider.disconnect();
-        this.provider = null;
-      }
-      if (ownsDoc) this.doc = null;
+    // Undo history from before a desync would replay old states into the
+    // new document as local edits.
+    if (recovery) editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
+
+    const onAbort = () => {
+      if (this.#bound === bound) this.#unbind();
     };
+    synced?.signal.addEventListener('abort', onAbort, { once: true });
+
+    bound = {
+      editor,
+      doc,
+      provider,
+      binding,
+      synced,
+      stopSyncing: sync.stop,
+      readOnly: false,
+      teardown: () => {
+        synced?.signal.removeEventListener('abort', onAbort);
+        cancelUploadCleanup();
+        awareness.off('update', renderCursors);
+        unsubscribeCursorRender();
+        sync.stop();
+        stopSelectionNormalization();
+        stopTextReconciliation();
+        cancelBootstrap();
+        cursorsContainer.remove();
+        releaseBinding(binding);
+        boundDocs.delete(doc);
+        // The session keeps running for other views and pending edits, so
+        // take this editor's cursor out of presence. A host provider keeps
+        // whatever presence the host manages.
+        synced?.lease.setPresence(null);
+        if (bound.readOnly) editor.setEditable(true);
+      },
+    };
+    this.#bound = bound;
   }
 
-  // An absolutely-positioned overlay covering the editor; @lexical/yjs positions
-  // remote carets/selections within it (relative to its offsetParent).
-  #createCursorsContainer() {
-    const host = this.editorElement.querySelector('.lexxy-editor-container') || this.editorElement;
-    if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
-    const container = document.createElement('div');
-    container.className = 'lexxy-collab-cursors';
-    container.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
-    host.appendChild(container);
-    return container;
+  // A remote update failed to apply (see createRemoteApplier), so this
+  // editor no longer matches the document. The element stops syncing in
+  // both directions and makes the editor read-only, so local typing can't
+  // reach the document through the broken binding.
+  //
+  // With a host provider the element only reports it. The host owns the doc
+  // and provider, and recovers by recreating the element or reloading.
+  //
+  // In yrby mode the element rebuilds. Yjs never re-emits updates the doc
+  // already holds, so a rebuild needs a fresh Y.Doc, which means a fresh
+  // session. The element discards the broken session and asks the
+  // <yrby-document> to acquire a new one, which loads the server's state.
+  // Edits the server hadn't acknowledged are lost with the old session, and
+  // undo history is cleared.
+  #desync(bound, error) {
+    if (this.#bound !== bound) return;
+    bound.stopSyncing();
+    bound.readOnly = true;
+    bound.editor.setEditable(false);
+    const recovering = !!bound.synced;
+    this.dispatchEvent(new CustomEvent('lexxy-realtime:desync', { bubbles: true, detail: { error, recovering } }));
+    if (!recovering) return;
+
+    const rebuild = () => {
+      this.#recoveryTimer = null;
+      if (this.#bound !== bound || !this.isConnected) return;
+      this.#lastRecoveryAt = Date.now();
+      this.#recovering = true;
+      const yrbyDocument = this.#yrbyDocument;
+      // Discarding releases every lease, which unbinds this element.
+      bound.synced.session.discard();
+      // The <yrby-document> reacts to the release in a microtask and marks
+      // the document as stalled. activate() is queued after that, so the
+      // element acquires a new session.
+      queueMicrotask(() => {
+        if (this.isConnected && this.#yrbyDocument === yrbyDocument) yrbyDocument.activate();
+      });
+    };
+    const wait = this.#lastRecoveryAt + RECOVERY_INTERVAL_MS - Date.now();
+    if (wait > 0) {
+      this.#recoveryTimer = setTimeout(rebuild, wait);
+    } else {
+      // The fault is reported from inside Y.applyUpdate, which runs in the
+      // provider's message handler, so the session is closed after that
+      // handler returns.
+      queueMicrotask(rebuild);
+    }
   }
+}
+
+// An absolutely positioned overlay covering the editor. @lexical/yjs
+// positions remote carets and selections inside it, relative to its
+// offsetParent.
+function createCursorsContainer(editorElement) {
+  const host = editorElement.querySelector('.lexxy-editor-container') || editorElement;
+  if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
+  const container = document.createElement('div');
+  container.className = 'lexxy-collab-cursors';
+  container.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+  host.appendChild(container);
+  return container;
+}
+
+// Lexical's collab nodes cache themselves on the Yjs types as _collabNode.
+// A later binding to the same doc reuses any cache it finds and duplicates
+// child offsets, so this clears them.
+function releaseBinding(binding) {
+  const nodes = new Set([binding.root, ...binding.collabNodeMap.values()]);
+  for (const node of nodes) {
+    for (const child of node._children || []) nodes.add(child);
+    const type = node.getSharedType();
+    if (type._collabNode === node) delete type._collabNode;
+  }
+  binding.root.destroy(binding);
+  binding.cursors.clear();
+  binding.cursorsContainer = null;
+  binding.docMap.clear();
 }
 
 // True when an editor state holds no user content: no children, or a single
@@ -219,57 +397,59 @@ function emptyEditorState(state) {
   });
 }
 
-// Seed only after the first sync, so an existing document loads through
-// the Yjs->Lexical observer and is never overwritten. A still-empty
-// document receives the captured Action Text body, or a fresh paragraph.
-// Two clients opening a new document together can both seed; Lexical's
+// Seeds the document only after the first sync, so an existing document
+// loads from the server and is never overwritten. A document that is
+// still empty gets the captured Action Text body, or a fresh paragraph.
+// A provider that is already synced, like a yrby session, seeds right
+// away.
+//
+// Two clients opening a new document together can both seed. Lexical's
 // CollaborationPlugin has the same check-then-act race, and its docs
-// recommend seeding server-side, which needs HTML-to-Yjs conversion on
-// the server. Local input before the first sync (typed text, an upload
+// recommend seeding on the server, which needs HTML-to-Yjs conversion
+// there. Local input before the first sync (typed text, an upload
 // placeholder) also suppresses the captured seed.
 // Repro: test/headless/bootstrap_race_repro.mjs.
 //
-// The returned canceller stops the fallback poll and makes a late
+// The returned function stops the fallback poll and makes a late
 // whenSynced resolution a no-op.
 function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
   let done = false;
+  let timer;
   const seed = () => {
     if (done || !provider.synced) return;
     done = true;
     if (timer) clearInterval(timer);
-    if (binding.root.getSharedType().length === 0) {
-      if (initialEditorState && !emptyEditorState(initialEditorState)) {
-        // Restore the captured content. The binding diffs against the cleared
-        // (empty) state, so every restored node registers as new and flows
-        // into the collab tree -- seeding the document.
-        editor.setEditorState(initialEditorState, { tag: HISTORY_MERGE_TAG });
-        return;
-      }
-      // New (empty) document. Lexical won't keep the root empty, so the
-      // paragraph Lexxy seeded shares the same node key in prev/next and the
-      // binding never treats it as "new". Replace it with a fresh-keyed
-      // paragraph in one transaction so the binding creates it in the collab
-      // tree, aligning Lexical with Yjs. (Existing docs are loaded by the
-      // Yjs->Lexical observer, so this only runs for a brand-new document.)
-      editor.update(
-        () => {
-          const root = $getRoot();
-          root.clear();
-          root.append($createParagraphNode());
-        },
-        { tag: HISTORY_MERGE_TAG }
-      );
+    if (binding.root.getSharedType().length > 0) return;
+    if (initialEditorState && !emptyEditorState(initialEditorState)) {
+      // The binding diffs against the cleared state, so every restored
+      // node counts as new and goes into the collab tree.
+      editor.setEditorState(initialEditorState, { tag: HISTORY_MERGE_TAG });
+      return;
     }
+    // A new, empty document. Lexical won't keep the root empty, so the
+    // paragraph Lexxy added keeps the same node key before and after, and
+    // the binding never sees it as new. Replacing it with a fresh paragraph
+    // in one update makes the binding create it in the collab tree.
+    editor.update(
+      () => {
+        const root = $getRoot();
+        root.clear();
+        root.append($createParagraphNode());
+      },
+      { tag: HISTORY_MERGE_TAG }
+    );
   };
-  // Event-driven on providers that expose whenSynced (YrbyProvider); the
-  // poll is the fallback for foreign providers, which only promise a
-  // `synced` getter.
-  let timer;
-  if (provider.whenSynced?.then) {
-    provider.whenSynced.then(seed, () => {});
-  } else {
-    timer = setInterval(seed, 50);
-    if (typeof timer?.unref === 'function') timer.unref();
+
+  seed();
+  if (!done) {
+    // YrbyProvider exposes whenSynced. Other providers only promise a
+    // `synced` getter, so we poll those.
+    if (provider.whenSynced?.then) {
+      provider.whenSynced.then(seed, () => {});
+    } else {
+      timer = setInterval(seed, 50);
+      if (typeof timer?.unref === 'function') timer.unref();
+    }
   }
   return () => {
     done = true;
@@ -277,18 +457,21 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
   };
 }
 
-// Applies Yjs changes to Lexical and reports a failure, so the editor can't
-// fall out of sync without anyone knowing. This observer runs inside
-// Y.applyUpdate, and y-protocols wraps that call in a catch that only logs.
-// When Lexical's apply throws, the Y.Doc already has the update and the
-// error goes nowhere. The editor then shows less than the document for
-// good. A reconnect brings no new updates, so the observer never runs again
-// for the missing content. A throw also leaves the binding's cached offsets
-// wrong, and later applies can delete visible text.
+// Wraps the Yjs-to-Lexical apply so a throw can't leave the editor silently
+// out of sync. The observer runs inside Y.applyUpdate, and y-protocols
+// catches and logs anything it throws. By then the Y.Doc already holds the
+// update, so without this the editor would show less than the document
+// until a rebuild. A reconnect doesn't help, because the doc has nothing new
+// to report. The failed apply also leaves the binding's collab offset
+// caches wrong, which can delete visible text on later applies.
 //
-// After the first failure the applier stops applying and reports once.
-// Errors thrown while Lexical renders the update to the DOM happen later, in
-// a microtask, and aren't caught here. Tests can pass their own `sync`.
+// This catches errors thrown while Lexical runs the update function. Lexxy
+// creates its editor with Lexical's default onError, which rethrows them.
+// Errors in Lexical's commit phase happen later, in a microtask, and don't
+// reach this try/catch.
+//
+// onDesync is called once per binding, and the applier ignores events after
+// that. `sync` is injectable for tests.
 export function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
   let desynced = false;
   return (events, transaction) => {
@@ -309,23 +492,21 @@ export function createRemoteApplier(provider, binding, { onDesync, sync = syncYj
 }
 
 function registerCollaborationListeners(editor, provider, binding, onDesync) {
-  const unsubscribeUpdateListener = editor.registerUpdateListener(update => {
+  const unsubscribeUpdateListener = editor.registerUpdateListener((update) => {
     if (!update.tags.has('skip-collab')) syncEditorUpdate(binding, provider, update);
   });
 
-  // After a failed apply, the binding's caches no longer match the document,
-  // so stop sending local edits through it as well.
-  const observer = createRemoteApplier(provider, binding, {
-    onDesync: (error) => {
+  const observer = createRemoteApplier(provider, binding, { onDesync });
+  const root = binding.root.getSharedType();
+  root.observeDeep(observer);
+
+  let stopped = false;
+  return {
+    stop() {
+      if (stopped) return;
+      stopped = true;
       unsubscribeUpdateListener();
-      onDesync(error);
+      root.unobserveDeep(observer);
     },
-  });
-
-  binding.root.getSharedType().observeDeep(observer);
-
-  return () => {
-    unsubscribeUpdateListener();
-    binding.root.getSharedType().unobserveDeep(observer);
   };
 }

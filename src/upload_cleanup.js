@@ -18,21 +18,23 @@ export function registerUploadCleanup(editorElement, editor, provider, awareness
 
   // Plain DOM events; apps without Turbo never fire them. An editor
   // inside data-turbo-permanent survives the navigation, upload included,
-  // so it is left alone.
+  // so it is left alone. The listeners run in the capture phase so they
+  // remove the nodes before <yrby-document> handles turbo:before-cache and
+  // unbinds the editor.
   const removeUploadsBeforeTurboDiscard = (event) => {
     if (editorElement.closest('[data-turbo-permanent]')) return;
     if (event.type === 'turbo:before-frame-render' && !event.target.contains(editorElement)) return;
     removePendingUploadNodes(editor);
   };
-  document.addEventListener('turbo:before-cache', removeUploadsBeforeTurboDiscard);
-  document.addEventListener('turbo:before-frame-render', removeUploadsBeforeTurboDiscard);
+  document.addEventListener('turbo:before-cache', removeUploadsBeforeTurboDiscard, true);
+  document.addEventListener('turbo:before-frame-render', removeUploadsBeforeTurboDiscard, true);
 
   const cancelOrphanSweep = removeOrphanedUploadsWhenAlone(editor, provider, awareness);
 
   return () => {
     window.removeEventListener('pagehide', removeOwnPendingUploads);
-    document.removeEventListener('turbo:before-cache', removeUploadsBeforeTurboDiscard);
-    document.removeEventListener('turbo:before-frame-render', removeUploadsBeforeTurboDiscard);
+    document.removeEventListener('turbo:before-cache', removeUploadsBeforeTurboDiscard, true);
+    document.removeEventListener('turbo:before-frame-render', removeUploadsBeforeTurboDiscard, true);
     cancelOrphanSweep();
   };
 }

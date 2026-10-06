@@ -26,20 +26,22 @@
       addEventListener("unhandledrejection", (e) => window.__err.push("unhandledrejection: " + String((e.reason && e.reason.stack) || e.reason)));
     </script>
     <h1>lexxy-realtime over an import map</h1>
-    <!-- The markup shape the Rails helper renders: the element declared in
-         HTML with attributes, upgraded when the modules register it. -->
-    <lexxy-editor id="editor" name="editor">
-      <lexxy-collaboration channel-name="DocumentChannel"></lexxy-collaboration>
-    </lexxy-editor>
+    <!-- The markup the Rails helper renders: the elements declared in HTML
+         with attributes, upgraded when the modules register them. -->
+    <yrby-document name="body" channel="DocumentChannel">
+      <lexxy-editor id="editor" name="editor">
+        <lexxy-collaboration></lexxy-collaboration>
+      </lexxy-editor>
+    </yrby-document>
     <script>
-      // Test-harness dynamics (unique room per run, name per session), set
-      // before the deferred modules register and upgrade the element.
+      // A unique room per run and a name per session, set before the
+      // deferred modules register and upgrade the elements.
       const params = new URLSearchParams(location.search);
       const room = params.get("room") || "importmap-check";
       const collabEl = document.querySelector("lexxy-collaboration");
       collabEl.setAttribute("doc-id", room);
       collabEl.setAttribute("name", params.get("name") || "User");
-      collabEl.setAttribute("channel-params", JSON.stringify({ id: room }));
+      document.querySelector("yrby-document").setAttribute("grant", room);
     </script>
     <script type="module">
       import "@37signals/lexxy";

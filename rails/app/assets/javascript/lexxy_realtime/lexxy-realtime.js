@@ -1,6 +1,14 @@
 import { Lexical } from "@37signals/lexxy";
 //#region \0rolldown/runtime.js
 var __defProp = Object.defineProperty;
+var __esmMin = (fn, res, err) => () => {
+	if (err) throw err[0];
+	try {
+		return fn && (res = fn(fn = 0)), res;
+	} catch (e) {
+		throw err = [e], e;
+	}
+};
 var __exportAll = (all, no_symbols) => {
 	let target = {};
 	for (var name in all) __defProp(target, name, {
@@ -11,243 +19,7 @@ var __exportAll = (all, no_symbols) => {
 	return target;
 };
 //#endregion
-//#region scripts/importmap/lexical_shim.js
-const $addUpdateTag = Lexical.$addUpdateTag;
-Lexical.$applyNodeReplacement;
-const $caretFromPoint = Lexical.$caretFromPoint;
-const $caretRangeFromSelection = Lexical.$caretRangeFromSelection;
-const $cloneWithProperties$1 = Lexical.$cloneWithProperties;
-const $cloneWithPropertiesEphemeral = Lexical.$cloneWithPropertiesEphemeral;
-Lexical.$comparePointCaretNext;
-Lexical.$copyNode;
-Lexical.$create;
-const $createChildrenArray = Lexical.$createChildrenArray;
-Lexical.$createLineBreakNode;
-Lexical.$createNodeSelection;
-const $createParagraphNode = Lexical.$createParagraphNode;
-Lexical.$createPoint;
-const $createRangeSelection = Lexical.$createRangeSelection;
-Lexical.$createRangeSelectionFromDom;
-Lexical.$createTabNode;
-const $createTextNode = Lexical.$createTextNode;
-const $extendCaretToRange = Lexical.$extendCaretToRange;
-const $findMatchingParent = Lexical.$findMatchingParent;
-Lexical.$getAdjacentChildCaret;
-Lexical.$getAdjacentNode;
-Lexical.$getAdjacentSiblingOrParentSiblingCaret;
-Lexical.$getCaretInDirection;
-Lexical.$getCaretRange;
-Lexical.$getCaretRangeInDirection;
-const $getCharacterOffsets = Lexical.$getCharacterOffsets;
-Lexical.$getChildCaret;
-Lexical.$getChildCaretAtIndex;
-Lexical.$getChildCaretOrSelf;
-Lexical.$getCollapsedCaretRange;
-Lexical.$getCommonAncestor;
-Lexical.$getCommonAncestorResultBranchOrder;
-const $getEditor = Lexical.$getEditor;
-Lexical.$getEditorDOMRenderConfig;
-Lexical.$getNearestNodeFromDOMNode;
-Lexical.$getNearestRootOrShadowRoot;
-const $getNodeByKey = Lexical.$getNodeByKey;
-const $getNodeByKeyOrThrow = Lexical.$getNodeByKeyOrThrow;
-Lexical.$getNodeFromDOMNode;
-const $getPreviousSelection = Lexical.$getPreviousSelection;
-const $getRoot = Lexical.$getRoot;
-const $getSelection = Lexical.$getSelection;
-Lexical.$getSiblingCaret;
-const $getState = Lexical.$getState;
-Lexical.$getStateChange;
-Lexical.$getTextContent;
-Lexical.$getTextNodeOffset;
-Lexical.$getTextPointCaret;
-Lexical.$getTextPointCaretSlice;
-const $getWritableNodeState = Lexical.$getWritableNodeState;
-const $hasAncestor = Lexical.$hasAncestor;
-Lexical.$hasUpdateTag;
-Lexical.$insertNodes;
-Lexical.$isBlockElementNode;
-const $isChildCaret = Lexical.$isChildCaret;
-const $isDecoratorNode = Lexical.$isDecoratorNode;
-Lexical.$isEditorState;
-const $isElementNode = Lexical.$isElementNode;
-const $isExtendableTextPointCaret = Lexical.$isExtendableTextPointCaret;
-Lexical.$isInlineElementOrDecoratorNode;
-const $isLeafNode = Lexical.$isLeafNode;
-Lexical.$isLexicalNode;
-const $isLineBreakNode = Lexical.$isLineBreakNode;
-Lexical.$isNodeCaret;
-Lexical.$isNodeSelection;
-Lexical.$isParagraphNode;
-const $isRangeSelection = Lexical.$isRangeSelection;
-const $isRootNode = Lexical.$isRootNode;
-const $isRootOrShadowRoot = Lexical.$isRootOrShadowRoot;
-Lexical.$isSiblingCaret;
-Lexical.$isTabNode;
-const $isTextNode = Lexical.$isTextNode;
-Lexical.$isTextPointCaret;
-Lexical.$isTextPointCaretSlice;
-const $isTokenOrSegmented = Lexical.$isTokenOrSegmented;
-Lexical.$isTokenOrTab;
-const $nodesOfType = Lexical.$nodesOfType;
-Lexical.$normalizeCaret;
-const $normalizeSelection__EXPERIMENTAL = Lexical.$normalizeSelection__EXPERIMENTAL;
-Lexical.$onUpdate;
-Lexical.$parseSerializedNode;
-Lexical.$removeTextFromCaretRange;
-Lexical.$rewindSiblingCaret;
-const $selectAll$1 = Lexical.$selectAll;
-Lexical.$setCompositionKey;
-Lexical.$setPointFromCaret;
-const $setSelection = Lexical.$setSelection;
-Lexical.$setSelectionFromCaretRange;
-Lexical.$setState;
-Lexical.$splitAtPointCaretNext;
-Lexical.$splitNode;
-Lexical.$updateRangeSelectionFromCaretRange;
-Lexical.ArtificialNode__DO_NOT_USE;
-Lexical.BEFORE_INPUT_COMMAND;
-Lexical.BLUR_COMMAND;
-Lexical.CAN_REDO_COMMAND;
-Lexical.CAN_UNDO_COMMAND;
-Lexical.CLEAR_EDITOR_COMMAND;
-Lexical.CLEAR_HISTORY_COMMAND;
-Lexical.CLICK_COMMAND;
-const COLLABORATION_TAG = Lexical.COLLABORATION_TAG;
-Lexical.COMMAND_PRIORITY_BEFORE_CRITICAL;
-Lexical.COMMAND_PRIORITY_BEFORE_EDITOR;
-Lexical.COMMAND_PRIORITY_BEFORE_HIGH;
-Lexical.COMMAND_PRIORITY_BEFORE_LOW;
-Lexical.COMMAND_PRIORITY_BEFORE_NORMAL;
-Lexical.COMMAND_PRIORITY_CRITICAL;
-Lexical.COMMAND_PRIORITY_EDITOR;
-const COMMAND_PRIORITY_HIGH = Lexical.COMMAND_PRIORITY_HIGH;
-Lexical.COMMAND_PRIORITY_LOW;
-Lexical.COMMAND_PRIORITY_NORMAL;
-Lexical.COMPOSITION_END_COMMAND;
-Lexical.COMPOSITION_END_TAG;
-Lexical.COMPOSITION_START_COMMAND;
-Lexical.COMPOSITION_START_TAG;
-const CONTROLLED_TEXT_INSERTION_COMMAND = Lexical.CONTROLLED_TEXT_INSERTION_COMMAND;
-Lexical.COPY_COMMAND;
-Lexical.CUT_COMMAND;
-Lexical.DEFAULT_EDITOR_DOM_CONFIG;
-Lexical.DELETE_CHARACTER_COMMAND;
-Lexical.DELETE_LINE_COMMAND;
-Lexical.DELETE_WORD_COMMAND;
-Lexical.DRAGEND_COMMAND;
-Lexical.DRAGOVER_COMMAND;
-Lexical.DRAGSTART_COMMAND;
-Lexical.DROP_COMMAND;
-Lexical.DecoratorNode;
-const ElementNode = Lexical.ElementNode;
-Lexical.FOCUS_COMMAND;
-Lexical.FORMAT_ELEMENT_COMMAND;
-Lexical.FORMAT_TEXT_COMMAND;
-const HISTORIC_TAG = Lexical.HISTORIC_TAG;
-const HISTORY_MERGE_TAG = Lexical.HISTORY_MERGE_TAG;
-Lexical.HISTORY_PUSH_TAG;
-Lexical.INDENT_CONTENT_COMMAND;
-Lexical.INPUT_COMMAND;
-Lexical.INSERT_LINE_BREAK_COMMAND;
-Lexical.INSERT_PARAGRAPH_COMMAND;
-Lexical.INSERT_TAB_COMMAND;
-const INTERNAL_$isBlock = Lexical.INTERNAL_$isBlock;
-Lexical.IS_ALL_FORMATTING;
-Lexical.IS_BOLD;
-Lexical.IS_CODE;
-Lexical.IS_HIGHLIGHT;
-Lexical.IS_ITALIC;
-Lexical.IS_STRIKETHROUGH;
-Lexical.IS_SUBSCRIPT;
-Lexical.IS_SUPERSCRIPT;
-Lexical.IS_UNDERLINE;
-Lexical.KEY_ARROW_DOWN_COMMAND;
-Lexical.KEY_ARROW_LEFT_COMMAND;
-Lexical.KEY_ARROW_RIGHT_COMMAND;
-Lexical.KEY_ARROW_UP_COMMAND;
-Lexical.KEY_BACKSPACE_COMMAND;
-Lexical.KEY_DELETE_COMMAND;
-Lexical.KEY_DOWN_COMMAND;
-Lexical.KEY_ENTER_COMMAND;
-Lexical.KEY_ESCAPE_COMMAND;
-Lexical.KEY_MODIFIER_COMMAND;
-Lexical.KEY_SPACE_COMMAND;
-Lexical.KEY_TAB_COMMAND;
-Lexical.LineBreakNode;
-Lexical.MOVE_TO_END;
-Lexical.MOVE_TO_START;
-Lexical.NODE_STATE_KEY;
-Lexical.OUTDENT_CONTENT_COMMAND;
-Lexical.PASTE_COMMAND;
-Lexical.PASTE_TAG;
-Lexical.ParagraphNode;
-Lexical.REDO_COMMAND;
-Lexical.REMOVE_TEXT_COMMAND;
-const RootNode = Lexical.RootNode;
-Lexical.SELECTION_CHANGE_COMMAND;
-Lexical.SELECTION_INSERT_CLIPBOARD_NODES_COMMAND;
-Lexical.SELECT_ALL_COMMAND;
-Lexical.SKIP_COLLAB_TAG;
-Lexical.SKIP_DOM_SELECTION_TAG;
-const SKIP_SCROLL_INTO_VIEW_TAG = Lexical.SKIP_SCROLL_INTO_VIEW_TAG;
-Lexical.SKIP_SELECTION_FOCUS_TAG;
-Lexical.TEXT_TYPE_TO_FORMAT;
-Lexical.TabNode;
-const TextNode = Lexical.TextNode;
-Lexical.UNDO_COMMAND;
-Lexical.addClassNamesToElement;
-Lexical.buildImportMap;
-Lexical.configExtension;
-const createCommand = Lexical.createCommand;
-const createEditor = Lexical.createEditor;
-Lexical.createSharedNodeState;
-const createState = Lexical.createState;
-Lexical.declarePeerDependency;
-Lexical.defineExtension;
-Lexical.flipDirection;
-Lexical.getDOMOwnerDocument;
-Lexical.getDOMSelection;
-Lexical.getDOMSelectionFromTarget;
-Lexical.getDOMTextNode;
-Lexical.getEditorPropertyFromDOMNode;
-Lexical.getNearestEditorFromDOMNode;
-Lexical.getRegisteredNode;
-Lexical.getRegisteredNodeOrThrow;
-Lexical.getStaticNodeConfig;
-const getStyleObjectFromCSS$2 = Lexical.getStyleObjectFromCSS;
-Lexical.getTextDirection;
-Lexical.getTransformSetFromKlass;
-Lexical.isBlockDomNode;
-Lexical.isCurrentlyReadOnlyMode;
-Lexical.isDOMDocumentNode;
-Lexical.isDOMNode;
-Lexical.isDOMTextNode;
-Lexical.isDOMUnmanaged;
-Lexical.isDocumentFragment;
-Lexical.isExactShortcutMatch;
-Lexical.isHTMLAnchorElement;
-Lexical.isHTMLElement;
-Lexical.isInlineDomNode;
-Lexical.isLexicalEditor;
-Lexical.isModifierMatch;
-Lexical.isSelectionCapturedInDecoratorInput;
-Lexical.isSelectionWithinEditor;
-Lexical.makeStepwiseIterator;
-Lexical.mergeRegister;
-Lexical.normalizeClassNames;
-Lexical.removeClassNamesFromElement;
-const removeFromParent = Lexical.removeFromParent;
-Lexical.resetRandomKey;
-Lexical.safeCast;
-Lexical.setDOMStyleFromCSS;
-const setDOMStyleObject = Lexical.setDOMStyleObject;
-Lexical.setDOMUnmanaged;
-Lexical.setNodeIndentFromDOM;
-Lexical.shallowMergeConfig;
-Lexical.toggleTextFormatType;
-//#endregion
-//#region node_modules/lib0/map.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/map.js
 /**
 * Utility module to work with key-value stores.
 *
@@ -336,7 +108,7 @@ const any = (m, f) => {
 	return false;
 };
 //#endregion
-//#region node_modules/lib0/set.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/set.js
 /**
 * Utility module to work with sets.
 *
@@ -344,7 +116,7 @@ const any = (m, f) => {
 */
 const create$4 = () => /* @__PURE__ */ new Set();
 //#endregion
-//#region node_modules/lib0/array.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/array.js
 /**
 * Return the last element of an array. The element must exist
 *
@@ -413,7 +185,7 @@ const unfold = (len, f) => {
 };
 const isArray = Array.isArray;
 //#endregion
-//#region node_modules/lib0/observable.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/observable.js
 /**
 * Observable class prototype.
 *
@@ -554,7 +326,7 @@ var Observable = class {
 };
 /* c8 ignore end */
 //#endregion
-//#region node_modules/lib0/math.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/math.js
 /**
 * Common Math expressions.
 *
@@ -585,7 +357,7 @@ Number.isNaN;
 */
 const isNegativeZero = (n) => n !== 0 ? n < 0 : 1 / n < 0;
 //#endregion
-//#region node_modules/lib0/number.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/number.js
 /**
 * Utility helpers for working with numbers.
 *
@@ -598,7 +370,7 @@ const isInteger = Number.isInteger || ((num) => typeof num === "number" && isFin
 Number.isNaN;
 Number.parseInt;
 //#endregion
-//#region node_modules/lib0/string.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/string.js
 /**
 * Utility module to work with strings.
 *
@@ -664,7 +436,7 @@ utf8TextDecoder = null;
 */
 const repeat = (source, n) => unfold(n, () => source).join("");
 //#endregion
-//#region node_modules/lib0/encoding.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/encoding.js
 /**
 * Efficient schema-less binary encoding with support for variable length encoding.
 *
@@ -1218,7 +990,7 @@ var StringEncoder = class {
 	}
 };
 //#endregion
-//#region node_modules/lib0/error.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/error.js
 /**
 * Error helpers.
 *
@@ -1247,7 +1019,7 @@ const unexpectedCase = () => {
 	throw create$3("Unexpected case");
 };
 //#endregion
-//#region node_modules/lib0/decoding.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/decoding.js
 /**
 * Efficient schema-less binary decoding with support for variable length encoding.
 *
@@ -1621,7 +1393,7 @@ var StringDecoder = class {
 crypto.subtle;
 const getRandomValues = crypto.getRandomValues.bind(crypto);
 //#endregion
-//#region node_modules/lib0/random.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/random.js
 const uint32 = () => getRandomValues(/* @__PURE__ */ new Uint32Array(1))[0];
 const uuidv4Template = "10000000-1000-4000-8000-100000000000";
 /**
@@ -1633,7 +1405,7 @@ const uuidv4 = () => uuidv4Template.replace(
 	(c) => (c ^ uint32() & 15 >> c / 4).toString(16)
 );
 //#endregion
-//#region node_modules/lib0/time.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/time.js
 /**
 * Return current unix time.
 *
@@ -1641,7 +1413,7 @@ const uuidv4 = () => uuidv4Template.replace(
 */
 const getUnixTime = Date.now;
 //#endregion
-//#region node_modules/lib0/promise.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/promise.js
 /**
 * @template T
 * @callback PromiseResolve
@@ -1655,7 +1427,7 @@ const getUnixTime = Date.now;
 const create$2 = (f) => new Promise(f);
 Promise.all.bind(Promise);
 //#endregion
-//#region node_modules/lib0/conditions.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/conditions.js
 /**
 * Often used conditions.
 *
@@ -1669,7 +1441,7 @@ Promise.all.bind(Promise);
 /* c8 ignore next */
 const undefinedToNull = (v) => v === void 0 ? null : v;
 //#endregion
-//#region node_modules/lib0/storage.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/storage.js
 /**
 * Isomorphic variable storage.
 *
@@ -1712,7 +1484,7 @@ try {
 /* c8 ignore next */
 const varStorage = _localStorage;
 //#endregion
-//#region node_modules/lib0/trait/equality.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/trait/equality.js
 const EqualityTraitSymbol = Symbol("Equality");
 /**
 * @typedef {{ [EqualityTraitSymbol]:(other:EqualityTrait)=>boolean }} EqualityTrait
@@ -1738,7 +1510,7 @@ const EqualityTraitSymbol = Symbol("Equality");
 */
 const equals = (a, b) => a === b || !!a?.[EqualityTraitSymbol]?.(b) || false;
 //#endregion
-//#region node_modules/lib0/object.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/object.js
 /**
 * @param {any} o
 * @return {o is { [k:string]:any }}
@@ -1817,7 +1589,7 @@ const deepFreeze = (o) => {
 	return freeze(o);
 };
 //#endregion
-//#region node_modules/lib0/function.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/function.js
 /**
 * Calls all functions in `fs` with args. Only throws after all functions were called.
 *
@@ -1886,7 +1658,7 @@ const equalityDeep = (a, b) => {
 */
 const isOneOf = (value, options) => options.includes(value);
 //#endregion
-//#region node_modules/lib0/environment.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/environment.js
 /**
 * Isomorphic module to work access the environment (query params, env variables).
 *
@@ -1965,7 +1737,7 @@ const supportsColor = isNode && isOneOf(process.env.FORCE_COLOR, [
 ]) || !hasParam("--no-colors") && !hasConf("no-color") && (!isNode || process.stdout.isTTY) && (!isNode || hasParam("--color") || getVariable("COLORTERM") !== null || (getVariable("TERM") || "").includes("color"));
 /* c8 ignore stop */
 //#endregion
-//#region node_modules/lib0/buffer.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/buffer.js
 /**
 * Utility functions to work with buffers (Uint8Array).
 *
@@ -1987,7 +1759,7 @@ const copyUint8Array = (uint8Array) => {
 	return newBuf;
 };
 //#endregion
-//#region node_modules/lib0/pair.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/pair.js
 /**
 * Working with value pairs.
 *
@@ -2014,7 +1786,7 @@ var Pair = class {
 */
 const create$1 = (left, right) => new Pair(left, right);
 //#endregion
-//#region node_modules/lib0/prng.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/prng.js
 /**
 * Generates a single random bool.
 *
@@ -2079,7 +1851,7 @@ const word = (gen, minLen = 0, maxLen = 20) => {
 const oneOf = (gen, array) => array[int31(gen, 0, array.length - 1)];
 /* c8 ignore stop */
 //#endregion
-//#region node_modules/lib0/schema.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/schema.js
 /**
 * @experimental WIP
 *
@@ -3024,7 +2796,7 @@ const _random = match($any).if($$number, (_o, gen) => int53(gen, MIN_SAFE_INTEGE
 */
 const random = (gen, schema) => _random($(schema), gen);
 //#endregion
-//#region node_modules/lib0/dom.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/dom.js
 /* c8 ignore start */
 /**
 * @type {Document}
@@ -3049,7 +2821,7 @@ const DOCUMENT_FRAGMENT_NODE = doc.DOCUMENT_FRAGMENT_NODE;
 $custom((el) => el.nodeType === DOCUMENT_NODE);
 /* c8 ignore stop */
 //#endregion
-//#region node_modules/lib0/symbol.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/symbol.js
 /**
 * Utility module to work with EcmaScript Symbols.
 *
@@ -3060,7 +2832,7 @@ $custom((el) => el.nodeType === DOCUMENT_NODE);
 */
 const create = Symbol;
 //#endregion
-//#region node_modules/lib0/logging.common.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/logging.common.js
 const BOLD = create();
 const UNBOLD = create();
 const BLUE = create();
@@ -3096,7 +2868,7 @@ const computeNoColorLoggingArgs = (args) => {
 getUnixTime();
 /* c8 ignore stop */
 //#endregion
-//#region node_modules/lib0/logging.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/logging.js
 /**
 * Isomorphic logging module with support for colors!
 *
@@ -3179,7 +2951,7 @@ const warn = (...args) => {
 };
 const vconsoles = create$4();
 //#endregion
-//#region node_modules/lib0/iterator.js
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/iterator.js
 /**
 * @template T
 * @param {function():IteratorResult<T>} next
@@ -3219,7 +2991,7 @@ const iteratorMap = (iterator, fmap) => createIterator(() => {
 	};
 });
 //#endregion
-//#region node_modules/yjs/dist/yjs.mjs
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yjs/dist/yjs.mjs
 var DeleteItem = class {
 	/**
 	* @param {number} clock
@@ -11228,8 +11000,2196 @@ if (glo[importIdentifier] === true)
 */
 console.error("Yjs was already imported. This breaks constructor checks and will lead to issues! - https://github.com/yjs/yjs/issues/438");
 glo[importIdentifier] = true;
+/**
+* Create a sync step 1 message based on the state of the current shared document.
+*
+* @param {encoding.Encoder} encoder
+* @param {Y.Doc} doc
+*/
+const writeSyncStep1 = (encoder, doc) => {
+	writeVarUint(encoder, 0);
+	const sv = encodeStateVector(doc);
+	writeVarUint8Array(encoder, sv);
+};
+/**
+* @param {encoding.Encoder} encoder
+* @param {Y.Doc} doc
+* @param {Uint8Array} [encodedStateVector]
+*/
+const writeSyncStep2 = (encoder, doc, encodedStateVector) => {
+	writeVarUint(encoder, 1);
+	writeVarUint8Array(encoder, encodeStateAsUpdate(doc, encodedStateVector));
+};
+/**
+* Read SyncStep1 message and reply with SyncStep2.
+*
+* @param {decoding.Decoder} decoder The reply to the received message
+* @param {encoding.Encoder} encoder The received message
+* @param {Y.Doc} doc
+*/
+const readSyncStep1 = (decoder, encoder, doc) => writeSyncStep2(encoder, doc, readVarUint8Array(decoder));
+/**
+* Read and apply Structs and then DeleteStore to a y instance.
+*
+* @param {decoding.Decoder} decoder
+* @param {Y.Doc} doc
+* @param {any} transactionOrigin
+* @param {(error:Error)=>any} [errorHandler]
+*/
+const readSyncStep2 = (decoder, doc, transactionOrigin, errorHandler) => {
+	try {
+		applyUpdate(doc, readVarUint8Array(decoder), transactionOrigin);
+	} catch (error) {
+		if (errorHandler != null) errorHandler(error);
+		console.error("Caught error while handling a Yjs update", error);
+	}
+};
+/**
+* @param {encoding.Encoder} encoder
+* @param {Uint8Array} update
+*/
+const writeUpdate = (encoder, update) => {
+	writeVarUint(encoder, 2);
+	writeVarUint8Array(encoder, update);
+};
+/**
+* Read and apply Structs and then DeleteStore to a y instance.
+*
+* @param {decoding.Decoder} decoder
+* @param {Y.Doc} doc
+* @param {any} transactionOrigin
+* @param {(error:Error)=>any} [errorHandler]
+*/
+const readUpdate = readSyncStep2;
+/**
+* @param {decoding.Decoder} decoder A message received from another client
+* @param {encoding.Encoder} encoder The reply message. Does not need to be sent if empty.
+* @param {Y.Doc} doc
+* @param {any} transactionOrigin
+* @param {(error:Error)=>any} [errorHandler] Optional error handler that catches errors when reading Yjs messages.
+*/
+const readSyncMessage = (decoder, encoder, doc, transactionOrigin, errorHandler) => {
+	const messageType = readVarUint(decoder);
+	switch (messageType) {
+		case 0:
+			readSyncStep1(decoder, encoder, doc);
+			break;
+		case 1:
+			readSyncStep2(decoder, doc, transactionOrigin, errorHandler);
+			break;
+		case 2:
+			readUpdate(decoder, doc, transactionOrigin, errorHandler);
+			break;
+		default: throw new Error("Unknown message type");
+	}
+	return messageType;
+};
 //#endregion
-//#region node_modules/@lexical/selection/LexicalSelection.dev.mjs
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/y-protocols/awareness.js
+/**
+* @module awareness-protocol
+*/
+const outdatedTimeout = 3e4;
+/**
+* @typedef {Object} MetaClientState
+* @property {number} MetaClientState.clock
+* @property {number} MetaClientState.lastUpdated unix timestamp
+*/
+/**
+* The Awareness class implements a simple shared state protocol that can be used for non-persistent data like awareness information
+* (cursor, username, status, ..). Each client can update its own local state and listen to state changes of
+* remote clients. Every client may set a state of a remote peer to `null` to mark the client as offline.
+*
+* Each client is identified by a unique client id (something we borrow from `doc.clientID`). A client can override
+* its own state by propagating a message with an increasing timestamp (`clock`). If such a message is received, it is
+* applied if the known state of that client is older than the new state (`clock < newClock`). If a client thinks that
+* a remote client is offline, it may propagate a message with
+* `{ clock: currentClientClock, state: null, client: remoteClient }`. If such a
+* message is received, and the known clock of that client equals the received clock, it will override the state with `null`.
+*
+* Before a client disconnects, it should propagate a `null` state with an updated clock.
+*
+* Awareness states must be updated every 30 seconds. Otherwise the Awareness instance will delete the client state.
+*
+* @extends {Observable<string>}
+*/
+var Awareness = class extends Observable {
+	/**
+	* @param {Y.Doc} doc
+	*/
+	constructor(doc) {
+		super();
+		this.doc = doc;
+		/**
+		* @type {number}
+		*/
+		this.clientID = doc.clientID;
+		/**
+		* Maps from client id to client state
+		* @type {Map<number, Object<string, any>>}
+		*/
+		this.states = /* @__PURE__ */ new Map();
+		/**
+		* @type {Map<number, MetaClientState>}
+		*/
+		this.meta = /* @__PURE__ */ new Map();
+		this._checkInterval = setInterval(() => {
+			const now = getUnixTime();
+			if (this.getLocalState() !== null && 3e4 / 2 <= now - this.meta.get(this.clientID).lastUpdated) this.setLocalState(this.getLocalState());
+			/**
+			* @type {Array<number>}
+			*/
+			const remove = [];
+			this.meta.forEach((meta, clientid) => {
+				if (clientid !== this.clientID && 3e4 <= now - meta.lastUpdated && this.states.has(clientid)) remove.push(clientid);
+			});
+			if (remove.length > 0) removeAwarenessStates(this, remove, "timeout");
+		}, floor(outdatedTimeout / 10));
+		doc.on("destroy", () => {
+			this.destroy();
+		});
+		this.setLocalState({});
+	}
+	destroy() {
+		this.emit("destroy", [this]);
+		this.setLocalState(null);
+		super.destroy();
+		clearInterval(this._checkInterval);
+	}
+	/**
+	* @return {Object<string,any>|null}
+	*/
+	getLocalState() {
+		return this.states.get(this.clientID) || null;
+	}
+	/**
+	* @param {Object<string,any>|null} state
+	*/
+	setLocalState(state) {
+		const clientID = this.clientID;
+		const currLocalMeta = this.meta.get(clientID);
+		const clock = currLocalMeta === void 0 ? 0 : currLocalMeta.clock + 1;
+		const prevState = this.states.get(clientID);
+		if (state === null) this.states.delete(clientID);
+		else this.states.set(clientID, state);
+		this.meta.set(clientID, {
+			clock,
+			lastUpdated: getUnixTime()
+		});
+		const added = [];
+		const updated = [];
+		const filteredUpdated = [];
+		const removed = [];
+		if (state === null) removed.push(clientID);
+		else if (prevState == null) {
+			if (state != null) added.push(clientID);
+		} else {
+			updated.push(clientID);
+			if (!equalityDeep(prevState, state)) filteredUpdated.push(clientID);
+		}
+		if (added.length > 0 || filteredUpdated.length > 0 || removed.length > 0) this.emit("change", [{
+			added,
+			updated: filteredUpdated,
+			removed
+		}, "local"]);
+		this.emit("update", [{
+			added,
+			updated,
+			removed
+		}, "local"]);
+	}
+	/**
+	* @param {string} field
+	* @param {any} value
+	*/
+	setLocalStateField(field, value) {
+		const state = this.getLocalState();
+		if (state !== null) this.setLocalState({
+			...state,
+			[field]: value
+		});
+	}
+	/**
+	* @return {Map<number,Object<string,any>>}
+	*/
+	getStates() {
+		return this.states;
+	}
+};
+/**
+* Mark (remote) clients as inactive and remove them from the list of active peers.
+* This change will be propagated to remote clients.
+*
+* @param {Awareness} awareness
+* @param {Array<number>} clients
+* @param {any} origin
+*/
+const removeAwarenessStates = (awareness, clients, origin) => {
+	const removed = [];
+	for (let i = 0; i < clients.length; i++) {
+		const clientID = clients[i];
+		if (awareness.states.has(clientID)) {
+			awareness.states.delete(clientID);
+			if (clientID === awareness.clientID) {
+				const curMeta = awareness.meta.get(clientID);
+				awareness.meta.set(clientID, {
+					clock: curMeta.clock + 1,
+					lastUpdated: getUnixTime()
+				});
+			}
+			removed.push(clientID);
+		}
+	}
+	if (removed.length > 0) {
+		awareness.emit("change", [{
+			added: [],
+			updated: [],
+			removed
+		}, origin]);
+		awareness.emit("update", [{
+			added: [],
+			updated: [],
+			removed
+		}, origin]);
+	}
+};
+/**
+* @param {Awareness} awareness
+* @param {Array<number>} clients
+* @return {Uint8Array}
+*/
+const encodeAwarenessUpdate = (awareness, clients, states = awareness.states) => {
+	const len = clients.length;
+	const encoder = createEncoder();
+	writeVarUint(encoder, len);
+	for (let i = 0; i < len; i++) {
+		const clientID = clients[i];
+		const state = states.get(clientID) || null;
+		const clock = awareness.meta.get(clientID).clock;
+		writeVarUint(encoder, clientID);
+		writeVarUint(encoder, clock);
+		writeVarString(encoder, JSON.stringify(state));
+	}
+	return toUint8Array(encoder);
+};
+/**
+* @param {Awareness} awareness
+* @param {Uint8Array} update
+* @param {any} origin This will be added to the emitted change event
+*/
+const applyAwarenessUpdate = (awareness, update, origin) => {
+	const decoder = createDecoder(update);
+	const timestamp = getUnixTime();
+	const added = [];
+	const updated = [];
+	const filteredUpdated = [];
+	const removed = [];
+	const len = readVarUint(decoder);
+	for (let i = 0; i < len; i++) {
+		const clientID = readVarUint(decoder);
+		let clock = readVarUint(decoder);
+		const state = JSON.parse(readVarString(decoder));
+		const clientMeta = awareness.meta.get(clientID);
+		const prevState = awareness.states.get(clientID);
+		const currClock = clientMeta === void 0 ? 0 : clientMeta.clock;
+		if (currClock < clock || currClock === clock && state === null && awareness.states.has(clientID)) {
+			if (state === null) if (clientID === awareness.clientID && awareness.getLocalState() != null) clock++;
+			else awareness.states.delete(clientID);
+			else awareness.states.set(clientID, state);
+			awareness.meta.set(clientID, {
+				clock,
+				lastUpdated: timestamp
+			});
+			if (clientMeta === void 0 && state !== null) added.push(clientID);
+			else if (clientMeta !== void 0 && state === null) removed.push(clientID);
+			else if (state !== null) {
+				if (!equalityDeep(state, prevState)) filteredUpdated.push(clientID);
+				updated.push(clientID);
+			}
+		}
+	}
+	if (added.length > 0 || filteredUpdated.length > 0 || removed.length > 0) awareness.emit("change", [{
+		added,
+		updated: filteredUpdated,
+		removed
+	}, origin]);
+	if (added.length > 0 || updated.length > 0 || removed.length > 0) awareness.emit("update", [{
+		added,
+		updated,
+		removed
+	}, origin]);
+};
+//#endregion
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/reliable_sync.js
+const DEFAULT_RESEND_INTERVAL = 1e3;
+var ReliableSync = class {
+	#pending = [];
+	#send;
+	#merge;
+	#resendInterval;
+	#setInterval;
+	#clearInterval;
+	#nextSeq = 1;
+	#phase = "paused";
+	#timer;
+	#version = 0;
+	#tail;
+	constructor(opts) {
+		const { send, merge, resendInterval, setInterval: setTimer, clearInterval: clearTimer } = opts ?? {};
+		if (typeof send !== "function") throw new TypeError("ReliableSync requires a send(update, id) function");
+		if (typeof merge !== "function") throw new TypeError("ReliableSync requires a merge(updates) function");
+		const interval = resendInterval ?? DEFAULT_RESEND_INTERVAL;
+		if (!Number.isFinite(interval) || interval <= 0) throw new TypeError("ReliableSync resendInterval must be a positive number");
+		this.#send = send;
+		this.#merge = merge;
+		this.#resendInterval = interval;
+		this.#setInterval = setTimer ?? ((fn, ms) => setInterval(fn, ms));
+		this.#clearInterval = clearTimer ?? ((h) => clearInterval(h));
+	}
+	/** A snapshot of unacknowledged local updates, oldest first. Editing it does not change the queue. */
+	get pending() {
+		return this.#pending.map(({ seq, update }) => ({
+			seq,
+			update: update.slice()
+		}));
+	}
+	/** True while there are unacknowledged local updates. */
+	get hasPending() {
+		return this.#pending.length > 0;
+	}
+	/** Queue a local update and, while connected, send the tail. Ignored after destroy(). */
+	enqueue(update) {
+		if (this.#phase === "destroyed") return;
+		this.#pending.push({
+			seq: this.#nextSeq++,
+			update: new Uint8Array(update)
+		});
+		this.#queueChanged();
+		this.#flush();
+	}
+	/**
+	* Confirm delivery through `id`, removing every queued update with
+	* seq <= id. Acks come off the wire, so ignore a malformed value or an id
+	* beyond anything sent.
+	*/
+	acknowledge(id) {
+		if (this.#phase === "destroyed" || !Number.isSafeInteger(id) || id < 0) return;
+		const newest = this.#pending.at(-1);
+		if (newest && id > newest.seq) return;
+		this.#pending = this.#pending.filter((p) => p.seq > id);
+		this.#queueChanged();
+	}
+	/** Call when the transport is up. Replays the tail and keeps retransmitting until it is acknowledged. */
+	resume() {
+		if (this.#phase === "destroyed") return;
+		this.#phase = "live";
+		this.#version++;
+		this.#updateTimer();
+		this.#flush();
+	}
+	/** Call when the transport is down. Keeps the queue and stops retransmitting. */
+	pause() {
+		if (this.#phase === "destroyed") return;
+		this.#phase = "paused";
+		this.#version++;
+		this.#updateTimer();
+	}
+	/** Send the tail again if anything is unacknowledged. The internal timer calls this, and a host with its own scheduler can too. */
+	retransmit() {
+		this.#flush();
+	}
+	/** Stop the timer and drop the queue. Later enqueues are ignored. */
+	destroy() {
+		if (this.#phase === "destroyed") return;
+		this.#phase = "destroyed";
+		this.#pending = [];
+		this.#queueChanged();
+	}
+	#queueChanged() {
+		this.#version++;
+		this.#tail = void 0;
+		this.#updateTimer();
+	}
+	#updateTimer() {
+		const wanted = this.#phase === "live" && this.hasPending;
+		if (wanted === (this.#timer !== void 0)) return;
+		if (!wanted) {
+			const timer = this.#timer;
+			this.#timer = void 0;
+			timer.stop();
+			return;
+		}
+		const timer = this.#timer = { stop: () => {} };
+		let handle;
+		try {
+			handle = this.#setInterval(() => {
+				if (this.#timer === timer) this.#flush();
+			}, this.#resendInterval);
+		} catch (error) {
+			if (this.#timer === timer) this.#timer = void 0;
+			throw error;
+		}
+		timer.stop = () => this.#clearInterval(handle);
+		if (this.#timer !== timer) {
+			timer.stop();
+			return;
+		}
+		handle?.unref?.();
+	}
+	#flush() {
+		if (this.#phase !== "live" || !this.#pending.length) return;
+		if (this.#tail === void 0) {
+			const version = this.#version;
+			const updates = this.#pending.map((p) => p.update);
+			const tail = updates.length === 1 ? updates[0] : this.#merge(updates);
+			if (this.#version !== version) return;
+			this.#tail = tail;
+		}
+		this.#send(this.#tail, this.#pending.at(-1).seq);
+	}
+};
+//#endregion
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/y_protocol_session.js
+const MessageType = {
+	Sync: 0,
+	Awareness: 1
+};
+var YProtocolSession = class {
+	doc;
+	awareness;
+	#send;
+	#onError;
+	#state = {
+		phase: "unsynced",
+		cycle: {}
+	};
+	#delivery;
+	#onDocUpdate;
+	#onAwarenessUpdate;
+	constructor(doc, opts) {
+		const { send, awareness = null, resendInterval, onError, setInterval: setTimer, clearInterval: clearTimer } = opts ?? {};
+		if (!doc) throw new TypeError("YProtocolSession requires a Y.Doc");
+		if (typeof send !== "function") throw new TypeError("YProtocolSession requires a send(frame, id) function");
+		this.doc = doc;
+		this.awareness = awareness;
+		this.#send = send;
+		this.#onError = onError ?? ((error, context) => console.warn(`[yrby] ${context}:`, error));
+		this.#delivery = new ReliableSync({
+			merge: mergeUpdates,
+			send: (update, id) => this.#send(this.#frameUpdate(update), id),
+			resendInterval,
+			setInterval: setTimer,
+			clearInterval: clearTimer
+		});
+		this.#onDocUpdate = (update, origin) => {
+			if (origin === this) return;
+			this.#delivery.enqueue(update);
+		};
+		this.doc.on("update", this.#onDocUpdate);
+		if (this.awareness) {
+			this.#onAwarenessUpdate = ({ added, updated, removed }, origin) => {
+				if (origin === this || this.#state.phase === "destroyed") return;
+				const changed = added.concat(updated, removed);
+				this.#send(this.#frameAwareness(changed), void 0);
+			};
+			this.awareness.on("update", this.#onAwarenessUpdate);
+		}
+	}
+	/** True once we've received the server's SyncStep2 (the document is caught up). */
+	get synced() {
+		return this.#state.phase === "synced";
+	}
+	/** True while there are unacknowledged local document updates in flight. */
+	get hasPending() {
+		return this.#delivery.hasPending;
+	}
+	/** Call when the transport is up. Sends the opening handshake, re-announces presence, and replays the unacked tail. */
+	resume() {
+		if (this.#state.phase === "destroyed") return;
+		const cycle = {};
+		this.#state = {
+			phase: "unsynced",
+			cycle
+		};
+		this.#send(this.#frameSyncStep1(), void 0);
+		if (!this.#current(cycle)) return;
+		if (this.awareness && this.awareness.getLocalState() !== null) this.#send(this.#frameAwareness([this.doc.clientID]), void 0);
+		if (this.#current(cycle)) this.#delivery.resume();
+	}
+	/** Call when the transport is down. Keeps the queue, stops retransmits, and clears peers' presence. */
+	pause() {
+		if (this.#state.phase === "destroyed") return;
+		this.#state = {
+			phase: "unsynced",
+			cycle: {}
+		};
+		this.#delivery.pause();
+		if (this.awareness) {
+			const remote = [...this.awareness.getStates().keys()].filter((c) => c !== this.doc.clientID);
+			if (remote.length) removeAwarenessStates(this.awareness, remote, this);
+		}
+	}
+	/**
+	* Broadcast that our local presence is gone (sets local state to null, which
+	* emits a removal awareness frame through `send`). Call this while the
+	* transport is still live so peers drop our cursor immediately instead of
+	* waiting for the awareness timeout. A no-op when there's no local state.
+	*/
+	removeLocalAwareness() {
+		if (this.#state.phase !== "destroyed" && this.awareness && this.awareness.getLocalState() !== null) this.awareness.setLocalState(null);
+	}
+	/** A reliable-delivery `{ ack: id }` envelope arrived. */
+	acknowledge(id) {
+		this.#delivery.acknowledge(id);
+	}
+	/**
+	* Apply an update without treating it as a local edit, so it isn't queued for
+	* re-delivery to the server. Use it for bootstrap/restore: initial state loaded
+	* over HTTP, a server snapshot, an import. These are bytes the server already
+	* has.
+	*
+	* The session re-sends any doc update whose origin isn't itself (that's how a
+	* keystroke becomes an outbound frame), so a bare `Y.applyUpdate(doc, update)`
+	* would look like a local edit and get echoed back on the next connect. Going
+	* through here applies under the session's own origin, which the outbound
+	* filter skips. Safe to call before `resume()`: the state folds into the
+	* SyncStep1 handshake instead of being re-sent.
+	*/
+	applyRemoteUpdate(update) {
+		if (this.#state.phase !== "destroyed") applyUpdate(this.doc, update, this);
+	}
+	/**
+	* Decode and apply one incoming binary protocol frame (document sync or
+	* awareness). Returns a reply frame to transmit (e.g. SyncStep2 answering a
+	* SyncStep1), or null if there's nothing to send.
+	*/
+	receive(frame) {
+		if (this.#state.phase === "destroyed") return null;
+		const { cycle } = this.#state;
+		try {
+			if (!validateFrame(frame)) return null;
+			const decoder = createDecoder(frame);
+			const encoder = createEncoder();
+			switch (readVarUint(decoder)) {
+				case MessageType.Sync: {
+					writeVarUint(encoder, MessageType.Sync);
+					const report = (error) => {
+						if (this.#current(cycle)) this.#onError(error, "receive");
+					};
+					if (readSyncMessage(decoder, encoder, this.doc, this, report) === 1 && this.#current(cycle)) this.#state = {
+						phase: "synced",
+						cycle
+					};
+					break;
+				}
+				case MessageType.Awareness:
+					if (this.awareness) applyAwarenessUpdate(this.awareness, readVarUint8Array(decoder), this);
+					break;
+				default: return null;
+			}
+			return this.#current(cycle) && length(encoder) > 1 ? toUint8Array(encoder) : null;
+		} catch (error) {
+			if (this.#current(cycle)) this.#onError(error, "receive");
+			return null;
+		}
+	}
+	/** Detach doc/awareness listeners and stop retransmits. */
+	destroy() {
+		if (this.#state.phase === "destroyed") return;
+		this.#state = { phase: "destroyed" };
+		this.doc.off("update", this.#onDocUpdate);
+		if (this.awareness && this.#onAwarenessUpdate) this.awareness.off("update", this.#onAwarenessUpdate);
+		this.#delivery.destroy();
+	}
+	#current(cycle) {
+		return this.#state.phase !== "destroyed" && this.#state.cycle === cycle;
+	}
+	#frameSyncStep1() {
+		const e = createEncoder();
+		writeVarUint(e, MessageType.Sync);
+		writeSyncStep1(e, this.doc);
+		return toUint8Array(e);
+	}
+	#frameUpdate(update) {
+		const e = createEncoder();
+		writeVarUint(e, MessageType.Sync);
+		writeUpdate(e, update);
+		return toUint8Array(e);
+	}
+	#frameAwareness(clients) {
+		const e = createEncoder();
+		writeVarUint(e, MessageType.Awareness);
+		writeVarUint8Array(e, encodeAwarenessUpdate(this.awareness, clients));
+		return toUint8Array(e);
+	}
+};
+function validateFrame(frame) {
+	const decoder = createDecoder(frame);
+	const type = readVarUint(decoder);
+	if (type === MessageType.Sync) {
+		readVarUint(decoder);
+		readVarUint8Array(decoder);
+	} else if (type === MessageType.Awareness) validateAwareness(readVarUint8Array(decoder));
+	else return false;
+	if (hasContent(decoder)) throw new Error("frame has trailing bytes after a complete message");
+	return true;
+}
+function validateAwareness(payload) {
+	const decoder = createDecoder(payload);
+	const count = readVarUint(decoder);
+	for (let i = 0; i < count; i++) {
+		readVarUint(decoder);
+		readVarUint(decoder);
+		JSON.parse(readVarString(decoder));
+	}
+	if (hasContent(decoder)) throw new Error("awareness payload has trailing bytes");
+}
+//#endregion
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/base64.js
+const toBase64 = (bytes) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
+const fromBase64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
+//#endregion
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/actioncable_provider.js
+var ActionCableProvider = class {
+	doc;
+	consumer;
+	channelName;
+	channelParams;
+	awareness;
+	session;
+	#state = { phase: "disconnected" };
+	#onError;
+	#last = {
+		status: "disconnected",
+		pending: false
+	};
+	#statusListeners = /* @__PURE__ */ new Set();
+	#resolveSynced;
+	#onDocUpdate = () => this.#refreshStatus();
+	#page = null;
+	/**
+	* Resolves once the document has first caught up with the server. Most
+	* editor bindings seed an empty document when they mount, so binding
+	* before the server's state arrives makes each client insert its own
+	* top-level node. Create the editor after this resolves:
+	*
+	*   provider.connect();
+	*   await provider.whenSynced;
+	*   // now hand the doc to the editor binding
+	*
+	* It resolves on the first catch-up and remains resolved across later
+	* reconnects, even while `synced` is false during a re-handshake. Use
+	* `onStatusChange` to track the live connection. If the provider is
+	* destroyed before the first sync, it never resolves.
+	*/
+	whenSynced = new Promise((resolve) => {
+		this.#resolveSynced = resolve;
+	});
+	constructor(doc, consumer, channelName, channelParams = {}, opts = {}) {
+		this.doc = doc;
+		this.consumer = consumer;
+		this.channelName = channelName;
+		this.channelParams = channelParams;
+		const onError = opts.onError ?? ((error, context) => console.warn(`[yrby] ${context}:`, error));
+		this.#onError = (error, context) => {
+			try {
+				onError(error, context);
+			} catch (callbackError) {
+				console.warn("[yrby] onError callback failed:", callbackError, "while reporting:", error);
+			}
+		};
+		this.awareness = new ProviderAwareness(doc, this.#onError);
+		this.session = new YProtocolSession(doc, {
+			awareness: this.awareness,
+			resendInterval: opts.resendInterval,
+			onError: this.#onError,
+			send: (frame, id) => this.#send(frame, id)
+		});
+		this.doc.on("update", this.#onDocUpdate);
+	}
+	/** True once the document has caught up with the server (received a SyncStep2). */
+	get synced() {
+		return this.session.synced;
+	}
+	/** True while there are unacknowledged local document updates in flight. */
+	get hasPending() {
+		return this.session.hasPending;
+	}
+	/**
+	* Apply a bootstrap/restore update (initial HTTP state, a server snapshot, an
+	* import) without re-sending it to the server as a local edit. Call it once per
+	* chunk of already-durable state when seeding the doc, before `connect()`:
+	*
+	*   provider.applyRemoteUpdate(fromBase64(initialState));
+	*   priorUpdates.forEach((u) => provider.applyRemoteUpdate(fromBase64(u)));
+	*   provider.connect();
+	*
+	* See {@link YProtocolSession.applyRemoteUpdate} for why a bare `Y.applyUpdate`
+	* would be re-broadcast as a pending change instead.
+	*/
+	applyRemoteUpdate(update) {
+		this.session.applyRemoteUpdate(update);
+	}
+	/** Current connection status. See {@link ProviderStatus}. */
+	get status() {
+		return this.#computeStatus();
+	}
+	/** Subscribe to status changes. Returns an unsubscribe function. */
+	onStatusChange(listener) {
+		this.#statusListeners.add(listener);
+		return () => this.#statusListeners.delete(listener);
+	}
+	connect() {
+		if (this.#destroying()) throw new Error("provider is destroyed");
+		if (this.#state.phase !== "disconnected") return;
+		const attempt = {};
+		this.#state = {
+			phase: "subscribing",
+			attempt
+		};
+		const on = (callback) => (...args) => {
+			const run = () => {
+				if (this.#active(attempt)) callback(...args);
+			};
+			if (this.#state.phase === "subscribing") queueMicrotask(run);
+			else run();
+		};
+		let subscription;
+		try {
+			subscription = this.consumer.subscriptions.create({
+				channel: this.channelName,
+				...this.channelParams
+			}, {
+				received: on((message) => this.#receive(message, attempt)),
+				connected: on(() => this.#connected()),
+				disconnected: on(() => this.#lost()),
+				rejected: on(() => this.#stop("reject"))
+			});
+		} catch (error) {
+			if (!this.#subscribing(attempt)) return;
+			this.#state = { phase: "disconnected" };
+			this.#refreshStatus();
+			throw error;
+		}
+		if (!this.#subscribing(attempt)) {
+			this.#unsubscribe(subscription);
+			return;
+		}
+		this.#state = {
+			phase: "connecting",
+			attempt,
+			subscription
+		};
+		this.#watchPage();
+		this.#refreshStatus();
+	}
+	disconnect() {
+		this.#stop("disconnect");
+	}
+	/**
+	* Resubscribes with updated channel params, such as a renewed grant. This
+	* replaces only the cable subscription and keeps the doc, the delivery
+	* queue, awareness, and this provider's ack route. Does nothing after
+	* destroy().
+	*/
+	renew(params) {
+		if (this.#destroying()) return;
+		Object.assign(this.channelParams, params);
+		this.disconnect();
+		this.connect();
+	}
+	destroy() {
+		this.#stop("destroy");
+	}
+	#destroying() {
+		const state = this.#state;
+		return state.phase === "destroyed" || state.phase === "stopping" && state.reason === "destroy";
+	}
+	#subscribing(attempt) {
+		return this.#state.phase === "subscribing" && this.#state.attempt === attempt;
+	}
+	#active(attempt) {
+		const state = this.#state;
+		return (state.phase === "connecting" || state.phase === "connected") && state.attempt === attempt;
+	}
+	#connected() {
+		const state = this.#state;
+		if (state.phase !== "connecting") return;
+		this.#state = {
+			...state,
+			phase: "connected"
+		};
+		this.session.resume();
+		this.#refreshStatus();
+	}
+	#lost() {
+		const state = this.#state;
+		if (state.phase !== "connecting" && state.phase !== "connected") return;
+		this.#state = {
+			...state,
+			phase: "connecting"
+		};
+		this.session.pause();
+		this.#refreshStatus();
+	}
+	#stop(reason) {
+		const state = this.#state;
+		if (state.phase === "destroyed") return;
+		if (state.phase === "stopping") {
+			if (reason === "destroy") state.reason = reason;
+			return;
+		}
+		if (state.phase === "disconnected" && reason === "disconnect") return;
+		let finalReason = reason;
+		if ("subscription" in state) {
+			const stopping = {
+				...state,
+				phase: "stopping",
+				reason
+			};
+			this.#state = stopping;
+			this.#unwatchPage();
+			this.session.removeLocalAwareness();
+			this.session.pause();
+			this.#unsubscribe(state.subscription);
+			if (this.#state !== stopping) return;
+			finalReason = stopping.reason;
+		}
+		const destroyed = finalReason === "destroy";
+		this.#state = { phase: destroyed ? "destroyed" : "disconnected" };
+		if (destroyed) this.#destroyOwned();
+		else if (finalReason === "reject") this.#onError(/* @__PURE__ */ new Error("subscription rejected by the server"), "rejected");
+		this.#refreshStatus();
+		if (destroyed) this.#statusListeners.clear();
+	}
+	#destroyOwned() {
+		this.session.destroy();
+		this.awareness.destroy();
+		this.doc.off("update", this.#onDocUpdate);
+	}
+	#unsubscribe(subscription) {
+		queueMicrotask(() => {
+			try {
+				subscription.unsubscribe?.();
+			} catch (error) {
+				this.#onError(error, "unsubscribe");
+			}
+		});
+	}
+	#receive(message, attempt) {
+		if (message && message.ack !== void 0) {
+			this.session.acknowledge(message.ack);
+			this.#refreshStatus();
+			return;
+		}
+		const awarenessPayload = message && message.awareness;
+		const payload = message && (awarenessPayload ?? message.update);
+		if (typeof payload !== "string") return;
+		let frame;
+		try {
+			frame = fromBase64(payload);
+		} catch (error) {
+			this.#onError(error, "received");
+			return;
+		}
+		if (awarenessPayload !== void 0 && frame[0] !== MessageType.Awareness) {
+			this.#onError(/* @__PURE__ */ new Error("awareness envelope carried a non-awareness frame"), "received");
+			return;
+		}
+		const reply = this.session.receive(frame);
+		if (reply && this.#active(attempt)) this.#send(reply, void 0);
+		this.#refreshStatus();
+	}
+	#computeStatus() {
+		switch (this.#state.phase) {
+			case "subscribing":
+			case "connecting": return "connecting";
+			case "connected": return this.session.synced ? "synced" : "connected";
+			default: return "disconnected";
+		}
+	}
+	#refreshStatus() {
+		const status = this.#computeStatus();
+		const pending = this.hasPending;
+		if (status === this.#last.status && pending === this.#last.pending) return;
+		const event = this.#last = {
+			status,
+			pending
+		};
+		if (status === "synced") this.#resolveSynced();
+		for (const listener of this.#statusListeners) {
+			if (this.#last !== event) break;
+			try {
+				listener({
+					status,
+					pending
+				});
+			} catch (error) {
+				this.#onError(error, "listener");
+			}
+		}
+	}
+	#watchPage() {
+		if (typeof window === "undefined" || this.#page) return;
+		let stashed = null;
+		const page = this.#page = {
+			hide: () => {
+				if (this.#page !== page) return;
+				stashed = this.awareness.getLocalState();
+				this.session.removeLocalAwareness();
+			},
+			show: (event) => {
+				if (this.#page !== page || !event.persisted || !stashed) return;
+				if (this.awareness.getLocalState() === null) this.awareness.setLocalState(stashed);
+				stashed = null;
+			}
+		};
+		window.addEventListener("pagehide", this.#page.hide);
+		window.addEventListener("pageshow", this.#page.show);
+	}
+	#unwatchPage() {
+		if (!this.#page || typeof window === "undefined") return;
+		const page = this.#page;
+		this.#page = null;
+		window.removeEventListener("pagehide", page.hide);
+		window.removeEventListener("pageshow", page.show);
+	}
+	#send(frame, id) {
+		const state = this.#state;
+		if (!("subscription" in state)) return;
+		const isAwareness = frame[0] === MessageType.Awareness;
+		if (state.phase === "stopping" && !isAwareness) return;
+		const { subscription } = state;
+		const update = toBase64(frame);
+		const report = (error) => {
+			const current = this.#state;
+			if ("subscription" in current && current.subscription === subscription) this.#onError(error, "send");
+		};
+		try {
+			const result = isAwareness && typeof subscription.whisper === "function" ? subscription.whisper({ awareness: update }) : subscription.send(id === void 0 ? { update } : {
+				update,
+				id
+			});
+			if (result instanceof Promise) result.catch(report);
+		} catch (error) {
+			report(error);
+		}
+	}
+};
+var ProviderAwareness = class extends Awareness {
+	onError;
+	constructor(doc, onError) {
+		super(doc);
+		this.onError = onError;
+	}
+	emit(...args) {
+		try {
+			super.emit(...args);
+		} catch (error) {
+			this.onError(error, `awareness:${args[0]}`);
+		}
+	}
+};
+//#endregion
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/document_session.js
+const PHASES = {
+	open: {
+		state: "open",
+		connects: true,
+		on: {
+			refresh: "refreshing",
+			block: "blocked",
+			close: "closed"
+		}
+	},
+	refreshing: {
+		state: "open",
+		connects: false,
+		on: {
+			renew: "renewed",
+			block: "blocked",
+			close: "closed"
+		}
+	},
+	renewed: {
+		state: "open",
+		connects: true,
+		on: {
+			accept: "open",
+			block: "blocked",
+			close: "closed"
+		}
+	},
+	blocked: {
+		state: "blocked",
+		connects: false,
+		on: {
+			retry: "open",
+			close: "closed"
+		}
+	},
+	closed: {
+		state: "closed",
+		connects: false,
+		on: {}
+	}
+};
+const REFRESH_TIMEOUT_MS = 15e3;
+const DEFAULT_CHANNEL = "Y::DocumentChannel";
+const stores = /* @__PURE__ */ new WeakMap();
+/** The identity of the document a descriptor names. Matching keys share a session. */
+function documentKey(descriptor) {
+	return JSON.stringify([
+		descriptor.channel || DEFAULT_CHANNEL,
+		descriptor.grant,
+		descriptor.name
+	]);
+}
+const storeToken = Symbol("storeToken");
+const attachLease = Symbol("attachLease");
+const notifyStoreChange = Symbol("notifyStoreChange");
+/** Holds one consumer's sessions and emits "change" with the session in `detail`. */
+var DocumentSessionStore = class DocumentSessionStore extends EventTarget {
+	consumer;
+	static for(consumer) {
+		let store = stores.get(consumer);
+		if (!store) stores.set(consumer, store = new DocumentSessionStore(consumer, storeToken));
+		return store;
+	}
+	#sessions = /* @__PURE__ */ new Map();
+	constructor(consumer, token) {
+		super();
+		this.consumer = consumer;
+		if (token !== storeToken) throw new Error("Use DocumentSessionStore.for(consumer)");
+	}
+	get sessions() {
+		return [...this.#sessions.values()];
+	}
+	/** Acquire a lease on this document session, creating it on first use. */
+	acquire(input) {
+		if (!input.grant || !input.name) throw new Error("A document requires a grant and name");
+		const descriptor = Object.freeze({
+			channel: input.channel || DEFAULT_CHANNEL,
+			grant: input.grant,
+			name: input.name,
+			...input.refresh ? { refresh: input.refresh } : {}
+		});
+		const key = documentKey(descriptor);
+		let session = this.#sessions.get(key);
+		if (!session) {
+			session = new DocumentSession(this, descriptor, () => {
+				this.#sessions.delete(key);
+			});
+			this.#sessions.set(key, session);
+		}
+		return session[attachLease]();
+	}
+	[notifyStoreChange](session) {
+		this.dispatchEvent(new CustomEvent("change", { detail: session }));
+	}
+};
+/** A caller's hold on a session. Release it when you're done with the session. */
+var DocumentLease = class {
+	session;
+	#controller = new AbortController();
+	#onRelease;
+	constructor(session, onRelease) {
+		this.session = session;
+		this.#onRelease = onRelease;
+	}
+	/** Aborts when the lease ends, including when the session blocks or is discarded. */
+	get signal() {
+		return this.#controller.signal;
+	}
+	setPresence(state) {
+		if (!this.signal.aborted) this.session.provider.awareness.setLocalState(state);
+	}
+	/** Runs editor cleanup synchronously, before the final check for pending work. */
+	release() {
+		if (this.signal.aborted) return;
+		this.#controller.abort();
+		this.#onRelease();
+	}
+};
+var DocumentSession = class {
+	store;
+	descriptor;
+	remove;
+	doc = new Doc();
+	provider;
+	#lifecycle = { phase: "open" };
+	#leases = /* @__PURE__ */ new Set();
+	#retiring;
+	#error;
+	#dirty = false;
+	#settleQueued = false;
+	/** Create and hold sessions through DocumentSessionStore.acquire. */
+	constructor(store, descriptor, remove) {
+		this.store = store;
+		this.descriptor = descriptor;
+		this.remove = remove;
+		this.provider = new ActionCableProvider(this.doc, store.consumer, descriptor.channel, {
+			grant: descriptor.grant,
+			name: descriptor.name,
+			session_id: uuidv4()
+		}, { onError: (error, context) => {
+			if (context === "rejected") this.#rejected(error);
+			else if (this.state !== "closed") {
+				this.#error = error;
+				this.#changed();
+			}
+		} });
+		this.provider.awareness.setLocalState(null);
+		this.provider.onStatusChange(({ status }) => {
+			if (this.state !== "open") return;
+			if (status === "connected" || status === "synced") this.#transition("accept");
+			this.#changed();
+		});
+	}
+	get error() {
+		return this.#error;
+	}
+	get hasPending() {
+		return this.provider.hasPending;
+	}
+	get whenSynced() {
+		return this.provider.whenSynced;
+	}
+	get state() {
+		return PHASES[this.#lifecycle.phase].state;
+	}
+	[attachLease]() {
+		if (this.state === "closed") throw new Error("Cannot acquire a closed document session");
+		const lease = new DocumentLease(this, () => this.#release(lease));
+		this.#leases.add(lease);
+		this.#changed();
+		if (PHASES[this.#lifecycle.phase].connects) this.#connect();
+		return lease;
+	}
+	#release(lease) {
+		if (!this.#leases.delete(lease)) return;
+		this.#changed();
+		if (!this.#leases.size) this.provider.awareness.setLocalState(null);
+	}
+	/** Reconnects with this session's current grant, which is the original one or the last one a refresh returned. */
+	retry() {
+		if (this.#transition("retry")) this.#connect();
+	}
+	/** Closes the session and drops pending work. The application calls this explicitly, because an ordinary detach keeps pending work. */
+	discard() {
+		this.#close();
+	}
+	#changed() {
+		this.#dirty = true;
+		if (this.#settleQueued) return;
+		this.#settleQueued = true;
+		queueMicrotask(() => this.#settle());
+	}
+	#settle() {
+		this.#settleQueued = false;
+		this.#enforce();
+		if (!this.#dirty) return;
+		this.#dirty = false;
+		this.store[notifyStoreChange](this);
+	}
+	#enforce() {
+		if (this.state === "closed") return;
+		if (this.state === "blocked") {
+			const retiring = this.#retiring;
+			this.#retiring = void 0;
+			for (const lease of retiring ?? []) lease.release();
+			return;
+		}
+		if (!this.#needed()) this.#close();
+	}
+	#connect(grant) {
+		try {
+			if (grant === void 0) this.provider.connect();
+			else this.provider.renew({ grant });
+		} catch (error) {
+			this.#transition("block", error);
+		}
+	}
+	#needed() {
+		return this.#leases.size > 0 || this.provider.hasPending;
+	}
+	#transition(event, error) {
+		const phase = PHASES[this.#lifecycle.phase].on[event];
+		if (!phase) return false;
+		this.#lifecycle = { phase };
+		this.#retiring = phase === "blocked" ? [...this.#leases] : void 0;
+		if (event === "retry") this.#error = void 0;
+		else if (event === "block") this.#error = error;
+		this.#changed();
+		return true;
+	}
+	#close() {
+		if (!this.#transition("close")) return;
+		this.remove();
+		for (const lease of [...this.#leases]) lease.release();
+		this.provider.destroy();
+		this.doc.destroy();
+	}
+	#rejected(error) {
+		const url = this.descriptor.refresh;
+		if (url && this.#transition("refresh")) this.#refresh(url, this.#lifecycle);
+		else this.#transition("block", error);
+	}
+	async #refresh(url, attempt) {
+		let grant;
+		try {
+			grant = await fetchGrant(url);
+		} catch (error) {
+			if (this.#lifecycle === attempt) this.#transition("block", error);
+			return;
+		}
+		if (this.#lifecycle !== attempt) return;
+		if (this.#transition("renew")) this.#connect(grant);
+	}
+};
+/** Ask the application for a new grant. Resolves to the grant or throws. */
+async function fetchGrant(url) {
+	const response = await fetch(url, {
+		credentials: "same-origin",
+		headers: { Accept: "application/json" },
+		signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS)
+	});
+	if (!response.ok) throw new Error(`grant refresh failed: ${response.status}`);
+	const grant = (await response.json())?.grant;
+	if (typeof grant !== "string" || !grant) throw new Error("grant refresh returned no grant");
+	return grant;
+}
+//#endregion
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/turbo_adapter.js
+const adapters$1 = /* @__PURE__ */ new WeakMap();
+const CACHE_EVENTS = ["turbo:before-cache", "turbolinks:before-cache"];
+const RENDER_EVENTS = [
+	"turbo:render",
+	"turbo:load",
+	"turbo:fetch-request-error",
+	"turbolinks:render",
+	"turbolinks:load"
+];
+const PREVIEW_ATTRIBUTES = ["data-turbo-preview", "data-turbolinks-preview"];
+function registerDocumentMount(mount) {
+	let adapter = adapters$1.get(mount.ownerDocument);
+	if (!adapter) adapters$1.set(mount.ownerDocument, adapter = new TurboAdapter(mount.ownerDocument));
+	adapter.mounts.add(mount);
+	adapter.reconcile();
+	return () => {
+		adapter.mounts.delete(mount);
+		if (!adapter.mounts.size) adapter.destroy();
+	};
+}
+var TurboAdapter = class {
+	document;
+	mounts = /* @__PURE__ */ new Set();
+	#state = { phase: "active" };
+	constructor(document) {
+		this.document = document;
+		for (const event of CACHE_EVENTS) document.addEventListener(event, this.#beforeCache);
+		for (const event of RENDER_EVENTS) document.addEventListener(event, this.reconcile);
+	}
+	reconcile = () => {
+		if (this.#state.phase !== "active") return;
+		const html = this.document.documentElement;
+		const preview = PREVIEW_ATTRIBUTES.some((attribute) => html?.hasAttribute(attribute));
+		for (const mount of this.mounts) if (!mount.isConnected || preview) mount.deactivate();
+		else mount.activate();
+	};
+	#beforeCache = () => {
+		const state = this.#state;
+		if (state.phase !== "active") return;
+		for (const mount of this.mounts) mount.deactivate();
+		if (this.#state !== state) return;
+		clearTimeout(state.timer);
+		state.timer = setTimeout(() => {
+			if (this.#state === state) state.timer = setTimeout(this.reconcile, 0);
+		}, 0);
+	};
+	destroy() {
+		const state = this.#state;
+		if (state.phase === "destroyed") return;
+		this.#state = { phase: "destroyed" };
+		clearTimeout(state.timer);
+		adapters$1.delete(this.document);
+		for (const event of CACHE_EVENTS) this.document.removeEventListener(event, this.#beforeCache);
+		for (const event of RENDER_EVENTS) this.document.removeEventListener(event, this.reconcile);
+		for (const mount of this.mounts) mount.deactivate();
+		this.mounts.clear();
+	}
+};
+//#endregion
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/@rails/actioncable/app/assets/javascripts/actioncable.esm.js
+var actioncable_esm_exports = /* @__PURE__ */ __exportAll({
+	Connection: () => Connection,
+	ConnectionMonitor: () => ConnectionMonitor,
+	Consumer: () => Consumer,
+	INTERNAL: () => INTERNAL,
+	Subscription: () => Subscription,
+	SubscriptionGuarantor: () => SubscriptionGuarantor,
+	Subscriptions: () => Subscriptions,
+	adapters: () => adapters,
+	createConsumer: () => createConsumer,
+	createWebSocketURL: () => createWebSocketURL,
+	getConfig: () => getConfig,
+	logger: () => logger
+});
+function createWebSocketURL(url) {
+	if (typeof url === "function") url = url();
+	if (url && !/^wss?:/i.test(url)) {
+		const a = document.createElement("a");
+		a.href = url;
+		a.href = a.href;
+		a.protocol = a.protocol.replace("http", "ws");
+		return a.href;
+	} else return url;
+}
+function createConsumer(url = getConfig("url") || INTERNAL.default_mount_path) {
+	return new Consumer(url);
+}
+function getConfig(name) {
+	const element = document.head.querySelector(`meta[name='action-cable-${name}']`);
+	if (element) return element.getAttribute("content");
+}
+var adapters, logger, now, secondsSince, ConnectionMonitor, INTERNAL, message_types, protocols, supportedProtocols, indexOf, Connection, extend, Subscription, SubscriptionGuarantor, Subscriptions, Consumer;
+var init_actioncable_esm = __esmMin((() => {
+	adapters = {
+		logger: typeof console !== "undefined" ? console : void 0,
+		WebSocket: typeof WebSocket !== "undefined" ? WebSocket : void 0
+	};
+	logger = { log(...messages) {
+		if (this.enabled) {
+			messages.push(Date.now());
+			adapters.logger.log("[ActionCable]", ...messages);
+		}
+	} };
+	now = () => (/* @__PURE__ */ new Date()).getTime();
+	secondsSince = (time) => (now() - time) / 1e3;
+	ConnectionMonitor = class {
+		constructor(connection) {
+			this.visibilityDidChange = this.visibilityDidChange.bind(this);
+			this.connection = connection;
+			this.reconnectAttempts = 0;
+		}
+		start() {
+			if (!this.isRunning()) {
+				this.startedAt = now();
+				delete this.stoppedAt;
+				this.startPolling();
+				addEventListener("visibilitychange", this.visibilityDidChange);
+				logger.log(`ConnectionMonitor started. stale threshold = ${this.constructor.staleThreshold} s`);
+			}
+		}
+		stop() {
+			if (this.isRunning()) {
+				this.stoppedAt = now();
+				this.stopPolling();
+				removeEventListener("visibilitychange", this.visibilityDidChange);
+				logger.log("ConnectionMonitor stopped");
+			}
+		}
+		isRunning() {
+			return this.startedAt && !this.stoppedAt;
+		}
+		recordMessage() {
+			this.pingedAt = now();
+		}
+		recordConnect() {
+			this.reconnectAttempts = 0;
+			delete this.disconnectedAt;
+			logger.log("ConnectionMonitor recorded connect");
+		}
+		recordDisconnect() {
+			this.disconnectedAt = now();
+			logger.log("ConnectionMonitor recorded disconnect");
+		}
+		startPolling() {
+			this.stopPolling();
+			this.poll();
+		}
+		stopPolling() {
+			clearTimeout(this.pollTimeout);
+		}
+		poll() {
+			this.pollTimeout = setTimeout((() => {
+				this.reconnectIfStale();
+				this.poll();
+			}), this.getPollInterval());
+		}
+		getPollInterval() {
+			const { staleThreshold, reconnectionBackoffRate } = this.constructor;
+			const backoff = Math.pow(1 + reconnectionBackoffRate, Math.min(this.reconnectAttempts, 10));
+			const jitter = (this.reconnectAttempts === 0 ? 1 : reconnectionBackoffRate) * Math.random();
+			return staleThreshold * 1e3 * backoff * (1 + jitter);
+		}
+		reconnectIfStale() {
+			if (this.connectionIsStale()) {
+				logger.log(`ConnectionMonitor detected stale connection. reconnectAttempts = ${this.reconnectAttempts}, time stale = ${secondsSince(this.refreshedAt)} s, stale threshold = ${this.constructor.staleThreshold} s`);
+				this.reconnectAttempts++;
+				if (this.disconnectedRecently()) logger.log(`ConnectionMonitor skipping reopening recent disconnect. time disconnected = ${secondsSince(this.disconnectedAt)} s`);
+				else {
+					logger.log("ConnectionMonitor reopening");
+					this.connection.reopen();
+				}
+			}
+		}
+		get refreshedAt() {
+			return this.pingedAt ? this.pingedAt : this.startedAt;
+		}
+		connectionIsStale() {
+			return secondsSince(this.refreshedAt) > this.constructor.staleThreshold;
+		}
+		disconnectedRecently() {
+			return this.disconnectedAt && secondsSince(this.disconnectedAt) < this.constructor.staleThreshold;
+		}
+		visibilityDidChange() {
+			if (document.visibilityState === "visible") setTimeout((() => {
+				if (this.connectionIsStale() || !this.connection.isOpen()) {
+					logger.log(`ConnectionMonitor reopening stale connection on visibilitychange. visibilityState = ${document.visibilityState}`);
+					this.connection.reopen();
+				}
+			}), 200);
+		}
+	};
+	ConnectionMonitor.staleThreshold = 6;
+	ConnectionMonitor.reconnectionBackoffRate = .15;
+	INTERNAL = {
+		message_types: {
+			welcome: "welcome",
+			disconnect: "disconnect",
+			ping: "ping",
+			confirmation: "confirm_subscription",
+			rejection: "reject_subscription"
+		},
+		disconnect_reasons: {
+			unauthorized: "unauthorized",
+			invalid_request: "invalid_request",
+			server_restart: "server_restart",
+			remote: "remote"
+		},
+		default_mount_path: "/cable",
+		protocols: ["actioncable-v1-json", "actioncable-unsupported"]
+	};
+	({message_types: message_types, protocols: protocols} = INTERNAL);
+	supportedProtocols = protocols.slice(0, protocols.length - 1);
+	indexOf = [].indexOf;
+	Connection = class {
+		constructor(consumer) {
+			this.open = this.open.bind(this);
+			this.consumer = consumer;
+			this.subscriptions = this.consumer.subscriptions;
+			this.monitor = new ConnectionMonitor(this);
+			this.disconnected = true;
+		}
+		send(data) {
+			if (this.isOpen()) {
+				this.webSocket.send(JSON.stringify(data));
+				return true;
+			} else return false;
+		}
+		open() {
+			if (this.isActive()) {
+				logger.log(`Attempted to open WebSocket, but existing socket is ${this.getState()}`);
+				return false;
+			} else {
+				const socketProtocols = [...protocols, ...this.consumer.subprotocols || []];
+				logger.log(`Opening WebSocket, current state is ${this.getState()}, subprotocols: ${socketProtocols}`);
+				if (this.webSocket) this.uninstallEventHandlers();
+				this.webSocket = new adapters.WebSocket(this.consumer.url, socketProtocols);
+				this.installEventHandlers();
+				this.monitor.start();
+				return true;
+			}
+		}
+		close({ allowReconnect } = { allowReconnect: true }) {
+			if (!allowReconnect) this.monitor.stop();
+			if (this.isOpen()) return this.webSocket.close();
+		}
+		reopen() {
+			logger.log(`Reopening WebSocket, current state is ${this.getState()}`);
+			if (this.isActive()) try {
+				return this.close();
+			} catch (error) {
+				logger.log("Failed to reopen WebSocket", error);
+			} finally {
+				logger.log(`Reopening WebSocket in ${this.constructor.reopenDelay}ms`);
+				setTimeout(this.open, this.constructor.reopenDelay);
+			}
+			else return this.open();
+		}
+		getProtocol() {
+			if (this.webSocket) return this.webSocket.protocol;
+		}
+		isOpen() {
+			return this.isState("open");
+		}
+		isActive() {
+			return this.isState("open", "connecting");
+		}
+		triedToReconnect() {
+			return this.monitor.reconnectAttempts > 0;
+		}
+		isProtocolSupported() {
+			return indexOf.call(supportedProtocols, this.getProtocol()) >= 0;
+		}
+		isState(...states) {
+			return indexOf.call(states, this.getState()) >= 0;
+		}
+		getState() {
+			if (this.webSocket) {
+				for (let state in adapters.WebSocket) if (adapters.WebSocket[state] === this.webSocket.readyState) return state.toLowerCase();
+			}
+			return null;
+		}
+		installEventHandlers() {
+			for (let eventName in this.events) {
+				const handler = this.events[eventName].bind(this);
+				this.webSocket[`on${eventName}`] = handler;
+			}
+		}
+		uninstallEventHandlers() {
+			for (let eventName in this.events) this.webSocket[`on${eventName}`] = function() {};
+		}
+	};
+	Connection.reopenDelay = 500;
+	Connection.prototype.events = {
+		message(event) {
+			if (!this.isProtocolSupported()) return;
+			const { identifier, message, reason, reconnect, type } = JSON.parse(event.data);
+			this.monitor.recordMessage();
+			switch (type) {
+				case message_types.welcome:
+					if (this.triedToReconnect()) this.reconnectAttempted = true;
+					this.monitor.recordConnect();
+					return this.subscriptions.reload();
+				case message_types.disconnect:
+					logger.log(`Disconnecting. Reason: ${reason}`);
+					return this.close({ allowReconnect: reconnect });
+				case message_types.ping: return null;
+				case message_types.confirmation:
+					this.subscriptions.confirmSubscription(identifier);
+					if (this.reconnectAttempted) {
+						this.reconnectAttempted = false;
+						return this.subscriptions.notify(identifier, "connected", { reconnected: true });
+					} else return this.subscriptions.notify(identifier, "connected", { reconnected: false });
+				case message_types.rejection: return this.subscriptions.reject(identifier);
+				default: return this.subscriptions.notify(identifier, "received", message);
+			}
+		},
+		open() {
+			logger.log(`WebSocket onopen event, using '${this.getProtocol()}' subprotocol`);
+			this.disconnected = false;
+			if (!this.isProtocolSupported()) {
+				logger.log("Protocol is unsupported. Stopping monitor and disconnecting.");
+				return this.close({ allowReconnect: false });
+			}
+		},
+		close(event) {
+			logger.log("WebSocket onclose event");
+			if (this.disconnected) return;
+			this.disconnected = true;
+			this.monitor.recordDisconnect();
+			return this.subscriptions.notifyAll("disconnected", { willAttemptReconnect: this.monitor.isRunning() });
+		},
+		error() {
+			logger.log("WebSocket onerror event");
+		}
+	};
+	extend = function(object, properties) {
+		if (properties != null) for (let key in properties) object[key] = properties[key];
+		return object;
+	};
+	Subscription = class {
+		constructor(consumer, params = {}, mixin) {
+			this.consumer = consumer;
+			this.identifier = JSON.stringify(params);
+			extend(this, mixin);
+		}
+		perform(action, data = {}) {
+			data.action = action;
+			return this.send(data);
+		}
+		send(data) {
+			return this.consumer.send({
+				command: "message",
+				identifier: this.identifier,
+				data: JSON.stringify(data)
+			});
+		}
+		unsubscribe() {
+			return this.consumer.subscriptions.remove(this);
+		}
+	};
+	SubscriptionGuarantor = class {
+		constructor(subscriptions) {
+			this.subscriptions = subscriptions;
+			this.pendingSubscriptions = [];
+		}
+		guarantee(subscription) {
+			if (this.pendingSubscriptions.indexOf(subscription) == -1) {
+				logger.log(`SubscriptionGuarantor guaranteeing ${subscription.identifier}`);
+				this.pendingSubscriptions.push(subscription);
+			} else logger.log(`SubscriptionGuarantor already guaranteeing ${subscription.identifier}`);
+			this.startGuaranteeing();
+		}
+		forget(subscription) {
+			logger.log(`SubscriptionGuarantor forgetting ${subscription.identifier}`);
+			this.pendingSubscriptions = this.pendingSubscriptions.filter(((s) => s !== subscription));
+		}
+		startGuaranteeing() {
+			this.stopGuaranteeing();
+			this.retrySubscribing();
+		}
+		stopGuaranteeing() {
+			clearTimeout(this.retryTimeout);
+		}
+		retrySubscribing() {
+			this.retryTimeout = setTimeout((() => {
+				if (this.subscriptions && typeof this.subscriptions.subscribe === "function") this.pendingSubscriptions.map(((subscription) => {
+					logger.log(`SubscriptionGuarantor resubscribing ${subscription.identifier}`);
+					this.subscriptions.subscribe(subscription);
+				}));
+			}), 500);
+		}
+	};
+	Subscriptions = class {
+		constructor(consumer) {
+			this.consumer = consumer;
+			this.guarantor = new SubscriptionGuarantor(this);
+			this.subscriptions = [];
+		}
+		create(channelName, mixin) {
+			const channel = channelName;
+			const params = typeof channel === "object" ? channel : { channel };
+			const subscription = new Subscription(this.consumer, params, mixin);
+			return this.add(subscription);
+		}
+		add(subscription) {
+			this.subscriptions.push(subscription);
+			this.consumer.ensureActiveConnection();
+			this.notify(subscription, "initialized");
+			this.subscribe(subscription);
+			return subscription;
+		}
+		remove(subscription) {
+			this.forget(subscription);
+			if (!this.findAll(subscription.identifier).length) this.sendCommand(subscription, "unsubscribe");
+			return subscription;
+		}
+		reject(identifier) {
+			return this.findAll(identifier).map(((subscription) => {
+				this.forget(subscription);
+				this.notify(subscription, "rejected");
+				return subscription;
+			}));
+		}
+		forget(subscription) {
+			this.guarantor.forget(subscription);
+			this.subscriptions = this.subscriptions.filter(((s) => s !== subscription));
+			return subscription;
+		}
+		findAll(identifier) {
+			return this.subscriptions.filter(((s) => s.identifier === identifier));
+		}
+		reload() {
+			return this.subscriptions.map(((subscription) => this.subscribe(subscription)));
+		}
+		notifyAll(callbackName, ...args) {
+			return this.subscriptions.map(((subscription) => this.notify(subscription, callbackName, ...args)));
+		}
+		notify(subscription, callbackName, ...args) {
+			let subscriptions;
+			if (typeof subscription === "string") subscriptions = this.findAll(subscription);
+			else subscriptions = [subscription];
+			return subscriptions.map(((subscription) => typeof subscription[callbackName] === "function" ? subscription[callbackName](...args) : void 0));
+		}
+		subscribe(subscription) {
+			if (this.sendCommand(subscription, "subscribe")) this.guarantor.guarantee(subscription);
+		}
+		confirmSubscription(identifier) {
+			logger.log(`Subscription confirmed ${identifier}`);
+			this.findAll(identifier).map(((subscription) => this.guarantor.forget(subscription)));
+		}
+		sendCommand(subscription, command) {
+			const { identifier } = subscription;
+			return this.consumer.send({
+				command,
+				identifier
+			});
+		}
+	};
+	Consumer = class {
+		constructor(url) {
+			this._url = url;
+			this.subscriptions = new Subscriptions(this);
+			this.connection = new Connection(this);
+			this.subprotocols = [];
+		}
+		get url() {
+			return createWebSocketURL(this._url);
+		}
+		send(data) {
+			return this.connection.send(data);
+		}
+		connect() {
+			return this.connection.open();
+		}
+		disconnect() {
+			return this.connection.close({ allowReconnect: false });
+		}
+		ensureActiveConnection() {
+			if (!this.connection.isActive()) return this.connection.open();
+		}
+		addSubProtocol(subprotocol) {
+			this.subprotocols = [...this.subprotocols, subprotocol];
+		}
+	};
+}));
+//#endregion
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/document_element.js
+var _a;
+const Base$1 = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
+const INERT_ATTRIBUTE = "data-yrby-inert";
+let sharedConsumer;
+function defaultConsumer() {
+	sharedConsumer ??= Promise.resolve().then(() => (init_actioncable_esm(), actioncable_esm_exports)).then((actioncable) => actioncable.createConsumer()).catch((error) => {
+		sharedConsumer = void 0;
+		throw error;
+	});
+	return sharedConsumer;
+}
+function deferred() {
+	let resolve;
+	return {
+		promise: new Promise((r) => {
+			resolve = r;
+		}),
+		resolve
+	};
+}
+function blockReport(session) {
+	return session.state === "blocked" ? {
+		error: session.error,
+		session
+	} : void 0;
+}
+var YrbyDocumentElement = class extends Base$1 {
+	/** Set before adding elements to use another consumer, such as AnyCable's. */
+	static consumer;
+	static observedAttributes = [
+		"grant",
+		"name",
+		"channel"
+	];
+	#live = false;
+	#attempt;
+	#stalledKey;
+	#unregister;
+	#settleQueued = false;
+	#firstSync = deferred();
+	get session() {
+		const lease = this.#attempt?.lease;
+		return lease && !lease.signal.aborted ? lease.session : void 0;
+	}
+	get doc() {
+		return this.session?.doc;
+	}
+	get provider() {
+		return this.session?.provider;
+	}
+	/** Resolves after the current attempt's first sync. If the attempt is abandoned, its promise never resolves. */
+	get whenSynced() {
+		return this.#firstSync.promise;
+	}
+	connectedCallback() {
+		this.#stalledKey = void 0;
+		if (!this.#attempt) this.#holdInert();
+		this.#unregister ??= registerDocumentMount(this);
+		this.#requestSettle();
+	}
+	disconnectedCallback() {
+		this.#requestSettle();
+	}
+	attributeChangedCallback(_name, oldValue, newValue) {
+		if (oldValue === newValue) return;
+		this.#stalledKey = void 0;
+		this.#abandon();
+		this.#requestSettle();
+	}
+	/** @internal Called by the Turbo adapter when the page is live. A new render also retries a stalled document. */
+	activate() {
+		this.#live = true;
+		this.#stalledKey = void 0;
+		this.#requestSettle();
+	}
+	/** @internal Called by the Turbo adapter when the page is cached or previewed. */
+	deactivate() {
+		this.#live = false;
+		this.#abandon();
+	}
+	/** Releases the editor lease. The session keeps any unsaved work. */
+	destroy() {
+		this.#live = false;
+		const unregister = this.#unregister;
+		this.#unregister = void 0;
+		unregister?.();
+		this.#abandon();
+	}
+	#requestSettle() {
+		if (this.#settleQueued) return;
+		this.#settleQueued = true;
+		queueMicrotask(() => this.#settle());
+	}
+	#settle() {
+		this.#settleQueued = false;
+		if (!this.isConnected) {
+			this.destroy();
+			return;
+		}
+		const descriptor = this.#descriptor();
+		const key = this.#live && descriptor.grant && descriptor.name ? documentKey(descriptor) : void 0;
+		const attempt = this.#attempt;
+		if (attempt && attempt.key !== key) {
+			this.#abandon();
+			this.#requestSettle();
+			return;
+		}
+		if (key === void 0 || key === this.#stalledKey) return;
+		if (!attempt) this.#start(key, descriptor);
+		else if (attempt.ended) this.#stall(attempt.ended.detail);
+		else if (attempt.consumer && !attempt.lease) this.#acquire(attempt, attempt.consumer);
+		else if (attempt.synced && !attempt.announced) this.#announce(attempt);
+	}
+	#start(key, descriptor) {
+		const attempt = {
+			key,
+			descriptor
+		};
+		this.#attempt = attempt;
+		Promise.resolve(_a.consumer ?? defaultConsumer()).then((consumer) => {
+			attempt.consumer = consumer;
+		}, (error) => {
+			attempt.ended = { detail: { error } };
+		}).then(() => this.#requestSettle());
+	}
+	#acquire(attempt, consumer) {
+		let lease;
+		try {
+			lease = DocumentSessionStore.for(consumer).acquire(attempt.descriptor);
+		} catch (error) {
+			this.#stall({ error });
+			return;
+		}
+		attempt.lease = lease;
+		const { session } = lease;
+		const blocked = blockReport(session);
+		if (blocked) {
+			attempt.ended = { detail: blocked };
+			this.#requestSettle();
+			return;
+		}
+		lease.signal.addEventListener("abort", () => {
+			attempt.ended ??= { detail: blockReport(session) };
+			this.#requestSettle();
+		}, { once: true });
+		session.whenSynced.then(() => {
+			attempt.synced = true;
+			this.#requestSettle();
+		});
+	}
+	#announce(attempt) {
+		attempt.announced = true;
+		const lease = attempt.lease;
+		const { session } = lease;
+		this.#restoreInert();
+		this.#firstSync.resolve();
+		this.dispatchEvent(new CustomEvent("yrby:synced", {
+			bubbles: true,
+			detail: {
+				session,
+				doc: session.doc,
+				provider: session.provider,
+				lease,
+				signal: lease.signal
+			}
+		}));
+	}
+	#stall(detail) {
+		this.#stalledKey = this.#attempt?.key;
+		this.#abandon();
+		if (detail) this.dispatchEvent(new CustomEvent("yrby:error", {
+			bubbles: true,
+			detail
+		}));
+	}
+	#abandon() {
+		const attempt = this.#attempt;
+		if (!attempt) return;
+		this.#attempt = void 0;
+		this.#firstSync = deferred();
+		this.#holdInert();
+		attempt.lease?.release();
+	}
+	#descriptor() {
+		return {
+			channel: this.getAttribute("channel") || void 0,
+			grant: this.getAttribute("grant") || "",
+			name: this.getAttribute("name") || "",
+			refresh: this.getAttribute("refresh") || void 0
+		};
+	}
+	#holdInert() {
+		if (!this.hasAttribute(INERT_ATTRIBUTE)) this.setAttribute(INERT_ATTRIBUTE, String(this.inert));
+		this.inert = true;
+	}
+	#restoreInert() {
+		const saved = this.getAttribute(INERT_ATTRIBUTE);
+		if (saved === null) return;
+		this.inert = saved === "true";
+		this.removeAttribute(INERT_ATTRIBUTE);
+	}
+};
+_a = YrbyDocumentElement;
+if (typeof customElements !== "undefined" && !customElements.get("yrby-document")) customElements.define("yrby-document", YrbyDocumentElement);
+//#endregion
+//#region scripts/importmap/lexical_shim.js
+const $addUpdateTag = Lexical.$addUpdateTag;
+Lexical.$applyNodeReplacement;
+const $caretFromPoint = Lexical.$caretFromPoint;
+const $caretRangeFromSelection = Lexical.$caretRangeFromSelection;
+const $cloneWithProperties$1 = Lexical.$cloneWithProperties;
+const $cloneWithPropertiesEphemeral = Lexical.$cloneWithPropertiesEphemeral;
+Lexical.$comparePointCaretNext;
+Lexical.$copyNode;
+Lexical.$create;
+const $createChildrenArray = Lexical.$createChildrenArray;
+Lexical.$createLineBreakNode;
+Lexical.$createNodeSelection;
+const $createParagraphNode = Lexical.$createParagraphNode;
+Lexical.$createPoint;
+const $createRangeSelection = Lexical.$createRangeSelection;
+Lexical.$createRangeSelectionFromDom;
+Lexical.$createTabNode;
+const $createTextNode = Lexical.$createTextNode;
+const $extendCaretToRange = Lexical.$extendCaretToRange;
+const $findMatchingParent = Lexical.$findMatchingParent;
+Lexical.$getAdjacentChildCaret;
+Lexical.$getAdjacentNode;
+Lexical.$getAdjacentSiblingOrParentSiblingCaret;
+Lexical.$getCaretInDirection;
+Lexical.$getCaretRange;
+Lexical.$getCaretRangeInDirection;
+const $getCharacterOffsets = Lexical.$getCharacterOffsets;
+Lexical.$getChildCaret;
+Lexical.$getChildCaretAtIndex;
+Lexical.$getChildCaretOrSelf;
+Lexical.$getCollapsedCaretRange;
+Lexical.$getCommonAncestor;
+Lexical.$getCommonAncestorResultBranchOrder;
+const $getEditor = Lexical.$getEditor;
+Lexical.$getEditorDOMRenderConfig;
+Lexical.$getNearestNodeFromDOMNode;
+Lexical.$getNearestRootOrShadowRoot;
+const $getNodeByKey = Lexical.$getNodeByKey;
+const $getNodeByKeyOrThrow = Lexical.$getNodeByKeyOrThrow;
+Lexical.$getNodeFromDOMNode;
+const $getPreviousSelection = Lexical.$getPreviousSelection;
+const $getRoot = Lexical.$getRoot;
+const $getSelection = Lexical.$getSelection;
+Lexical.$getSiblingCaret;
+const $getState = Lexical.$getState;
+Lexical.$getStateChange;
+Lexical.$getTextContent;
+Lexical.$getTextNodeOffset;
+Lexical.$getTextPointCaret;
+Lexical.$getTextPointCaretSlice;
+const $getWritableNodeState = Lexical.$getWritableNodeState;
+const $hasAncestor = Lexical.$hasAncestor;
+Lexical.$hasUpdateTag;
+Lexical.$insertNodes;
+Lexical.$isBlockElementNode;
+const $isChildCaret = Lexical.$isChildCaret;
+const $isDecoratorNode = Lexical.$isDecoratorNode;
+Lexical.$isEditorState;
+const $isElementNode = Lexical.$isElementNode;
+const $isExtendableTextPointCaret = Lexical.$isExtendableTextPointCaret;
+Lexical.$isInlineElementOrDecoratorNode;
+const $isLeafNode = Lexical.$isLeafNode;
+Lexical.$isLexicalNode;
+const $isLineBreakNode = Lexical.$isLineBreakNode;
+Lexical.$isNodeCaret;
+Lexical.$isNodeSelection;
+Lexical.$isParagraphNode;
+const $isRangeSelection = Lexical.$isRangeSelection;
+const $isRootNode = Lexical.$isRootNode;
+const $isRootOrShadowRoot = Lexical.$isRootOrShadowRoot;
+Lexical.$isSiblingCaret;
+Lexical.$isTabNode;
+const $isTextNode = Lexical.$isTextNode;
+Lexical.$isTextPointCaret;
+Lexical.$isTextPointCaretSlice;
+const $isTokenOrSegmented = Lexical.$isTokenOrSegmented;
+Lexical.$isTokenOrTab;
+const $nodesOfType = Lexical.$nodesOfType;
+Lexical.$normalizeCaret;
+const $normalizeSelection__EXPERIMENTAL = Lexical.$normalizeSelection__EXPERIMENTAL;
+Lexical.$onUpdate;
+Lexical.$parseSerializedNode;
+Lexical.$removeTextFromCaretRange;
+Lexical.$rewindSiblingCaret;
+const $selectAll$1 = Lexical.$selectAll;
+Lexical.$setCompositionKey;
+Lexical.$setPointFromCaret;
+const $setSelection = Lexical.$setSelection;
+Lexical.$setSelectionFromCaretRange;
+Lexical.$setState;
+Lexical.$splitAtPointCaretNext;
+Lexical.$splitNode;
+Lexical.$updateRangeSelectionFromCaretRange;
+Lexical.ArtificialNode__DO_NOT_USE;
+Lexical.BEFORE_INPUT_COMMAND;
+Lexical.BLUR_COMMAND;
+Lexical.CAN_REDO_COMMAND;
+Lexical.CAN_UNDO_COMMAND;
+Lexical.CLEAR_EDITOR_COMMAND;
+const CLEAR_HISTORY_COMMAND = Lexical.CLEAR_HISTORY_COMMAND;
+Lexical.CLICK_COMMAND;
+const COLLABORATION_TAG = Lexical.COLLABORATION_TAG;
+Lexical.COMMAND_PRIORITY_BEFORE_CRITICAL;
+Lexical.COMMAND_PRIORITY_BEFORE_EDITOR;
+Lexical.COMMAND_PRIORITY_BEFORE_HIGH;
+Lexical.COMMAND_PRIORITY_BEFORE_LOW;
+Lexical.COMMAND_PRIORITY_BEFORE_NORMAL;
+Lexical.COMMAND_PRIORITY_CRITICAL;
+Lexical.COMMAND_PRIORITY_EDITOR;
+const COMMAND_PRIORITY_HIGH = Lexical.COMMAND_PRIORITY_HIGH;
+Lexical.COMMAND_PRIORITY_LOW;
+Lexical.COMMAND_PRIORITY_NORMAL;
+Lexical.COMPOSITION_END_COMMAND;
+Lexical.COMPOSITION_END_TAG;
+Lexical.COMPOSITION_START_COMMAND;
+Lexical.COMPOSITION_START_TAG;
+const CONTROLLED_TEXT_INSERTION_COMMAND = Lexical.CONTROLLED_TEXT_INSERTION_COMMAND;
+Lexical.COPY_COMMAND;
+Lexical.CUT_COMMAND;
+Lexical.DEFAULT_EDITOR_DOM_CONFIG;
+Lexical.DELETE_CHARACTER_COMMAND;
+Lexical.DELETE_LINE_COMMAND;
+Lexical.DELETE_WORD_COMMAND;
+Lexical.DRAGEND_COMMAND;
+Lexical.DRAGOVER_COMMAND;
+Lexical.DRAGSTART_COMMAND;
+Lexical.DROP_COMMAND;
+Lexical.DecoratorNode;
+const ElementNode = Lexical.ElementNode;
+Lexical.FOCUS_COMMAND;
+Lexical.FORMAT_ELEMENT_COMMAND;
+Lexical.FORMAT_TEXT_COMMAND;
+const HISTORIC_TAG = Lexical.HISTORIC_TAG;
+const HISTORY_MERGE_TAG = Lexical.HISTORY_MERGE_TAG;
+Lexical.HISTORY_PUSH_TAG;
+Lexical.INDENT_CONTENT_COMMAND;
+Lexical.INPUT_COMMAND;
+Lexical.INSERT_LINE_BREAK_COMMAND;
+Lexical.INSERT_PARAGRAPH_COMMAND;
+Lexical.INSERT_TAB_COMMAND;
+const INTERNAL_$isBlock = Lexical.INTERNAL_$isBlock;
+Lexical.IS_ALL_FORMATTING;
+Lexical.IS_BOLD;
+Lexical.IS_CODE;
+Lexical.IS_HIGHLIGHT;
+Lexical.IS_ITALIC;
+Lexical.IS_STRIKETHROUGH;
+Lexical.IS_SUBSCRIPT;
+Lexical.IS_SUPERSCRIPT;
+Lexical.IS_UNDERLINE;
+Lexical.KEY_ARROW_DOWN_COMMAND;
+Lexical.KEY_ARROW_LEFT_COMMAND;
+Lexical.KEY_ARROW_RIGHT_COMMAND;
+Lexical.KEY_ARROW_UP_COMMAND;
+Lexical.KEY_BACKSPACE_COMMAND;
+Lexical.KEY_DELETE_COMMAND;
+Lexical.KEY_DOWN_COMMAND;
+Lexical.KEY_ENTER_COMMAND;
+Lexical.KEY_ESCAPE_COMMAND;
+Lexical.KEY_MODIFIER_COMMAND;
+Lexical.KEY_SPACE_COMMAND;
+Lexical.KEY_TAB_COMMAND;
+Lexical.LineBreakNode;
+Lexical.MOVE_TO_END;
+Lexical.MOVE_TO_START;
+Lexical.NODE_STATE_KEY;
+Lexical.OUTDENT_CONTENT_COMMAND;
+Lexical.PASTE_COMMAND;
+Lexical.PASTE_TAG;
+Lexical.ParagraphNode;
+Lexical.REDO_COMMAND;
+Lexical.REMOVE_TEXT_COMMAND;
+const RootNode = Lexical.RootNode;
+Lexical.SELECTION_CHANGE_COMMAND;
+Lexical.SELECTION_INSERT_CLIPBOARD_NODES_COMMAND;
+Lexical.SELECT_ALL_COMMAND;
+Lexical.SKIP_COLLAB_TAG;
+Lexical.SKIP_DOM_SELECTION_TAG;
+const SKIP_SCROLL_INTO_VIEW_TAG = Lexical.SKIP_SCROLL_INTO_VIEW_TAG;
+Lexical.SKIP_SELECTION_FOCUS_TAG;
+Lexical.TEXT_TYPE_TO_FORMAT;
+Lexical.TabNode;
+const TextNode = Lexical.TextNode;
+Lexical.UNDO_COMMAND;
+Lexical.addClassNamesToElement;
+Lexical.buildImportMap;
+Lexical.configExtension;
+const createCommand = Lexical.createCommand;
+const createEditor = Lexical.createEditor;
+Lexical.createSharedNodeState;
+const createState = Lexical.createState;
+Lexical.declarePeerDependency;
+Lexical.defineExtension;
+Lexical.flipDirection;
+Lexical.getDOMOwnerDocument;
+Lexical.getDOMSelection;
+Lexical.getDOMSelectionFromTarget;
+Lexical.getDOMTextNode;
+Lexical.getEditorPropertyFromDOMNode;
+Lexical.getNearestEditorFromDOMNode;
+Lexical.getRegisteredNode;
+Lexical.getRegisteredNodeOrThrow;
+Lexical.getStaticNodeConfig;
+const getStyleObjectFromCSS$2 = Lexical.getStyleObjectFromCSS;
+Lexical.getTextDirection;
+Lexical.getTransformSetFromKlass;
+Lexical.isBlockDomNode;
+Lexical.isCurrentlyReadOnlyMode;
+Lexical.isDOMDocumentNode;
+Lexical.isDOMNode;
+Lexical.isDOMTextNode;
+Lexical.isDOMUnmanaged;
+Lexical.isDocumentFragment;
+Lexical.isExactShortcutMatch;
+Lexical.isHTMLAnchorElement;
+Lexical.isHTMLElement;
+Lexical.isInlineDomNode;
+Lexical.isLexicalEditor;
+Lexical.isModifierMatch;
+Lexical.isSelectionCapturedInDecoratorInput;
+Lexical.isSelectionWithinEditor;
+Lexical.makeStepwiseIterator;
+Lexical.mergeRegister;
+Lexical.normalizeClassNames;
+Lexical.removeClassNamesFromElement;
+const removeFromParent = Lexical.removeFromParent;
+Lexical.resetRandomKey;
+Lexical.safeCast;
+Lexical.setDOMStyleFromCSS;
+const setDOMStyleObject = Lexical.setDOMStyleObject;
+Lexical.setDOMUnmanaged;
+Lexical.setNodeIndentFromDOM;
+Lexical.shallowMergeConfig;
+Lexical.toggleTextFormatType;
+//#endregion
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/@lexical/selection/LexicalSelection.dev.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *
@@ -11978,7 +13938,7 @@ const getStyleObjectFromCSS$1 = getStyleObjectFromCSS$2;
 /** @deprecated renamed to {@link $trimTextContentFromAnchor} by @lexical/eslint-plugin rules-of-lexical */
 const trimTextContentFromAnchor$1 = $trimTextContentFromAnchor$1;
 //#endregion
-//#region node_modules/@lexical/selection/LexicalSelection.mjs
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/@lexical/selection/LexicalSelection.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *
@@ -12013,7 +13973,7 @@ mod$1.getCSSFromStyleObject;
 mod$1.getStyleObjectFromCSS;
 mod$1.trimTextContentFromAnchor;
 //#endregion
-//#region node_modules/@lexical/yjs/LexicalYjs.dev.mjs
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/@lexical/yjs/LexicalYjs.dev.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *
@@ -14048,7 +16008,7 @@ function setLocalStateFocus$1(provider, name, color, focusing, awarenessData) {
 	awareness.setLocalState(localState);
 }
 //#endregion
-//#region node_modules/@lexical/yjs/LexicalYjs.mjs
+//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/@lexical/yjs/LexicalYjs.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *
@@ -14075,1406 +16035,6 @@ mod.syncLexicalUpdateToYjsV2__EXPERIMENTAL;
 const syncYjsChangesToLexical = mod.syncYjsChangesToLexical;
 mod.syncYjsChangesToLexicalV2__EXPERIMENTAL;
 mod.syncYjsStateToLexicalV2__EXPERIMENTAL;
-//#endregion
-//#region node_modules/@rails/actioncable/app/assets/javascripts/actioncable.esm.js
-var adapters = {
-	logger: typeof console !== "undefined" ? console : void 0,
-	WebSocket: typeof WebSocket !== "undefined" ? WebSocket : void 0
-};
-var logger = { log(...messages) {
-	if (this.enabled) {
-		messages.push(Date.now());
-		adapters.logger.log("[ActionCable]", ...messages);
-	}
-} };
-const now = () => (/* @__PURE__ */ new Date()).getTime();
-const secondsSince = (time) => (now() - time) / 1e3;
-var ConnectionMonitor = class {
-	constructor(connection) {
-		this.visibilityDidChange = this.visibilityDidChange.bind(this);
-		this.connection = connection;
-		this.reconnectAttempts = 0;
-	}
-	start() {
-		if (!this.isRunning()) {
-			this.startedAt = now();
-			delete this.stoppedAt;
-			this.startPolling();
-			addEventListener("visibilitychange", this.visibilityDidChange);
-			logger.log(`ConnectionMonitor started. stale threshold = ${this.constructor.staleThreshold} s`);
-		}
-	}
-	stop() {
-		if (this.isRunning()) {
-			this.stoppedAt = now();
-			this.stopPolling();
-			removeEventListener("visibilitychange", this.visibilityDidChange);
-			logger.log("ConnectionMonitor stopped");
-		}
-	}
-	isRunning() {
-		return this.startedAt && !this.stoppedAt;
-	}
-	recordMessage() {
-		this.pingedAt = now();
-	}
-	recordConnect() {
-		this.reconnectAttempts = 0;
-		delete this.disconnectedAt;
-		logger.log("ConnectionMonitor recorded connect");
-	}
-	recordDisconnect() {
-		this.disconnectedAt = now();
-		logger.log("ConnectionMonitor recorded disconnect");
-	}
-	startPolling() {
-		this.stopPolling();
-		this.poll();
-	}
-	stopPolling() {
-		clearTimeout(this.pollTimeout);
-	}
-	poll() {
-		this.pollTimeout = setTimeout((() => {
-			this.reconnectIfStale();
-			this.poll();
-		}), this.getPollInterval());
-	}
-	getPollInterval() {
-		const { staleThreshold, reconnectionBackoffRate } = this.constructor;
-		const backoff = Math.pow(1 + reconnectionBackoffRate, Math.min(this.reconnectAttempts, 10));
-		const jitter = (this.reconnectAttempts === 0 ? 1 : reconnectionBackoffRate) * Math.random();
-		return staleThreshold * 1e3 * backoff * (1 + jitter);
-	}
-	reconnectIfStale() {
-		if (this.connectionIsStale()) {
-			logger.log(`ConnectionMonitor detected stale connection. reconnectAttempts = ${this.reconnectAttempts}, time stale = ${secondsSince(this.refreshedAt)} s, stale threshold = ${this.constructor.staleThreshold} s`);
-			this.reconnectAttempts++;
-			if (this.disconnectedRecently()) logger.log(`ConnectionMonitor skipping reopening recent disconnect. time disconnected = ${secondsSince(this.disconnectedAt)} s`);
-			else {
-				logger.log("ConnectionMonitor reopening");
-				this.connection.reopen();
-			}
-		}
-	}
-	get refreshedAt() {
-		return this.pingedAt ? this.pingedAt : this.startedAt;
-	}
-	connectionIsStale() {
-		return secondsSince(this.refreshedAt) > this.constructor.staleThreshold;
-	}
-	disconnectedRecently() {
-		return this.disconnectedAt && secondsSince(this.disconnectedAt) < this.constructor.staleThreshold;
-	}
-	visibilityDidChange() {
-		if (document.visibilityState === "visible") setTimeout((() => {
-			if (this.connectionIsStale() || !this.connection.isOpen()) {
-				logger.log(`ConnectionMonitor reopening stale connection on visibilitychange. visibilityState = ${document.visibilityState}`);
-				this.connection.reopen();
-			}
-		}), 200);
-	}
-};
-ConnectionMonitor.staleThreshold = 6;
-ConnectionMonitor.reconnectionBackoffRate = .15;
-var INTERNAL = {
-	message_types: {
-		welcome: "welcome",
-		disconnect: "disconnect",
-		ping: "ping",
-		confirmation: "confirm_subscription",
-		rejection: "reject_subscription"
-	},
-	disconnect_reasons: {
-		unauthorized: "unauthorized",
-		invalid_request: "invalid_request",
-		server_restart: "server_restart",
-		remote: "remote"
-	},
-	default_mount_path: "/cable",
-	protocols: ["actioncable-v1-json", "actioncable-unsupported"]
-};
-const { message_types, protocols } = INTERNAL;
-const supportedProtocols = protocols.slice(0, protocols.length - 1);
-const indexOf = [].indexOf;
-var Connection = class {
-	constructor(consumer) {
-		this.open = this.open.bind(this);
-		this.consumer = consumer;
-		this.subscriptions = this.consumer.subscriptions;
-		this.monitor = new ConnectionMonitor(this);
-		this.disconnected = true;
-	}
-	send(data) {
-		if (this.isOpen()) {
-			this.webSocket.send(JSON.stringify(data));
-			return true;
-		} else return false;
-	}
-	open() {
-		if (this.isActive()) {
-			logger.log(`Attempted to open WebSocket, but existing socket is ${this.getState()}`);
-			return false;
-		} else {
-			const socketProtocols = [...protocols, ...this.consumer.subprotocols || []];
-			logger.log(`Opening WebSocket, current state is ${this.getState()}, subprotocols: ${socketProtocols}`);
-			if (this.webSocket) this.uninstallEventHandlers();
-			this.webSocket = new adapters.WebSocket(this.consumer.url, socketProtocols);
-			this.installEventHandlers();
-			this.monitor.start();
-			return true;
-		}
-	}
-	close({ allowReconnect } = { allowReconnect: true }) {
-		if (!allowReconnect) this.monitor.stop();
-		if (this.isOpen()) return this.webSocket.close();
-	}
-	reopen() {
-		logger.log(`Reopening WebSocket, current state is ${this.getState()}`);
-		if (this.isActive()) try {
-			return this.close();
-		} catch (error) {
-			logger.log("Failed to reopen WebSocket", error);
-		} finally {
-			logger.log(`Reopening WebSocket in ${this.constructor.reopenDelay}ms`);
-			setTimeout(this.open, this.constructor.reopenDelay);
-		}
-		else return this.open();
-	}
-	getProtocol() {
-		if (this.webSocket) return this.webSocket.protocol;
-	}
-	isOpen() {
-		return this.isState("open");
-	}
-	isActive() {
-		return this.isState("open", "connecting");
-	}
-	triedToReconnect() {
-		return this.monitor.reconnectAttempts > 0;
-	}
-	isProtocolSupported() {
-		return indexOf.call(supportedProtocols, this.getProtocol()) >= 0;
-	}
-	isState(...states) {
-		return indexOf.call(states, this.getState()) >= 0;
-	}
-	getState() {
-		if (this.webSocket) {
-			for (let state in adapters.WebSocket) if (adapters.WebSocket[state] === this.webSocket.readyState) return state.toLowerCase();
-		}
-		return null;
-	}
-	installEventHandlers() {
-		for (let eventName in this.events) {
-			const handler = this.events[eventName].bind(this);
-			this.webSocket[`on${eventName}`] = handler;
-		}
-	}
-	uninstallEventHandlers() {
-		for (let eventName in this.events) this.webSocket[`on${eventName}`] = function() {};
-	}
-};
-Connection.reopenDelay = 500;
-Connection.prototype.events = {
-	message(event) {
-		if (!this.isProtocolSupported()) return;
-		const { identifier, message, reason, reconnect, type } = JSON.parse(event.data);
-		this.monitor.recordMessage();
-		switch (type) {
-			case message_types.welcome:
-				if (this.triedToReconnect()) this.reconnectAttempted = true;
-				this.monitor.recordConnect();
-				return this.subscriptions.reload();
-			case message_types.disconnect:
-				logger.log(`Disconnecting. Reason: ${reason}`);
-				return this.close({ allowReconnect: reconnect });
-			case message_types.ping: return null;
-			case message_types.confirmation:
-				this.subscriptions.confirmSubscription(identifier);
-				if (this.reconnectAttempted) {
-					this.reconnectAttempted = false;
-					return this.subscriptions.notify(identifier, "connected", { reconnected: true });
-				} else return this.subscriptions.notify(identifier, "connected", { reconnected: false });
-			case message_types.rejection: return this.subscriptions.reject(identifier);
-			default: return this.subscriptions.notify(identifier, "received", message);
-		}
-	},
-	open() {
-		logger.log(`WebSocket onopen event, using '${this.getProtocol()}' subprotocol`);
-		this.disconnected = false;
-		if (!this.isProtocolSupported()) {
-			logger.log("Protocol is unsupported. Stopping monitor and disconnecting.");
-			return this.close({ allowReconnect: false });
-		}
-	},
-	close(event) {
-		logger.log("WebSocket onclose event");
-		if (this.disconnected) return;
-		this.disconnected = true;
-		this.monitor.recordDisconnect();
-		return this.subscriptions.notifyAll("disconnected", { willAttemptReconnect: this.monitor.isRunning() });
-	},
-	error() {
-		logger.log("WebSocket onerror event");
-	}
-};
-const extend = function(object, properties) {
-	if (properties != null) for (let key in properties) object[key] = properties[key];
-	return object;
-};
-var Subscription = class {
-	constructor(consumer, params = {}, mixin) {
-		this.consumer = consumer;
-		this.identifier = JSON.stringify(params);
-		extend(this, mixin);
-	}
-	perform(action, data = {}) {
-		data.action = action;
-		return this.send(data);
-	}
-	send(data) {
-		return this.consumer.send({
-			command: "message",
-			identifier: this.identifier,
-			data: JSON.stringify(data)
-		});
-	}
-	unsubscribe() {
-		return this.consumer.subscriptions.remove(this);
-	}
-};
-var SubscriptionGuarantor = class {
-	constructor(subscriptions) {
-		this.subscriptions = subscriptions;
-		this.pendingSubscriptions = [];
-	}
-	guarantee(subscription) {
-		if (this.pendingSubscriptions.indexOf(subscription) == -1) {
-			logger.log(`SubscriptionGuarantor guaranteeing ${subscription.identifier}`);
-			this.pendingSubscriptions.push(subscription);
-		} else logger.log(`SubscriptionGuarantor already guaranteeing ${subscription.identifier}`);
-		this.startGuaranteeing();
-	}
-	forget(subscription) {
-		logger.log(`SubscriptionGuarantor forgetting ${subscription.identifier}`);
-		this.pendingSubscriptions = this.pendingSubscriptions.filter(((s) => s !== subscription));
-	}
-	startGuaranteeing() {
-		this.stopGuaranteeing();
-		this.retrySubscribing();
-	}
-	stopGuaranteeing() {
-		clearTimeout(this.retryTimeout);
-	}
-	retrySubscribing() {
-		this.retryTimeout = setTimeout((() => {
-			if (this.subscriptions && typeof this.subscriptions.subscribe === "function") this.pendingSubscriptions.map(((subscription) => {
-				logger.log(`SubscriptionGuarantor resubscribing ${subscription.identifier}`);
-				this.subscriptions.subscribe(subscription);
-			}));
-		}), 500);
-	}
-};
-var Subscriptions = class {
-	constructor(consumer) {
-		this.consumer = consumer;
-		this.guarantor = new SubscriptionGuarantor(this);
-		this.subscriptions = [];
-	}
-	create(channelName, mixin) {
-		const channel = channelName;
-		const params = typeof channel === "object" ? channel : { channel };
-		const subscription = new Subscription(this.consumer, params, mixin);
-		return this.add(subscription);
-	}
-	add(subscription) {
-		this.subscriptions.push(subscription);
-		this.consumer.ensureActiveConnection();
-		this.notify(subscription, "initialized");
-		this.subscribe(subscription);
-		return subscription;
-	}
-	remove(subscription) {
-		this.forget(subscription);
-		if (!this.findAll(subscription.identifier).length) this.sendCommand(subscription, "unsubscribe");
-		return subscription;
-	}
-	reject(identifier) {
-		return this.findAll(identifier).map(((subscription) => {
-			this.forget(subscription);
-			this.notify(subscription, "rejected");
-			return subscription;
-		}));
-	}
-	forget(subscription) {
-		this.guarantor.forget(subscription);
-		this.subscriptions = this.subscriptions.filter(((s) => s !== subscription));
-		return subscription;
-	}
-	findAll(identifier) {
-		return this.subscriptions.filter(((s) => s.identifier === identifier));
-	}
-	reload() {
-		return this.subscriptions.map(((subscription) => this.subscribe(subscription)));
-	}
-	notifyAll(callbackName, ...args) {
-		return this.subscriptions.map(((subscription) => this.notify(subscription, callbackName, ...args)));
-	}
-	notify(subscription, callbackName, ...args) {
-		let subscriptions;
-		if (typeof subscription === "string") subscriptions = this.findAll(subscription);
-		else subscriptions = [subscription];
-		return subscriptions.map(((subscription) => typeof subscription[callbackName] === "function" ? subscription[callbackName](...args) : void 0));
-	}
-	subscribe(subscription) {
-		if (this.sendCommand(subscription, "subscribe")) this.guarantor.guarantee(subscription);
-	}
-	confirmSubscription(identifier) {
-		logger.log(`Subscription confirmed ${identifier}`);
-		this.findAll(identifier).map(((subscription) => this.guarantor.forget(subscription)));
-	}
-	sendCommand(subscription, command) {
-		const { identifier } = subscription;
-		return this.consumer.send({
-			command,
-			identifier
-		});
-	}
-};
-var Consumer = class {
-	constructor(url) {
-		this._url = url;
-		this.subscriptions = new Subscriptions(this);
-		this.connection = new Connection(this);
-		this.subprotocols = [];
-	}
-	get url() {
-		return createWebSocketURL(this._url);
-	}
-	send(data) {
-		return this.connection.send(data);
-	}
-	connect() {
-		return this.connection.open();
-	}
-	disconnect() {
-		return this.connection.close({ allowReconnect: false });
-	}
-	ensureActiveConnection() {
-		if (!this.connection.isActive()) return this.connection.open();
-	}
-	addSubProtocol(subprotocol) {
-		this.subprotocols = [...this.subprotocols, subprotocol];
-	}
-};
-function createWebSocketURL(url) {
-	if (typeof url === "function") url = url();
-	if (url && !/^wss?:/i.test(url)) {
-		const a = document.createElement("a");
-		a.href = url;
-		a.href = a.href;
-		a.protocol = a.protocol.replace("http", "ws");
-		return a.href;
-	} else return url;
-}
-function createConsumer(url = getConfig("url") || INTERNAL.default_mount_path) {
-	return new Consumer(url);
-}
-function getConfig(name) {
-	const element = document.head.querySelector(`meta[name='action-cable-${name}']`);
-	if (element) return element.getAttribute("content");
-}
-//#endregion
-//#region node_modules/yrby-client/dist/reliable_sync.js
-const DEFAULT_RESEND_INTERVAL = 1e3;
-var ReliableSync = class {
-	#pending = [];
-	#send;
-	#merge;
-	#resendInterval;
-	#setInterval;
-	#clearInterval;
-	#nextSeq = 1;
-	#phase = "paused";
-	#timer;
-	#version = 0;
-	#tail;
-	constructor(opts) {
-		const { send, merge, resendInterval, setInterval: setTimer, clearInterval: clearTimer } = opts ?? {};
-		if (typeof send !== "function") throw new TypeError("ReliableSync requires a send(update, id) function");
-		if (typeof merge !== "function") throw new TypeError("ReliableSync requires a merge(updates) function");
-		const interval = resendInterval ?? DEFAULT_RESEND_INTERVAL;
-		if (!Number.isFinite(interval) || interval <= 0) throw new TypeError("ReliableSync resendInterval must be a positive number");
-		this.#send = send;
-		this.#merge = merge;
-		this.#resendInterval = interval;
-		this.#setInterval = setTimer ?? ((fn, ms) => setInterval(fn, ms));
-		this.#clearInterval = clearTimer ?? ((h) => clearInterval(h));
-	}
-	/** A snapshot of unacknowledged local updates, oldest first. Editing it does not change the queue. */
-	get pending() {
-		return this.#pending.map(({ seq, update }) => ({
-			seq,
-			update: update.slice()
-		}));
-	}
-	/** True while there are unacknowledged local updates. */
-	get hasPending() {
-		return this.#pending.length > 0;
-	}
-	/** Queue a local update and, while connected, send the tail. Ignored after destroy(). */
-	enqueue(update) {
-		if (this.#phase === "destroyed") return;
-		this.#pending.push({
-			seq: this.#nextSeq++,
-			update: new Uint8Array(update)
-		});
-		this.#queueChanged();
-		this.#flush();
-	}
-	/**
-	* Confirm delivery through `id`, removing every queued update with
-	* seq <= id. Acks come off the wire, so ignore a malformed value or an id
-	* beyond anything sent.
-	*/
-	acknowledge(id) {
-		if (this.#phase === "destroyed" || !Number.isSafeInteger(id) || id < 0) return;
-		const newest = this.#pending.at(-1);
-		if (newest && id > newest.seq) return;
-		this.#pending = this.#pending.filter((p) => p.seq > id);
-		this.#queueChanged();
-	}
-	/** Call when the transport is up. Replays the tail and keeps retransmitting until it is acknowledged. */
-	resume() {
-		if (this.#phase === "destroyed") return;
-		this.#phase = "live";
-		this.#version++;
-		this.#updateTimer();
-		this.#flush();
-	}
-	/** Call when the transport is down. Keeps the queue and stops retransmitting. */
-	pause() {
-		if (this.#phase === "destroyed") return;
-		this.#phase = "paused";
-		this.#version++;
-		this.#updateTimer();
-	}
-	/** Send the tail again if anything is unacknowledged. The internal timer calls this, and a host with its own scheduler can too. */
-	retransmit() {
-		this.#flush();
-	}
-	/** Stop the timer and drop the queue. Later enqueues are ignored. */
-	destroy() {
-		if (this.#phase === "destroyed") return;
-		this.#phase = "destroyed";
-		this.#pending = [];
-		this.#queueChanged();
-	}
-	#queueChanged() {
-		this.#version++;
-		this.#tail = void 0;
-		this.#updateTimer();
-	}
-	#updateTimer() {
-		const wanted = this.#phase === "live" && this.hasPending;
-		if (wanted === (this.#timer !== void 0)) return;
-		if (!wanted) {
-			const timer = this.#timer;
-			this.#timer = void 0;
-			timer.stop();
-			return;
-		}
-		const timer = this.#timer = { stop: () => {} };
-		let handle;
-		try {
-			handle = this.#setInterval(() => {
-				if (this.#timer === timer) this.#flush();
-			}, this.#resendInterval);
-		} catch (error) {
-			if (this.#timer === timer) this.#timer = void 0;
-			throw error;
-		}
-		timer.stop = () => this.#clearInterval(handle);
-		if (this.#timer !== timer) {
-			timer.stop();
-			return;
-		}
-		handle?.unref?.();
-	}
-	#flush() {
-		if (this.#phase !== "live" || !this.#pending.length) return;
-		if (this.#tail === void 0) {
-			const version = this.#version;
-			const updates = this.#pending.map((p) => p.update);
-			const tail = updates.length === 1 ? updates[0] : this.#merge(updates);
-			if (this.#version !== version) return;
-			this.#tail = tail;
-		}
-		this.#send(this.#tail, this.#pending.at(-1).seq);
-	}
-};
-/**
-* Create a sync step 1 message based on the state of the current shared document.
-*
-* @param {encoding.Encoder} encoder
-* @param {Y.Doc} doc
-*/
-const writeSyncStep1 = (encoder, doc) => {
-	writeVarUint(encoder, 0);
-	const sv = encodeStateVector(doc);
-	writeVarUint8Array(encoder, sv);
-};
-/**
-* @param {encoding.Encoder} encoder
-* @param {Y.Doc} doc
-* @param {Uint8Array} [encodedStateVector]
-*/
-const writeSyncStep2 = (encoder, doc, encodedStateVector) => {
-	writeVarUint(encoder, 1);
-	writeVarUint8Array(encoder, encodeStateAsUpdate(doc, encodedStateVector));
-};
-/**
-* Read SyncStep1 message and reply with SyncStep2.
-*
-* @param {decoding.Decoder} decoder The reply to the received message
-* @param {encoding.Encoder} encoder The received message
-* @param {Y.Doc} doc
-*/
-const readSyncStep1 = (decoder, encoder, doc) => writeSyncStep2(encoder, doc, readVarUint8Array(decoder));
-/**
-* Read and apply Structs and then DeleteStore to a y instance.
-*
-* @param {decoding.Decoder} decoder
-* @param {Y.Doc} doc
-* @param {any} transactionOrigin
-* @param {(error:Error)=>any} [errorHandler]
-*/
-const readSyncStep2 = (decoder, doc, transactionOrigin, errorHandler) => {
-	try {
-		applyUpdate(doc, readVarUint8Array(decoder), transactionOrigin);
-	} catch (error) {
-		if (errorHandler != null) errorHandler(error);
-		console.error("Caught error while handling a Yjs update", error);
-	}
-};
-/**
-* @param {encoding.Encoder} encoder
-* @param {Uint8Array} update
-*/
-const writeUpdate = (encoder, update) => {
-	writeVarUint(encoder, 2);
-	writeVarUint8Array(encoder, update);
-};
-/**
-* Read and apply Structs and then DeleteStore to a y instance.
-*
-* @param {decoding.Decoder} decoder
-* @param {Y.Doc} doc
-* @param {any} transactionOrigin
-* @param {(error:Error)=>any} [errorHandler]
-*/
-const readUpdate = readSyncStep2;
-/**
-* @param {decoding.Decoder} decoder A message received from another client
-* @param {encoding.Encoder} encoder The reply message. Does not need to be sent if empty.
-* @param {Y.Doc} doc
-* @param {any} transactionOrigin
-* @param {(error:Error)=>any} [errorHandler] Optional error handler that catches errors when reading Yjs messages.
-*/
-const readSyncMessage = (decoder, encoder, doc, transactionOrigin, errorHandler) => {
-	const messageType = readVarUint(decoder);
-	switch (messageType) {
-		case 0:
-			readSyncStep1(decoder, encoder, doc);
-			break;
-		case 1:
-			readSyncStep2(decoder, doc, transactionOrigin, errorHandler);
-			break;
-		case 2:
-			readUpdate(decoder, doc, transactionOrigin, errorHandler);
-			break;
-		default: throw new Error("Unknown message type");
-	}
-	return messageType;
-};
-//#endregion
-//#region node_modules/y-protocols/awareness.js
-/**
-* @module awareness-protocol
-*/
-const outdatedTimeout = 3e4;
-/**
-* @typedef {Object} MetaClientState
-* @property {number} MetaClientState.clock
-* @property {number} MetaClientState.lastUpdated unix timestamp
-*/
-/**
-* The Awareness class implements a simple shared state protocol that can be used for non-persistent data like awareness information
-* (cursor, username, status, ..). Each client can update its own local state and listen to state changes of
-* remote clients. Every client may set a state of a remote peer to `null` to mark the client as offline.
-*
-* Each client is identified by a unique client id (something we borrow from `doc.clientID`). A client can override
-* its own state by propagating a message with an increasing timestamp (`clock`). If such a message is received, it is
-* applied if the known state of that client is older than the new state (`clock < newClock`). If a client thinks that
-* a remote client is offline, it may propagate a message with
-* `{ clock: currentClientClock, state: null, client: remoteClient }`. If such a
-* message is received, and the known clock of that client equals the received clock, it will override the state with `null`.
-*
-* Before a client disconnects, it should propagate a `null` state with an updated clock.
-*
-* Awareness states must be updated every 30 seconds. Otherwise the Awareness instance will delete the client state.
-*
-* @extends {Observable<string>}
-*/
-var Awareness = class extends Observable {
-	/**
-	* @param {Y.Doc} doc
-	*/
-	constructor(doc) {
-		super();
-		this.doc = doc;
-		/**
-		* @type {number}
-		*/
-		this.clientID = doc.clientID;
-		/**
-		* Maps from client id to client state
-		* @type {Map<number, Object<string, any>>}
-		*/
-		this.states = /* @__PURE__ */ new Map();
-		/**
-		* @type {Map<number, MetaClientState>}
-		*/
-		this.meta = /* @__PURE__ */ new Map();
-		this._checkInterval = setInterval(() => {
-			const now = getUnixTime();
-			if (this.getLocalState() !== null && 3e4 / 2 <= now - this.meta.get(this.clientID).lastUpdated) this.setLocalState(this.getLocalState());
-			/**
-			* @type {Array<number>}
-			*/
-			const remove = [];
-			this.meta.forEach((meta, clientid) => {
-				if (clientid !== this.clientID && 3e4 <= now - meta.lastUpdated && this.states.has(clientid)) remove.push(clientid);
-			});
-			if (remove.length > 0) removeAwarenessStates(this, remove, "timeout");
-		}, floor(outdatedTimeout / 10));
-		doc.on("destroy", () => {
-			this.destroy();
-		});
-		this.setLocalState({});
-	}
-	destroy() {
-		this.emit("destroy", [this]);
-		this.setLocalState(null);
-		super.destroy();
-		clearInterval(this._checkInterval);
-	}
-	/**
-	* @return {Object<string,any>|null}
-	*/
-	getLocalState() {
-		return this.states.get(this.clientID) || null;
-	}
-	/**
-	* @param {Object<string,any>|null} state
-	*/
-	setLocalState(state) {
-		const clientID = this.clientID;
-		const currLocalMeta = this.meta.get(clientID);
-		const clock = currLocalMeta === void 0 ? 0 : currLocalMeta.clock + 1;
-		const prevState = this.states.get(clientID);
-		if (state === null) this.states.delete(clientID);
-		else this.states.set(clientID, state);
-		this.meta.set(clientID, {
-			clock,
-			lastUpdated: getUnixTime()
-		});
-		const added = [];
-		const updated = [];
-		const filteredUpdated = [];
-		const removed = [];
-		if (state === null) removed.push(clientID);
-		else if (prevState == null) {
-			if (state != null) added.push(clientID);
-		} else {
-			updated.push(clientID);
-			if (!equalityDeep(prevState, state)) filteredUpdated.push(clientID);
-		}
-		if (added.length > 0 || filteredUpdated.length > 0 || removed.length > 0) this.emit("change", [{
-			added,
-			updated: filteredUpdated,
-			removed
-		}, "local"]);
-		this.emit("update", [{
-			added,
-			updated,
-			removed
-		}, "local"]);
-	}
-	/**
-	* @param {string} field
-	* @param {any} value
-	*/
-	setLocalStateField(field, value) {
-		const state = this.getLocalState();
-		if (state !== null) this.setLocalState({
-			...state,
-			[field]: value
-		});
-	}
-	/**
-	* @return {Map<number,Object<string,any>>}
-	*/
-	getStates() {
-		return this.states;
-	}
-};
-/**
-* Mark (remote) clients as inactive and remove them from the list of active peers.
-* This change will be propagated to remote clients.
-*
-* @param {Awareness} awareness
-* @param {Array<number>} clients
-* @param {any} origin
-*/
-const removeAwarenessStates = (awareness, clients, origin) => {
-	const removed = [];
-	for (let i = 0; i < clients.length; i++) {
-		const clientID = clients[i];
-		if (awareness.states.has(clientID)) {
-			awareness.states.delete(clientID);
-			if (clientID === awareness.clientID) {
-				const curMeta = awareness.meta.get(clientID);
-				awareness.meta.set(clientID, {
-					clock: curMeta.clock + 1,
-					lastUpdated: getUnixTime()
-				});
-			}
-			removed.push(clientID);
-		}
-	}
-	if (removed.length > 0) {
-		awareness.emit("change", [{
-			added: [],
-			updated: [],
-			removed
-		}, origin]);
-		awareness.emit("update", [{
-			added: [],
-			updated: [],
-			removed
-		}, origin]);
-	}
-};
-/**
-* @param {Awareness} awareness
-* @param {Array<number>} clients
-* @return {Uint8Array}
-*/
-const encodeAwarenessUpdate = (awareness, clients, states = awareness.states) => {
-	const len = clients.length;
-	const encoder = createEncoder();
-	writeVarUint(encoder, len);
-	for (let i = 0; i < len; i++) {
-		const clientID = clients[i];
-		const state = states.get(clientID) || null;
-		const clock = awareness.meta.get(clientID).clock;
-		writeVarUint(encoder, clientID);
-		writeVarUint(encoder, clock);
-		writeVarString(encoder, JSON.stringify(state));
-	}
-	return toUint8Array(encoder);
-};
-/**
-* @param {Awareness} awareness
-* @param {Uint8Array} update
-* @param {any} origin This will be added to the emitted change event
-*/
-const applyAwarenessUpdate = (awareness, update, origin) => {
-	const decoder = createDecoder(update);
-	const timestamp = getUnixTime();
-	const added = [];
-	const updated = [];
-	const filteredUpdated = [];
-	const removed = [];
-	const len = readVarUint(decoder);
-	for (let i = 0; i < len; i++) {
-		const clientID = readVarUint(decoder);
-		let clock = readVarUint(decoder);
-		const state = JSON.parse(readVarString(decoder));
-		const clientMeta = awareness.meta.get(clientID);
-		const prevState = awareness.states.get(clientID);
-		const currClock = clientMeta === void 0 ? 0 : clientMeta.clock;
-		if (currClock < clock || currClock === clock && state === null && awareness.states.has(clientID)) {
-			if (state === null) if (clientID === awareness.clientID && awareness.getLocalState() != null) clock++;
-			else awareness.states.delete(clientID);
-			else awareness.states.set(clientID, state);
-			awareness.meta.set(clientID, {
-				clock,
-				lastUpdated: timestamp
-			});
-			if (clientMeta === void 0 && state !== null) added.push(clientID);
-			else if (clientMeta !== void 0 && state === null) removed.push(clientID);
-			else if (state !== null) {
-				if (!equalityDeep(state, prevState)) filteredUpdated.push(clientID);
-				updated.push(clientID);
-			}
-		}
-	}
-	if (added.length > 0 || filteredUpdated.length > 0 || removed.length > 0) awareness.emit("change", [{
-		added,
-		updated: filteredUpdated,
-		removed
-	}, origin]);
-	if (added.length > 0 || updated.length > 0 || removed.length > 0) awareness.emit("update", [{
-		added,
-		updated,
-		removed
-	}, origin]);
-};
-//#endregion
-//#region node_modules/yrby-client/dist/y_protocol_session.js
-const MessageType = {
-	Sync: 0,
-	Awareness: 1
-};
-var YProtocolSession = class {
-	doc;
-	awareness;
-	#send;
-	#onError;
-	#state = {
-		phase: "unsynced",
-		cycle: {}
-	};
-	#delivery;
-	#onDocUpdate;
-	#onAwarenessUpdate;
-	constructor(doc, opts) {
-		const { send, awareness = null, resendInterval, onError, setInterval: setTimer, clearInterval: clearTimer } = opts ?? {};
-		if (!doc) throw new TypeError("YProtocolSession requires a Y.Doc");
-		if (typeof send !== "function") throw new TypeError("YProtocolSession requires a send(frame, id) function");
-		this.doc = doc;
-		this.awareness = awareness;
-		this.#send = send;
-		this.#onError = onError ?? ((error, context) => console.warn(`[yrby] ${context}:`, error));
-		this.#delivery = new ReliableSync({
-			merge: mergeUpdates,
-			send: (update, id) => this.#send(this.#frameUpdate(update), id),
-			resendInterval,
-			setInterval: setTimer,
-			clearInterval: clearTimer
-		});
-		this.#onDocUpdate = (update, origin) => {
-			if (origin === this) return;
-			this.#delivery.enqueue(update);
-		};
-		this.doc.on("update", this.#onDocUpdate);
-		if (this.awareness) {
-			this.#onAwarenessUpdate = ({ added, updated, removed }, origin) => {
-				if (origin === this || this.#state.phase === "destroyed") return;
-				const changed = added.concat(updated, removed);
-				this.#send(this.#frameAwareness(changed), void 0);
-			};
-			this.awareness.on("update", this.#onAwarenessUpdate);
-		}
-	}
-	/** True once we've received the server's SyncStep2 (the document is caught up). */
-	get synced() {
-		return this.#state.phase === "synced";
-	}
-	/** True while there are unacknowledged local document updates in flight. */
-	get hasPending() {
-		return this.#delivery.hasPending;
-	}
-	/** Call when the transport is up. Sends the opening handshake, re-announces presence, and replays the unacked tail. */
-	resume() {
-		if (this.#state.phase === "destroyed") return;
-		const cycle = {};
-		this.#state = {
-			phase: "unsynced",
-			cycle
-		};
-		this.#send(this.#frameSyncStep1(), void 0);
-		if (!this.#current(cycle)) return;
-		if (this.awareness && this.awareness.getLocalState() !== null) this.#send(this.#frameAwareness([this.doc.clientID]), void 0);
-		if (this.#current(cycle)) this.#delivery.resume();
-	}
-	/** Call when the transport is down. Keeps the queue, stops retransmits, and clears peers' presence. */
-	pause() {
-		if (this.#state.phase === "destroyed") return;
-		this.#state = {
-			phase: "unsynced",
-			cycle: {}
-		};
-		this.#delivery.pause();
-		if (this.awareness) {
-			const remote = [...this.awareness.getStates().keys()].filter((c) => c !== this.doc.clientID);
-			if (remote.length) removeAwarenessStates(this.awareness, remote, this);
-		}
-	}
-	/**
-	* Broadcast that our local presence is gone (sets local state to null, which
-	* emits a removal awareness frame through `send`). Call this while the
-	* transport is still live so peers drop our cursor immediately instead of
-	* waiting for the awareness timeout. A no-op when there's no local state.
-	*/
-	removeLocalAwareness() {
-		if (this.#state.phase !== "destroyed" && this.awareness && this.awareness.getLocalState() !== null) this.awareness.setLocalState(null);
-	}
-	/** A reliable-delivery `{ ack: id }` envelope arrived. */
-	acknowledge(id) {
-		this.#delivery.acknowledge(id);
-	}
-	/**
-	* Apply an update without treating it as a local edit, so it isn't queued for
-	* re-delivery to the server. Use it for bootstrap/restore: initial state loaded
-	* over HTTP, a server snapshot, an import. These are bytes the server already
-	* has.
-	*
-	* The session re-sends any doc update whose origin isn't itself (that's how a
-	* keystroke becomes an outbound frame), so a bare `Y.applyUpdate(doc, update)`
-	* would look like a local edit and get echoed back on the next connect. Going
-	* through here applies under the session's own origin, which the outbound
-	* filter skips. Safe to call before `resume()`: the state folds into the
-	* SyncStep1 handshake instead of being re-sent.
-	*/
-	applyRemoteUpdate(update) {
-		if (this.#state.phase !== "destroyed") applyUpdate(this.doc, update, this);
-	}
-	/**
-	* Decode and apply one incoming binary protocol frame (document sync or
-	* awareness). Returns a reply frame to transmit (e.g. SyncStep2 answering a
-	* SyncStep1), or null if there's nothing to send.
-	*/
-	receive(frame) {
-		if (this.#state.phase === "destroyed") return null;
-		const { cycle } = this.#state;
-		try {
-			if (!validateFrame(frame)) return null;
-			const decoder = createDecoder(frame);
-			const encoder = createEncoder();
-			switch (readVarUint(decoder)) {
-				case MessageType.Sync: {
-					writeVarUint(encoder, MessageType.Sync);
-					const report = (error) => {
-						if (this.#current(cycle)) this.#onError(error, "receive");
-					};
-					if (readSyncMessage(decoder, encoder, this.doc, this, report) === 1 && this.#current(cycle)) this.#state = {
-						phase: "synced",
-						cycle
-					};
-					break;
-				}
-				case MessageType.Awareness:
-					if (this.awareness) applyAwarenessUpdate(this.awareness, readVarUint8Array(decoder), this);
-					break;
-				default: return null;
-			}
-			return this.#current(cycle) && length(encoder) > 1 ? toUint8Array(encoder) : null;
-		} catch (error) {
-			if (this.#current(cycle)) this.#onError(error, "receive");
-			return null;
-		}
-	}
-	/** Detach doc/awareness listeners and stop retransmits. */
-	destroy() {
-		if (this.#state.phase === "destroyed") return;
-		this.#state = { phase: "destroyed" };
-		this.doc.off("update", this.#onDocUpdate);
-		if (this.awareness && this.#onAwarenessUpdate) this.awareness.off("update", this.#onAwarenessUpdate);
-		this.#delivery.destroy();
-	}
-	#current(cycle) {
-		return this.#state.phase !== "destroyed" && this.#state.cycle === cycle;
-	}
-	#frameSyncStep1() {
-		const e = createEncoder();
-		writeVarUint(e, MessageType.Sync);
-		writeSyncStep1(e, this.doc);
-		return toUint8Array(e);
-	}
-	#frameUpdate(update) {
-		const e = createEncoder();
-		writeVarUint(e, MessageType.Sync);
-		writeUpdate(e, update);
-		return toUint8Array(e);
-	}
-	#frameAwareness(clients) {
-		const e = createEncoder();
-		writeVarUint(e, MessageType.Awareness);
-		writeVarUint8Array(e, encodeAwarenessUpdate(this.awareness, clients));
-		return toUint8Array(e);
-	}
-};
-function validateFrame(frame) {
-	const decoder = createDecoder(frame);
-	const type = readVarUint(decoder);
-	if (type === MessageType.Sync) {
-		readVarUint(decoder);
-		readVarUint8Array(decoder);
-	} else if (type === MessageType.Awareness) validateAwareness(readVarUint8Array(decoder));
-	else return false;
-	if (hasContent(decoder)) throw new Error("frame has trailing bytes after a complete message");
-	return true;
-}
-function validateAwareness(payload) {
-	const decoder = createDecoder(payload);
-	const count = readVarUint(decoder);
-	for (let i = 0; i < count; i++) {
-		readVarUint(decoder);
-		readVarUint(decoder);
-		JSON.parse(readVarString(decoder));
-	}
-	if (hasContent(decoder)) throw new Error("awareness payload has trailing bytes");
-}
-//#endregion
-//#region node_modules/yrby-client/dist/base64.js
-const toBase64 = (bytes) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
-const fromBase64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
-//#endregion
-//#region node_modules/yrby-client/dist/actioncable_provider.js
-var ActionCableProvider = class {
-	doc;
-	consumer;
-	channelName;
-	channelParams;
-	awareness;
-	session;
-	#state = { phase: "disconnected" };
-	#onError;
-	#last = {
-		status: "disconnected",
-		pending: false
-	};
-	#statusListeners = /* @__PURE__ */ new Set();
-	#resolveSynced;
-	#onDocUpdate = () => this.#refreshStatus();
-	#page = null;
-	/**
-	* Resolves once the document has first caught up with the server. Most
-	* editor bindings seed an empty document when they mount, so binding
-	* before the server's state arrives makes each client insert its own
-	* top-level node. Create the editor after this resolves:
-	*
-	*   provider.connect();
-	*   await provider.whenSynced;
-	*   // now hand the doc to the editor binding
-	*
-	* It resolves on the first catch-up and remains resolved across later
-	* reconnects, even while `synced` is false during a re-handshake. Use
-	* `onStatusChange` to track the live connection. If the provider is
-	* destroyed before the first sync, it never resolves.
-	*/
-	whenSynced = new Promise((resolve) => {
-		this.#resolveSynced = resolve;
-	});
-	constructor(doc, consumer, channelName, channelParams = {}, opts = {}) {
-		this.doc = doc;
-		this.consumer = consumer;
-		this.channelName = channelName;
-		this.channelParams = channelParams;
-		const onError = opts.onError ?? ((error, context) => console.warn(`[yrby] ${context}:`, error));
-		this.#onError = (error, context) => {
-			try {
-				onError(error, context);
-			} catch (callbackError) {
-				console.warn("[yrby] onError callback failed:", callbackError, "while reporting:", error);
-			}
-		};
-		this.awareness = new ProviderAwareness(doc, this.#onError);
-		this.session = new YProtocolSession(doc, {
-			awareness: this.awareness,
-			resendInterval: opts.resendInterval,
-			onError: this.#onError,
-			send: (frame, id) => this.#send(frame, id)
-		});
-		this.doc.on("update", this.#onDocUpdate);
-	}
-	/** True once the document has caught up with the server (received a SyncStep2). */
-	get synced() {
-		return this.session.synced;
-	}
-	/** True while there are unacknowledged local document updates in flight. */
-	get hasPending() {
-		return this.session.hasPending;
-	}
-	/**
-	* Apply a bootstrap/restore update (initial HTTP state, a server snapshot, an
-	* import) without re-sending it to the server as a local edit. Call it once per
-	* chunk of already-durable state when seeding the doc, before `connect()`:
-	*
-	*   provider.applyRemoteUpdate(fromBase64(initialState));
-	*   priorUpdates.forEach((u) => provider.applyRemoteUpdate(fromBase64(u)));
-	*   provider.connect();
-	*
-	* See {@link YProtocolSession.applyRemoteUpdate} for why a bare `Y.applyUpdate`
-	* would be re-broadcast as a pending change instead.
-	*/
-	applyRemoteUpdate(update) {
-		this.session.applyRemoteUpdate(update);
-	}
-	/** Current connection status. See {@link ProviderStatus}. */
-	get status() {
-		return this.#computeStatus();
-	}
-	/** Subscribe to status changes. Returns an unsubscribe function. */
-	onStatusChange(listener) {
-		this.#statusListeners.add(listener);
-		return () => this.#statusListeners.delete(listener);
-	}
-	connect() {
-		if (this.#destroying()) throw new Error("provider is destroyed");
-		if (this.#state.phase !== "disconnected") return;
-		const attempt = {};
-		this.#state = {
-			phase: "subscribing",
-			attempt
-		};
-		const on = (callback) => (...args) => {
-			const run = () => {
-				if (this.#active(attempt)) callback(...args);
-			};
-			if (this.#state.phase === "subscribing") queueMicrotask(run);
-			else run();
-		};
-		let subscription;
-		try {
-			subscription = this.consumer.subscriptions.create({
-				channel: this.channelName,
-				...this.channelParams
-			}, {
-				received: on((message) => this.#receive(message, attempt)),
-				connected: on(() => this.#connected()),
-				disconnected: on(() => this.#lost()),
-				rejected: on(() => this.#stop("reject"))
-			});
-		} catch (error) {
-			if (!this.#subscribing(attempt)) return;
-			this.#state = { phase: "disconnected" };
-			this.#refreshStatus();
-			throw error;
-		}
-		if (!this.#subscribing(attempt)) {
-			this.#unsubscribe(subscription);
-			return;
-		}
-		this.#state = {
-			phase: "connecting",
-			attempt,
-			subscription
-		};
-		this.#watchPage();
-		this.#refreshStatus();
-	}
-	disconnect() {
-		this.#stop("disconnect");
-	}
-	/**
-	* Resubscribes with updated channel params, such as a renewed grant. This
-	* replaces only the cable subscription and keeps the doc, the delivery
-	* queue, awareness, and this provider's ack route. Does nothing after
-	* destroy().
-	*/
-	renew(params) {
-		if (this.#destroying()) return;
-		Object.assign(this.channelParams, params);
-		this.disconnect();
-		this.connect();
-	}
-	destroy() {
-		this.#stop("destroy");
-	}
-	#destroying() {
-		const state = this.#state;
-		return state.phase === "destroyed" || state.phase === "stopping" && state.reason === "destroy";
-	}
-	#subscribing(attempt) {
-		return this.#state.phase === "subscribing" && this.#state.attempt === attempt;
-	}
-	#active(attempt) {
-		const state = this.#state;
-		return (state.phase === "connecting" || state.phase === "connected") && state.attempt === attempt;
-	}
-	#connected() {
-		const state = this.#state;
-		if (state.phase !== "connecting") return;
-		this.#state = {
-			...state,
-			phase: "connected"
-		};
-		this.session.resume();
-		this.#refreshStatus();
-	}
-	#lost() {
-		const state = this.#state;
-		if (state.phase !== "connecting" && state.phase !== "connected") return;
-		this.#state = {
-			...state,
-			phase: "connecting"
-		};
-		this.session.pause();
-		this.#refreshStatus();
-	}
-	#stop(reason) {
-		const state = this.#state;
-		if (state.phase === "destroyed") return;
-		if (state.phase === "stopping") {
-			if (reason === "destroy") state.reason = reason;
-			return;
-		}
-		if (state.phase === "disconnected" && reason === "disconnect") return;
-		let finalReason = reason;
-		if ("subscription" in state) {
-			const stopping = {
-				...state,
-				phase: "stopping",
-				reason
-			};
-			this.#state = stopping;
-			this.#unwatchPage();
-			this.session.removeLocalAwareness();
-			this.session.pause();
-			this.#unsubscribe(state.subscription);
-			if (this.#state !== stopping) return;
-			finalReason = stopping.reason;
-		}
-		const destroyed = finalReason === "destroy";
-		this.#state = { phase: destroyed ? "destroyed" : "disconnected" };
-		if (destroyed) this.#destroyOwned();
-		else if (finalReason === "reject") this.#onError(/* @__PURE__ */ new Error("subscription rejected by the server"), "rejected");
-		this.#refreshStatus();
-		if (destroyed) this.#statusListeners.clear();
-	}
-	#destroyOwned() {
-		this.session.destroy();
-		this.awareness.destroy();
-		this.doc.off("update", this.#onDocUpdate);
-	}
-	#unsubscribe(subscription) {
-		queueMicrotask(() => {
-			try {
-				subscription.unsubscribe?.();
-			} catch (error) {
-				this.#onError(error, "unsubscribe");
-			}
-		});
-	}
-	#receive(message, attempt) {
-		if (message && message.ack !== void 0) {
-			this.session.acknowledge(message.ack);
-			this.#refreshStatus();
-			return;
-		}
-		const awarenessPayload = message && message.awareness;
-		const payload = message && (awarenessPayload ?? message.update);
-		if (typeof payload !== "string") return;
-		let frame;
-		try {
-			frame = fromBase64(payload);
-		} catch (error) {
-			this.#onError(error, "received");
-			return;
-		}
-		if (awarenessPayload !== void 0 && frame[0] !== MessageType.Awareness) {
-			this.#onError(/* @__PURE__ */ new Error("awareness envelope carried a non-awareness frame"), "received");
-			return;
-		}
-		const reply = this.session.receive(frame);
-		if (reply && this.#active(attempt)) this.#send(reply, void 0);
-		this.#refreshStatus();
-	}
-	#computeStatus() {
-		switch (this.#state.phase) {
-			case "subscribing":
-			case "connecting": return "connecting";
-			case "connected": return this.session.synced ? "synced" : "connected";
-			default: return "disconnected";
-		}
-	}
-	#refreshStatus() {
-		const status = this.#computeStatus();
-		const pending = this.hasPending;
-		if (status === this.#last.status && pending === this.#last.pending) return;
-		const event = this.#last = {
-			status,
-			pending
-		};
-		if (status === "synced") this.#resolveSynced();
-		for (const listener of this.#statusListeners) {
-			if (this.#last !== event) break;
-			try {
-				listener({
-					status,
-					pending
-				});
-			} catch (error) {
-				this.#onError(error, "listener");
-			}
-		}
-	}
-	#watchPage() {
-		if (typeof window === "undefined" || this.#page) return;
-		let stashed = null;
-		const page = this.#page = {
-			hide: () => {
-				if (this.#page !== page) return;
-				stashed = this.awareness.getLocalState();
-				this.session.removeLocalAwareness();
-			},
-			show: (event) => {
-				if (this.#page !== page || !event.persisted || !stashed) return;
-				if (this.awareness.getLocalState() === null) this.awareness.setLocalState(stashed);
-				stashed = null;
-			}
-		};
-		window.addEventListener("pagehide", this.#page.hide);
-		window.addEventListener("pageshow", this.#page.show);
-	}
-	#unwatchPage() {
-		if (!this.#page || typeof window === "undefined") return;
-		const page = this.#page;
-		this.#page = null;
-		window.removeEventListener("pagehide", page.hide);
-		window.removeEventListener("pageshow", page.show);
-	}
-	#send(frame, id) {
-		const state = this.#state;
-		if (!("subscription" in state)) return;
-		const isAwareness = frame[0] === MessageType.Awareness;
-		if (state.phase === "stopping" && !isAwareness) return;
-		const { subscription } = state;
-		const update = toBase64(frame);
-		const report = (error) => {
-			const current = this.#state;
-			if ("subscription" in current && current.subscription === subscription) this.#onError(error, "send");
-		};
-		try {
-			const result = isAwareness && typeof subscription.whisper === "function" ? subscription.whisper({ awareness: update }) : subscription.send(id === void 0 ? { update } : {
-				update,
-				id
-			});
-			if (result instanceof Promise) result.catch(report);
-		} catch (error) {
-			report(error);
-		}
-	}
-};
-var ProviderAwareness = class extends Awareness {
-	onError;
-	constructor(doc, onError) {
-		super(doc);
-		this.onError = onError;
-	}
-	emit(...args) {
-		try {
-			super.emit(...args);
-		} catch (error) {
-			this.onError(error, `awareness:${args[0]}`);
-		}
-	}
-};
 //#endregion
 //#region src/attachment_sync.js
 const UNSYNCABLE_ATTACHMENT_PROPERTIES = /* @__PURE__ */ new Set([
@@ -15521,13 +16081,13 @@ function registerUploadCleanup(editorElement, editor, provider, awareness) {
 		if (event.type === "turbo:before-frame-render" && !event.target.contains(editorElement)) return;
 		removePendingUploadNodes(editor);
 	};
-	document.addEventListener("turbo:before-cache", removeUploadsBeforeTurboDiscard);
-	document.addEventListener("turbo:before-frame-render", removeUploadsBeforeTurboDiscard);
+	document.addEventListener("turbo:before-cache", removeUploadsBeforeTurboDiscard, true);
+	document.addEventListener("turbo:before-frame-render", removeUploadsBeforeTurboDiscard, true);
 	const cancelOrphanSweep = removeOrphanedUploadsWhenAlone(editor, provider, awareness);
 	return () => {
 		window.removeEventListener("pagehide", removeOwnPendingUploads);
-		document.removeEventListener("turbo:before-cache", removeUploadsBeforeTurboDiscard);
-		document.removeEventListener("turbo:before-frame-render", removeUploadsBeforeTurboDiscard);
+		document.removeEventListener("turbo:before-cache", removeUploadsBeforeTurboDiscard, true);
+		document.removeEventListener("turbo:before-frame-render", removeUploadsBeforeTurboDiscard, true);
 		cancelOrphanSweep();
 	};
 }
@@ -15784,80 +16344,147 @@ function registerSelectionNormalization(editor) {
 }
 //#endregion
 //#region src/editor_collaboration.js
-let sharedConsumer;
-let configuredConsumer;
 function setConsumer(consumerOrFactory) {
-	configuredConsumer = consumerOrFactory;
+	YrbyDocumentElement.consumer = typeof consumerOrFactory === "function" ? consumerOrFactory() : consumerOrFactory;
 }
-function resolveConsumer() {
-	if (typeof configuredConsumer === "function") configuredConsumer = configuredConsumer();
-	return configuredConsumer || (sharedConsumer ??= createConsumer());
-}
+const syncedSessions = /* @__PURE__ */ new WeakMap();
+if (typeof document !== "undefined") document.addEventListener("yrby:synced", (event) => syncedSessions.set(event.target, event.detail), true);
+const boundDocs = /* @__PURE__ */ new WeakMap();
+const RECOVERY_INTERVAL_MS = 15e3;
 const Base = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
 var Collaboration = class extends Base {
-	#teardown = null;
+	#hostDoc = null;
+	#hostProvider = null;
+	#editorElement = null;
+	#yrbyDocument = null;
+	#cancelWait = null;
+	#bound = null;
+	#lastRecoveryAt = 0;
+	#recoveryTimer = null;
+	#recovering = false;
+	get doc() {
+		return this.#bound?.doc ?? this.#hostDoc;
+	}
+	set doc(doc) {
+		this.#hostDoc = doc ?? null;
+	}
+	get provider() {
+		return this.#bound?.provider ?? this.#hostProvider;
+	}
+	set provider(provider) {
+		this.#hostProvider = provider ?? null;
+	}
+	get awareness() {
+		return this.#bound?.provider.awareness;
+	}
+	get binding() {
+		return this.#bound?.binding;
+	}
 	connectedCallback() {
-		this.editorElement = this.closest("lexxy-editor");
-		if (!this.editorElement) {
+		const editorElement = this.closest("lexxy-editor");
+		if (!editorElement) {
 			console.error("<lexxy-collaboration> must be placed inside a <lexxy-editor>.");
 			return;
 		}
-		this.editor = this.editorElement.editor;
-		if (this.editor) this.#init();
-		else this.editorElement.addEventListener("lexxy:initialize", () => {
-			this.editor = this.editorElement.editor;
-			this.#init();
-		}, { once: true });
+		const yrbyDocument = this.#hostProvider ? null : this.closest("yrby-document");
+		if (this.#bound && editorElement === this.#editorElement && yrbyDocument === this.#yrbyDocument && editorElement.editor === this.#bound.editor) return;
+		this.#stop();
+		this.#editorElement = editorElement;
+		if (!this.#hostProvider) {
+			if (!yrbyDocument) {
+				console.error("<lexxy-collaboration> needs a <yrby-document> ancestor, or a doc and provider assigned before it connects.");
+				return;
+			}
+			this.#yrbyDocument = yrbyDocument;
+			yrbyDocument.addEventListener("yrby:synced", this.#onSynced);
+		}
+		this.#start();
 	}
 	disconnectedCallback() {
-		this.#teardown?.();
+		queueMicrotask(() => {
+			if (!this.isConnected) this.#stop();
+		});
 	}
-	#init() {
+	#onSynced = (event) => {
+		if (event.target === this.#yrbyDocument) this.#start();
+	};
+	#start() {
+		if (this.#cancelWait || !this.isConnected) return;
+		const editorElement = this.#editorElement;
+		if (!editorElement.editor) {
+			const onInitialize = () => {
+				this.#cancelWait = null;
+				this.#start();
+			};
+			editorElement.addEventListener("lexxy:initialize", onInitialize, { once: true });
+			this.#cancelWait = () => editorElement.removeEventListener("lexxy:initialize", onInitialize);
+			return;
+		}
+		if (this.#hostProvider) {
+			if (this.#bound) return;
+			const provider = this.#hostProvider;
+			this.#bind(this.#hostDoc ?? provider.doc ?? new Doc(), provider, null);
+			return;
+		}
+		const synced = syncedSessions.get(this.#yrbyDocument);
+		if (!synced || synced.signal.aborted) return;
+		if (this.#bound?.synced === synced && this.#bound.editor === editorElement.editor) return;
+		this.#unbind();
+		this.#bind(synced.doc, synced.provider, synced);
+	}
+	#stop() {
+		this.#cancelWait?.();
+		this.#cancelWait = null;
+		this.#yrbyDocument?.removeEventListener("yrby:synced", this.#onSynced);
+		this.#yrbyDocument = null;
+		this.#editorElement = null;
+		this.#recovering = false;
+		this.#unbind();
+	}
+	#unbind() {
+		const bound = this.#bound;
+		if (!bound) return;
+		this.#bound = null;
+		clearTimeout(this.#recoveryTimer);
+		this.#recoveryTimer = null;
+		bound.teardown();
+	}
+	#bind(doc, provider, synced) {
+		const editorElement = this.#editorElement;
+		const editor = editorElement.editor;
+		if (boundDocs.has(doc)) {
+			console.error("<lexxy-collaboration>: this Y.Doc is already bound to another editor.");
+			return;
+		}
 		const id = this.getAttribute("doc-id") || "main";
 		const name = this.getAttribute("name") || "Example User";
 		const color = this.getAttribute("color") || "#958DF1";
-		const channelName = this.getAttribute("channel-name") || "SyncChannel";
-		const rawParams = this.getAttribute("channel-params") || "{}";
-		let channelParams;
-		try {
-			channelParams = typeof rawParams === "string" ? JSON.parse(rawParams) : rawParams;
-		} catch {
-			console.error("<lexxy-collaboration>: invalid channel-params attribute (expected JSON); using {}.", rawParams);
-			channelParams = {};
-		}
-		const ownsProvider = !this.provider;
-		const ownsDoc = !this.doc;
-		const doc = this.doc || new Doc();
-		const provider = this.provider || new ActionCableProvider(doc, this.consumer || resolveConsumer(), channelName, channelParams);
-		if (ownsProvider) provider.connect();
 		const awareness = provider.awareness;
-		const docMap = /* @__PURE__ */ new Map();
-		docMap.set(id, doc);
-		const initialEditorState = this.editor.getEditorState();
-		this.editor.update(() => $getRoot().clear(), {
+		const recovery = !!synced && this.#recovering;
+		this.#recovering = false;
+		const initialEditorState = recovery ? null : editor.getEditorState();
+		editor.update(() => $getRoot().clear(), {
 			tag: HISTORY_MERGE_TAG,
 			discrete: true
 		});
-		const excludedProperties = attachmentExclusions(this.editor);
-		const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
+		const binding = createBinding(editor, provider, id, doc, /* @__PURE__ */ new Map([[id, doc]]), attachmentExclusions(editor));
+		boundDocs.set(doc, this);
 		patchCollabElementSplice(binding);
 		const stopTextReconciliation = registerTextReconciliation(binding);
-		const stopSelectionNormalization = registerSelectionNormalization(this.editor);
-		let restoreEditable = null;
-		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => {
-			const wasEditable = this.editor.isEditable();
-			this.editor.setEditable(false);
-			restoreEditable = () => {
-				if (wasEditable) this.editor.setEditable(true);
-			};
-			this.dispatchEvent(new CustomEvent("lexxy-realtime:desync", {
-				bubbles: true,
-				detail: { error }
-			}));
+		const stopSelectionNormalization = registerSelectionNormalization(editor);
+		editor.update(() => {
+			binding.root.syncPropertiesFromYjs(binding, null);
+			binding.root.applyChildrenYjsDelta(binding, binding.root.getSharedType().toDelta());
+			binding.root.syncChildrenFromYjs(binding);
+		}, {
+			tag: COLLABORATION_TAG,
+			discrete: true
 		});
-		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
-		registerCursorTheme(this.editor);
-		const cursorsContainer = this.#createCursorsContainer();
+		let bound;
+		const sync = registerCollaborationListeners(editor, provider, binding, (error) => this.#desync(bound, error));
+		const cancelBootstrap = bootstrapWhenSynced(editor, provider, binding, initialEditorState);
+		registerCursorTheme(editor);
+		const cursorsContainer = createCursorsContainer(editorElement);
 		binding.cursorsContainer = cursorsContainer;
 		initLocalState(provider, name, color, true, {
 			name,
@@ -15867,43 +16494,93 @@ var Collaboration = class extends Base {
 			name,
 			color
 		});
-		const cancelUploadCleanup = registerUploadCleanup(this.editorElement, this.editor, provider, awareness);
+		const cancelUploadCleanup = registerUploadCleanup(editorElement, editor, provider, awareness);
 		const renderCursors = () => syncCursorPositions(binding, provider);
 		awareness.on("update", renderCursors);
-		const unsubscribeCursorRender = this.editor.registerUpdateListener(renderCursors);
-		syncCursorPositions(binding, provider);
-		this.provider = provider;
-		this.doc = doc;
-		this.awareness = awareness;
-		this.binding = binding;
-		this.#teardown = () => {
-			this.#teardown = null;
-			cancelUploadCleanup();
-			awareness.off("update", renderCursors);
-			unsubscribeCursorRender();
-			unsubscribeListeners();
-			restoreEditable?.();
-			stopSelectionNormalization();
-			stopTextReconciliation();
-			cancelBootstrap();
-			cursorsContainer.remove();
-			if (ownsProvider) {
-				provider.disconnect();
-				this.provider = null;
-			}
-			if (ownsDoc) this.doc = null;
+		const unsubscribeCursorRender = editor.registerUpdateListener(renderCursors);
+		renderCursors();
+		if (recovery) editor.dispatchCommand(CLEAR_HISTORY_COMMAND, void 0);
+		const onAbort = () => {
+			if (this.#bound === bound) this.#unbind();
 		};
+		synced?.signal.addEventListener("abort", onAbort, { once: true });
+		bound = {
+			editor,
+			doc,
+			provider,
+			binding,
+			synced,
+			stopSyncing: sync.stop,
+			readOnly: false,
+			teardown: () => {
+				synced?.signal.removeEventListener("abort", onAbort);
+				cancelUploadCleanup();
+				awareness.off("update", renderCursors);
+				unsubscribeCursorRender();
+				sync.stop();
+				stopSelectionNormalization();
+				stopTextReconciliation();
+				cancelBootstrap();
+				cursorsContainer.remove();
+				releaseBinding(binding);
+				boundDocs.delete(doc);
+				synced?.lease.setPresence(null);
+				if (bound.readOnly) editor.setEditable(true);
+			}
+		};
+		this.#bound = bound;
 	}
-	#createCursorsContainer() {
-		const host = this.editorElement.querySelector(".lexxy-editor-container") || this.editorElement;
-		if (getComputedStyle(host).position === "static") host.style.position = "relative";
-		const container = document.createElement("div");
-		container.className = "lexxy-collab-cursors";
-		container.style.cssText = "position:absolute;inset:0;pointer-events:none;";
-		host.appendChild(container);
-		return container;
+	#desync(bound, error) {
+		if (this.#bound !== bound) return;
+		bound.stopSyncing();
+		bound.readOnly = true;
+		bound.editor.setEditable(false);
+		const recovering = !!bound.synced;
+		this.dispatchEvent(new CustomEvent("lexxy-realtime:desync", {
+			bubbles: true,
+			detail: {
+				error,
+				recovering
+			}
+		}));
+		if (!recovering) return;
+		const rebuild = () => {
+			this.#recoveryTimer = null;
+			if (this.#bound !== bound || !this.isConnected) return;
+			this.#lastRecoveryAt = Date.now();
+			this.#recovering = true;
+			const yrbyDocument = this.#yrbyDocument;
+			bound.synced.session.discard();
+			queueMicrotask(() => {
+				if (this.isConnected && this.#yrbyDocument === yrbyDocument) yrbyDocument.activate();
+			});
+		};
+		const wait = this.#lastRecoveryAt + RECOVERY_INTERVAL_MS - Date.now();
+		if (wait > 0) this.#recoveryTimer = setTimeout(rebuild, wait);
+		else queueMicrotask(rebuild);
 	}
 };
+function createCursorsContainer(editorElement) {
+	const host = editorElement.querySelector(".lexxy-editor-container") || editorElement;
+	if (getComputedStyle(host).position === "static") host.style.position = "relative";
+	const container = document.createElement("div");
+	container.className = "lexxy-collab-cursors";
+	container.style.cssText = "position:absolute;inset:0;pointer-events:none;";
+	host.appendChild(container);
+	return container;
+}
+function releaseBinding(binding) {
+	const nodes = /* @__PURE__ */ new Set([binding.root, ...binding.collabNodeMap.values()]);
+	for (const node of nodes) {
+		for (const child of node._children || []) nodes.add(child);
+		const type = node.getSharedType();
+		if (type._collabNode === node) delete type._collabNode;
+	}
+	binding.root.destroy(binding);
+	binding.cursors.clear();
+	binding.cursorsContainer = null;
+	binding.docMap.clear();
+}
 function emptyEditorState(state) {
 	return state.read(() => {
 		const root = $getRoot();
@@ -15914,24 +16591,24 @@ function emptyEditorState(state) {
 }
 function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
 	let done = false;
+	let timer;
 	const seed = () => {
 		if (done || !provider.synced) return;
 		done = true;
 		if (timer) clearInterval(timer);
-		if (binding.root.getSharedType().length === 0) {
-			if (initialEditorState && !emptyEditorState(initialEditorState)) {
-				editor.setEditorState(initialEditorState, { tag: HISTORY_MERGE_TAG });
-				return;
-			}
-			editor.update(() => {
-				const root = $getRoot();
-				root.clear();
-				root.append($createParagraphNode());
-			}, { tag: HISTORY_MERGE_TAG });
+		if (binding.root.getSharedType().length > 0) return;
+		if (initialEditorState && !emptyEditorState(initialEditorState)) {
+			editor.setEditorState(initialEditorState, { tag: HISTORY_MERGE_TAG });
+			return;
 		}
+		editor.update(() => {
+			const root = $getRoot();
+			root.clear();
+			root.append($createParagraphNode());
+		}, { tag: HISTORY_MERGE_TAG });
 	};
-	let timer;
-	if (provider.whenSynced?.then) provider.whenSynced.then(seed, () => {});
+	seed();
+	if (!done) if (provider.whenSynced?.then) provider.whenSynced.then(seed, () => {});
 	else {
 		timer = setInterval(seed, 50);
 		if (typeof timer?.unref === "function") timer.unref();
@@ -15959,19 +16636,20 @@ function registerCollaborationListeners(editor, provider, binding, onDesync) {
 	const unsubscribeUpdateListener = editor.registerUpdateListener((update) => {
 		if (!update.tags.has("skip-collab")) syncEditorUpdate(binding, provider, update);
 	});
-	const observer = createRemoteApplier(provider, binding, { onDesync: (error) => {
+	const observer = createRemoteApplier(provider, binding, { onDesync });
+	const root = binding.root.getSharedType();
+	root.observeDeep(observer);
+	let stopped = false;
+	return { stop() {
+		if (stopped) return;
+		stopped = true;
 		unsubscribeUpdateListener();
-		onDesync(error);
-	} });
-	binding.root.getSharedType().observeDeep(observer);
-	return () => {
-		unsubscribeUpdateListener();
-		binding.root.getSharedType().unobserveDeep(observer);
-	};
+		root.unobserveDeep(observer);
+	} };
 }
 //#endregion
 //#region src/index.js
-if (!customElements.get("lexxy-collaboration")) customElements.define("lexxy-collaboration", Collaboration);
+if (typeof customElements !== "undefined" && !customElements.get("lexxy-collaboration")) customElements.define("lexxy-collaboration", Collaboration);
 //#endregion
 export { Collaboration, ActionCableProvider as YrbyProvider, setConsumer };
 

@@ -44,6 +44,20 @@ module LexxyRealtime
 
       def collaborative_rich_text?(name) = collaborative_rich_text_names.include?(name.to_sym)
 
+      # The signed grant that LexxyRealtime::DocumentChannel accepts for one
+      # field. The form helper renders it, and an app's refresh action
+      # returns a new one as { grant: ... }. Pass expires_in: to limit how
+      # long it lasts. Without it, GlobalID's default of one month applies.
+      def collaborative_rich_text_grant(name, expires_in: nil)
+        ensure_collaborative!(name)
+
+        options = { for: LexxyRealtime.grant_purpose(name) }
+        # GlobalID reads an explicit nil as "never expires", so the option
+        # is only passed when it's given.
+        options[:expires_in] = expires_in if expires_in
+        to_sgid(**options).to_s
+      end
+
       # Reloads and renders the document while holding the record lock,
       # then saves the HTML through the attribute writer. Returns false
       # when the document has no state.

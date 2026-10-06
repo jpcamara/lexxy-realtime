@@ -124,6 +124,9 @@ try {
     console.log("\n=== element lifecycle (agent-browser) ===");
     if (run("node", [join(here, "browser", "lifecycle.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
+    console.log("\n=== Turbo and Turbolinks navigation while typing (agent-browser) ===");
+    if (run("node", [join(here, "browser", "navigation.mjs")]).status !== 0) exitCode = 1;
+    spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
     console.log("\n=== import-map assets e2e (agent-browser) ===");
     // Build straight into the test server's public directory, so test
     // runs never rewrite the committed gem assets.

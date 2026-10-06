@@ -8,7 +8,8 @@ export default defineConfig({
     'lexical',
     'y-protocols',
     '@37signals/lexxy',
-    'yrby-client'
+    /^yrby-client(\/|$)/,
+    '@rails/actioncable'
   ],
   output: [{
     file: 'dist/lexxy-realtime.js',

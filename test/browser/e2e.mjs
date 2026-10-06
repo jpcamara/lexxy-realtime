@@ -45,7 +45,9 @@ const check = (label, ok) => {
   if (!ok) failures++;
 };
 
-execFileSync("curl", ["-s", "-X", "POST", `http://localhost:${PORT}/reset/${ROOM}`]);
+// <yrby-document> pages subscribe with grant=ROOM and name=body, which the
+// test channel stores under "ROOM:body".
+execFileSync("curl", ["-s", "-X", "POST", `http://localhost:${PORT}/reset/${ROOM}:body`]);
 
 // Two users join the same document.
 open("alice", "Alice");
@@ -162,49 +164,56 @@ check(
   await waitEval("carol", '!window.__test.docRoot().includes("rebind-probe.png")', "upload node removed locally")
 );
 
-// A Turbo page replacement discards the editor without pagehide;
-// turbo:before-cache removes the pending upload the same way. A
-// data-turbo-permanent editor survives the navigation with its upload
-// still running and keeps the node.
+// A Turbo page replacement discards the editor without pagehide, and
+// turbo:before-cache removes the pending upload the same way. An editor
+// inside data-turbo-permanent keeps its upload node. <yrby-document> also
+// handles turbo:before-cache: it unbinds the editor and binds it again
+// once Turbo finishes, so the doc is read from before the event.
 check(
   "permanent editor keeps its pending upload through turbo:before-cache",
   /\btrue\b/.test(ab(
     "carol",
     "eval",
     'document.getElementById("editor").setAttribute("data-turbo-permanent", "");' +
-      ' window.__test.insertUploadNode("turbo-probe.png");' +
+      ' window.__test.insertUploadNode("permanent-probe.png");' +
+      ' (() => { const doc = window.__test.doc;' +
       ' document.dispatchEvent(new CustomEvent("turbo:before-cache"));' +
-      ' window.__test.docRoot().includes("turbo-probe.png")'
+      ' return doc.share.get("root").toString().includes("permanent-probe.png"); })()'
   ))
 );
+ab("carol", "eval", 'document.getElementById("editor").removeAttribute("data-turbo-permanent"); "ok"');
+check("carol bound again after turbo:before-cache", await waitEval("carol", "window.__test.synced()", "carol rebound"));
 ab(
   "carol",
   "eval",
-  'document.getElementById("editor").removeAttribute("data-turbo-permanent");' +
+  'window.__test.insertUploadNode("turbo-probe.png");' +
     ' document.dispatchEvent(new CustomEvent("turbo:before-cache")); "fired"'
 );
 check(
   "turbo:before-cache removed the pending upload once the editor is not permanent",
-  await waitEval("carol", '!window.__test.docRoot().includes("turbo-probe.png")', "upload removed on turbo discard")
+  await waitEval(
+    "carol",
+    'window.__test.synced() && !window.__test.docRoot().includes("turbo-probe.png")',
+    "upload removed on turbo discard"
+  )
 );
 ab("carol", "close");
 
-// Zero-config: attributes only, no host wiring at all. The element creates its
-// own shared consumer (defaulting to /cable), doc, and provider, and connects
-// itself. It must sync the same durable document.
-ab("zara", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Zara&mode=zero${CABLE}`);
-check("zero-config element connected and synced", await ready("zara"));
+// Host mode: the page assigns its own YrbyProvider to the element and
+// renders no <yrby-document>. It must load the same durable document.
+ab("zara", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Zara&mode=host${CABLE}`);
+check("host-mode element connected and synced", await ready("zara"));
 const zaraHasBoth = await waitEval(
   "zara",
   'window.__test.text().includes("ALICE-EDIT") && window.__test.text().includes("BOB-EDIT")',
-  "zara loaded persisted doc via auto-consumer"
+  "zara loaded persisted doc via a host provider"
 );
-check("zero-config element loaded the document (auto-created consumer)", zaraHasBoth);
+check("host-mode element loaded the document", zaraHasBoth);
 
 ab("zara", "close");
 
-// The app-wide consumer (setConsumer, the @anycable/web path): the element
-// must ride the configured consumer instead of auto-creating one.
+// The app-wide consumer (setConsumer, the @anycable/web path): the
+// session must use the configured consumer instead of creating one.
 ab("uma", "open", `http://localhost:${PORT}/?room=${ROOM}&name=Uma&mode=setconsumer${CABLE}`);
 check("setConsumer element connected and synced", await ready("uma"));
 check(
