@@ -118,6 +118,9 @@ try {
     console.log("\n=== real uploads e2e (agent-browser) ===");
     if (run("node", [join(here, "browser", "uploads.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
+    console.log("\n=== undo and redo (agent-browser) ===");
+    if (run("node", [join(here, "browser", "undo.mjs")]).status !== 0) exitCode = 1;
+    spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });
     console.log("\n=== browser cursor edge cases (agent-browser) ===");
     if (run("node", [join(here, "browser", "cursors.mjs")]).status !== 0) exitCode = 1;
     spawnSync("npx", ["agent-browser", "close", "--all"], { stdio: "ignore" });

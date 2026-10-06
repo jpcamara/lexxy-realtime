@@ -84,6 +84,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Undo in a collaborative editor no longer corrupts the document. Lexxy's
+  own history restored editor snapshots that never reached the shared
+  document, so after one undo each keystroke copied whole lists or
+  paragraphs into the document again (#33). Undo and redo now go through a
+  Yjs UndoManager. They only revert this user's changes, and other users
+  see the result. Changes made within 500ms form one undo step. Seeding a
+  new document from an existing body can't be undone.
 - Two peers typing into the same empty paragraph at once could duplicate
   text that had just arrived from a third peer. When the caret is on the
   paragraph next to plain text, the element now moves it into that text
