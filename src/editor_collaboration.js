@@ -307,7 +307,7 @@ export class Collaboration extends Base {
   }
 
   // A remote update failed to apply (see createRemoteApplier), so this
-  // editor no longer matches the document. The element stops syncing in
+  // editor doesn't match the document. The element stops syncing in
   // both directions and makes the editor read-only, so local typing can't
   // reach the document through the broken binding.
   //

@@ -368,8 +368,8 @@ it as soon as the `<lexxy-editor>` is in the DOM.
 
 ### When a remote update fails
 
-If applying a remote update throws inside Lexical, the editor no longer
-matches the document. The element stops sending and receiving updates,
+If applying a remote update throws inside Lexical, the editor doesn't
+match the document anymore. The element stops sending and receiving updates,
 makes the editor read-only, and dispatches a bubbling
 `lexxy-realtime:desync` event with `event.detail.error` and
 `event.detail.recovering`.
@@ -384,7 +384,7 @@ With a `<yrby-document>`, `recovering` is `true`. The element discards the
 broken session, and `<yrby-document>` acquires a new one that loads the
 server's state. Edits the server hadn't acknowledged are lost, and undo
 history is cleared. The element rebuilds at most once every 15 seconds. A
-failure inside that window waits for it to end, and the editor stays
+failure inside that window waits for it to end, and the editor is
 read-only until then.
 
 With a doc and provider you assigned, `recovering` is `false`. Recreate the
@@ -583,7 +583,7 @@ AnyCable both.
 ## Turbo
 
 `<yrby-document>` listens for Turbo and Turbolinks 5 events. It unbinds the
-editor on `before-cache`, and a cached preview stays inert with no document
+editor on `before-cache`, and a cached preview is inert with no document
 or provider. When the page renders again, it binds again, to the pending
 session if one is still delivering edits, or to a new one that loads the
 saved content. The test suite types in three browsers while one of them

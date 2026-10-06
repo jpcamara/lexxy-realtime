@@ -19,7 +19,7 @@ var __exportAll = (all, no_symbols) => {
 	return target;
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/map.js
+//#region node_modules/lib0/map.js
 /**
 * Utility module to work with key-value stores.
 *
@@ -108,7 +108,7 @@ const any = (m, f) => {
 	return false;
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/set.js
+//#region node_modules/lib0/set.js
 /**
 * Utility module to work with sets.
 *
@@ -116,7 +116,7 @@ const any = (m, f) => {
 */
 const create$4 = () => /* @__PURE__ */ new Set();
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/array.js
+//#region node_modules/lib0/array.js
 /**
 * Return the last element of an array. The element must exist
 *
@@ -185,7 +185,7 @@ const unfold = (len, f) => {
 };
 const isArray = Array.isArray;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/observable.js
+//#region node_modules/lib0/observable.js
 /**
 * Observable class prototype.
 *
@@ -326,7 +326,7 @@ var Observable = class {
 };
 /* c8 ignore end */
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/math.js
+//#region node_modules/lib0/math.js
 /**
 * Common Math expressions.
 *
@@ -357,7 +357,7 @@ Number.isNaN;
 */
 const isNegativeZero = (n) => n !== 0 ? n < 0 : 1 / n < 0;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/number.js
+//#region node_modules/lib0/number.js
 /**
 * Utility helpers for working with numbers.
 *
@@ -370,7 +370,7 @@ const isInteger = Number.isInteger || ((num) => typeof num === "number" && isFin
 Number.isNaN;
 Number.parseInt;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/string.js
+//#region node_modules/lib0/string.js
 /**
 * Utility module to work with strings.
 *
@@ -436,7 +436,7 @@ utf8TextDecoder = null;
 */
 const repeat = (source, n) => unfold(n, () => source).join("");
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/encoding.js
+//#region node_modules/lib0/encoding.js
 /**
 * Efficient schema-less binary encoding with support for variable length encoding.
 *
@@ -990,7 +990,7 @@ var StringEncoder = class {
 	}
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/error.js
+//#region node_modules/lib0/error.js
 /**
 * Error helpers.
 *
@@ -1019,7 +1019,7 @@ const unexpectedCase = () => {
 	throw create$3("Unexpected case");
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/decoding.js
+//#region node_modules/lib0/decoding.js
 /**
 * Efficient schema-less binary decoding with support for variable length encoding.
 *
@@ -1393,7 +1393,7 @@ var StringDecoder = class {
 crypto.subtle;
 const getRandomValues = crypto.getRandomValues.bind(crypto);
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/random.js
+//#region node_modules/lib0/random.js
 const uint32 = () => getRandomValues(/* @__PURE__ */ new Uint32Array(1))[0];
 const uuidv4Template = "10000000-1000-4000-8000-100000000000";
 /**
@@ -1405,7 +1405,7 @@ const uuidv4 = () => uuidv4Template.replace(
 	(c) => (c ^ uint32() & 15 >> c / 4).toString(16)
 );
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/time.js
+//#region node_modules/lib0/time.js
 /**
 * Return current unix time.
 *
@@ -1413,7 +1413,7 @@ const uuidv4 = () => uuidv4Template.replace(
 */
 const getUnixTime = Date.now;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/promise.js
+//#region node_modules/lib0/promise.js
 /**
 * @template T
 * @callback PromiseResolve
@@ -1427,7 +1427,7 @@ const getUnixTime = Date.now;
 const create$2 = (f) => new Promise(f);
 Promise.all.bind(Promise);
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/conditions.js
+//#region node_modules/lib0/conditions.js
 /**
 * Often used conditions.
 *
@@ -1441,7 +1441,7 @@ Promise.all.bind(Promise);
 /* c8 ignore next */
 const undefinedToNull = (v) => v === void 0 ? null : v;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/storage.js
+//#region node_modules/lib0/storage.js
 /**
 * Isomorphic variable storage.
 *
@@ -1484,7 +1484,7 @@ try {
 /* c8 ignore next */
 const varStorage = _localStorage;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/trait/equality.js
+//#region node_modules/lib0/trait/equality.js
 const EqualityTraitSymbol = Symbol("Equality");
 /**
 * @typedef {{ [EqualityTraitSymbol]:(other:EqualityTrait)=>boolean }} EqualityTrait
@@ -1510,7 +1510,7 @@ const EqualityTraitSymbol = Symbol("Equality");
 */
 const equals = (a, b) => a === b || !!a?.[EqualityTraitSymbol]?.(b) || false;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/object.js
+//#region node_modules/lib0/object.js
 /**
 * @param {any} o
 * @return {o is { [k:string]:any }}
@@ -1589,7 +1589,7 @@ const deepFreeze = (o) => {
 	return freeze(o);
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/function.js
+//#region node_modules/lib0/function.js
 /**
 * Calls all functions in `fs` with args. Only throws after all functions were called.
 *
@@ -1658,7 +1658,7 @@ const equalityDeep = (a, b) => {
 */
 const isOneOf = (value, options) => options.includes(value);
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/environment.js
+//#region node_modules/lib0/environment.js
 /**
 * Isomorphic module to work access the environment (query params, env variables).
 *
@@ -1737,7 +1737,7 @@ const supportsColor = isNode && isOneOf(process.env.FORCE_COLOR, [
 ]) || !hasParam("--no-colors") && !hasConf("no-color") && (!isNode || process.stdout.isTTY) && (!isNode || hasParam("--color") || getVariable("COLORTERM") !== null || (getVariable("TERM") || "").includes("color"));
 /* c8 ignore stop */
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/buffer.js
+//#region node_modules/lib0/buffer.js
 /**
 * Utility functions to work with buffers (Uint8Array).
 *
@@ -1759,7 +1759,7 @@ const copyUint8Array = (uint8Array) => {
 	return newBuf;
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/pair.js
+//#region node_modules/lib0/pair.js
 /**
 * Working with value pairs.
 *
@@ -1786,7 +1786,7 @@ var Pair = class {
 */
 const create$1 = (left, right) => new Pair(left, right);
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/prng.js
+//#region node_modules/lib0/prng.js
 /**
 * Generates a single random bool.
 *
@@ -1851,7 +1851,7 @@ const word = (gen, minLen = 0, maxLen = 20) => {
 const oneOf = (gen, array) => array[int31(gen, 0, array.length - 1)];
 /* c8 ignore stop */
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/schema.js
+//#region node_modules/lib0/schema.js
 /**
 * @experimental WIP
 *
@@ -2796,7 +2796,7 @@ const _random = match($any).if($$number, (_o, gen) => int53(gen, MIN_SAFE_INTEGE
 */
 const random = (gen, schema) => _random($(schema), gen);
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/dom.js
+//#region node_modules/lib0/dom.js
 /* c8 ignore start */
 /**
 * @type {Document}
@@ -2821,7 +2821,7 @@ const DOCUMENT_FRAGMENT_NODE = doc.DOCUMENT_FRAGMENT_NODE;
 $custom((el) => el.nodeType === DOCUMENT_NODE);
 /* c8 ignore stop */
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/symbol.js
+//#region node_modules/lib0/symbol.js
 /**
 * Utility module to work with EcmaScript Symbols.
 *
@@ -2832,7 +2832,7 @@ $custom((el) => el.nodeType === DOCUMENT_NODE);
 */
 const create = Symbol;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/logging.common.js
+//#region node_modules/lib0/logging.common.js
 const BOLD = create();
 const UNBOLD = create();
 const BLUE = create();
@@ -2868,7 +2868,7 @@ const computeNoColorLoggingArgs = (args) => {
 getUnixTime();
 /* c8 ignore stop */
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/logging.js
+//#region node_modules/lib0/logging.js
 /**
 * Isomorphic logging module with support for colors!
 *
@@ -2951,7 +2951,7 @@ const warn = (...args) => {
 };
 const vconsoles = create$4();
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/lib0/iterator.js
+//#region node_modules/lib0/iterator.js
 /**
 * @template T
 * @param {function():IteratorResult<T>} next
@@ -2991,7 +2991,7 @@ const iteratorMap = (iterator, fmap) => createIterator(() => {
 	};
 });
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yjs/dist/yjs.mjs
+//#region node_modules/yjs/dist/yjs.mjs
 var DeleteItem = class {
 	/**
 	* @param {number} clock
@@ -11085,7 +11085,7 @@ const readSyncMessage = (decoder, encoder, doc, transactionOrigin, errorHandler)
 	return messageType;
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/y-protocols/awareness.js
+//#region node_modules/y-protocols/awareness.js
 /**
 * @module awareness-protocol
 */
@@ -11320,7 +11320,7 @@ const applyAwarenessUpdate = (awareness, update, origin) => {
 	}, origin]);
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/reliable_sync.js
+//#region node_modules/yrby-client/dist/reliable_sync.js
 const DEFAULT_RESEND_INTERVAL = 1e3;
 var ReliableSync = class {
 	#pending = [];
@@ -11449,7 +11449,7 @@ var ReliableSync = class {
 	}
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/y_protocol_session.js
+//#region node_modules/yrby-client/dist/y_protocol_session.js
 const MessageType = {
 	Sync: 0,
 	Awareness: 1
@@ -11645,11 +11645,11 @@ function validateAwareness(payload) {
 	if (hasContent(decoder)) throw new Error("awareness payload has trailing bytes");
 }
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/base64.js
+//#region node_modules/yrby-client/dist/base64.js
 const toBase64 = (bytes) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
 const fromBase64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/actioncable_provider.js
+//#region node_modules/yrby-client/dist/actioncable_provider.js
 var ActionCableProvider = class {
 	doc;
 	consumer;
@@ -11991,7 +11991,7 @@ var ProviderAwareness = class extends Awareness {
 	}
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/document_session.js
+//#region node_modules/yrby-client/dist/document_session.js
 const PHASES = {
 	open: {
 		state: "open",
@@ -12260,7 +12260,7 @@ async function fetchGrant(url) {
 	return grant;
 }
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/turbo_adapter.js
+//#region node_modules/yrby-client/dist/turbo_adapter.js
 const adapters$1 = /* @__PURE__ */ new WeakMap();
 const CACHE_EVENTS = ["turbo:before-cache", "turbolinks:before-cache"];
 const RENDER_EVENTS = [
@@ -12320,7 +12320,7 @@ var TurboAdapter = class {
 	}
 };
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/@rails/actioncable/app/assets/javascripts/actioncable.esm.js
+//#region node_modules/@rails/actioncable/app/assets/javascripts/actioncable.esm.js
 var actioncable_esm_exports = /* @__PURE__ */ __exportAll({
 	Connection: () => Connection,
 	ConnectionMonitor: () => ConnectionMonitor,
@@ -12747,7 +12747,7 @@ var init_actioncable_esm = __esmMin((() => {
 	};
 }));
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/yrby-client/dist/document_element.js
+//#region node_modules/yrby-client/dist/document_element.js
 var _a;
 const Base$1 = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
 const INERT_ATTRIBUTE = "data-yrby-inert";
@@ -13189,7 +13189,7 @@ Lexical.setNodeIndentFromDOM;
 Lexical.shallowMergeConfig;
 Lexical.toggleTextFormatType;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/@lexical/selection/LexicalSelection.dev.mjs
+//#region node_modules/@lexical/selection/LexicalSelection.dev.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *
@@ -13938,7 +13938,7 @@ const getStyleObjectFromCSS$1 = getStyleObjectFromCSS$2;
 /** @deprecated renamed to {@link $trimTextContentFromAnchor} by @lexical/eslint-plugin rules-of-lexical */
 const trimTextContentFromAnchor$1 = $trimTextContentFromAnchor$1;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/@lexical/selection/LexicalSelection.mjs
+//#region node_modules/@lexical/selection/LexicalSelection.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *
@@ -13973,7 +13973,7 @@ mod$1.getCSSFromStyleObject;
 mod$1.getStyleObjectFromCSS;
 mod$1.trimTextContentFromAnchor;
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/@lexical/yjs/LexicalYjs.dev.mjs
+//#region node_modules/@lexical/yjs/LexicalYjs.dev.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *
@@ -16008,7 +16008,7 @@ function setLocalStateFocus$1(provider, name, color, focusing, awarenessData) {
 	awareness.setLocalState(localState);
 }
 //#endregion
-//#region ../../../../../../../../Users/johncamara/Projects/lexxy-realtime/node_modules/@lexical/yjs/LexicalYjs.mjs
+//#region node_modules/@lexical/yjs/LexicalYjs.mjs
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
 *

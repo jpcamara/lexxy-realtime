@@ -312,8 +312,8 @@ const scenarios = {
     const doc = element.doc;
     fault(editor, doc);
     const readOnlyAtFault = !editor.editor.isEditable();
-    // A change made after the fault stays local: the binding no longer
-    // sends editor updates.
+    // The binding stops sending editor updates after the fault, so this
+    // change is only local.
     write(editor, "LOCAL ONLY");
     const localStayedLocal = !doc.get("root", Y.XmlText).toString().includes("LOCAL ONLY");
     await until(() => element.binding && element.doc !== doc && element.provider.synced, "recovered");
