@@ -95,6 +95,7 @@ post, and open its edit page in two windows.
   - [Bind to a yrby-document](#bind-to-a-yrby-document)
   - [Assign a doc and provider](#assign-a-doc-and-provider)
   - [When a remote update fails](#when-a-remote-update-fails)
+  - [Undo and redo](#undo-and-redo)
   - [A single copy of lexical and yjs](#a-single-copy-of-lexical-and-yjs)
 - [Providers](#providers)
   - [The yrby provider API](#the-yrby-provider-api)
@@ -418,6 +419,14 @@ element with a new doc and provider, or reload the page.
 
 The element only sees errors thrown while Lexical runs the update. Errors in
 Lexical's later commit phase don't reach it.
+
+### Undo and redo
+
+The element handles undo and redo with a Yjs `UndoManager` in place of
+Lexxy's own history. Ctrl+Z and the toolbar buttons undo only your own
+changes, and other users see the result. Changes you make within half a
+second count as one undo step. Opening a document that the element seeds
+from an existing body starts with nothing to undo.
 
 ### A single copy of `lexical` and `yjs`
 

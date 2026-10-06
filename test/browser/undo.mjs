@@ -109,7 +109,8 @@ undo("alice");
 check("undo restores the lines locally", await waitEval("alice", 'window.__test.text().includes("line-5")', "alice undo"));
 check("undo restores the lines for Bob", await waitEval("bob", 'window.__test.text().includes("line-5")', "bob sees undo"));
 
-// Type after the undo. Each keystroke used to copy the lines again.
+// Type after the undo. If the editor and the document disagreed, each
+// keystroke would copy the lines into the document again.
 ab("alice", "keyboard", "type", "XYZWV");
 await waitEval("bob", 'window.__test.text().includes("XYZWV")', "bob sees typing");
 
