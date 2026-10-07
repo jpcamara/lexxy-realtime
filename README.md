@@ -407,6 +407,18 @@ document.addEventListener("lexxy-realtime:desync", ({ detail }) => {
 });
 ```
 
+These failures are rare and hard to reproduce, so send them to your error
+tracker. The error is the one Lexical threw, and its stack shows which part
+of the document failed to apply:
+
+```js
+document.addEventListener("lexxy-realtime:desync", ({ detail }) => {
+  Sentry.captureException(detail.error, { tags: { lexxy_realtime: "desync" } });
+});
+```
+
+If you see these errors, please open an issue with the stack trace.
+
 With a `<yrby-document>`, `recovering` is `true`. The element discards the
 broken session, and `<yrby-document>` acquires a new one that loads the
 server's state. Edits the server hadn't acknowledged are lost, and undo
