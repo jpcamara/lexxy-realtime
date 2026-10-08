@@ -31,8 +31,9 @@ bin/rails generate lexxy_realtime:install
 bin/rails db:migrate
 ```
 
-The generator creates the document tables. If the app uses import maps, it
-also adds the import-map pins. The channel ships in the gem.
+The generator adds a migration for yrby's `y_documents` and
+`y_document_updates` tables. If the app uses import maps, it also adds the
+import-map pins. The channel ships in the gem.
 
 Make a rich text attribute collaborative:
 
@@ -281,15 +282,17 @@ pin "@rails/actioncable", to: "actioncable.esm.js"
 pin "@rails/activestorage", to: "activestorage.esm.js"
 ```
 
-`@37signals/lexxy` is an alias of the app's own Lexxy asset (the same file
-as Lexxy's `lexxy` pin; one URL, one module). The lexxy-realtime build
-reaches lexical through Lexxy's documented `Lexical` re-export, so the
-page runs one copy of lexical: the editor's. yrby-client and yjs are
-separate files that lexxy-realtime imports, so code of your own that
-imports them shares the same `<yrby-document>` class, session store, and
-Yjs. `@rails/actioncable` is Rails' own file. A pin your app already has
-is kept, and re-running the generator adds only missing pins. Nothing to
-install; import the packages in your entry point.
+`@37signals/lexxy` points at the same file as Lexxy's own `lexxy` pin, so
+the browser loads Lexxy once. lexxy-realtime gets lexical from Lexxy's
+`Lexical` export, so the page also has a single copy of lexical.
+
+yrby-client and yjs are separate files. If your own code imports them, it
+gets the same `<yrby-document>` class, the same session store, and the same
+Yjs as lexxy-realtime. `@rails/actioncable` is Rails' own file.
+
+The generator keeps pins your app already has and adds only the missing
+ones, so it's safe to run again. There's nothing to install. Import the
+packages in your entry point.
 
 **Bundlers.** Install the npm package. npm and bun install its peers
 automatically. With Yarn, add `@lexical/yjs yjs y-protocols` yourself:
@@ -407,18 +410,6 @@ document.addEventListener("lexxy-realtime:desync", ({ detail }) => {
 });
 ```
 
-These failures are rare and hard to reproduce, so send them to your error
-tracker. The error is the one Lexical threw, and its stack shows which part
-of the document failed to apply:
-
-```js
-document.addEventListener("lexxy-realtime:desync", ({ detail }) => {
-  Sentry.captureException(detail.error, { tags: { lexxy_realtime: "desync" } });
-});
-```
-
-If you see these errors, please open an issue with the stack trace.
-
 With a `<yrby-document>`, `recovering` is `true`. The element discards the
 broken session, and `<yrby-document>` acquires a new one that loads the
 server's state. Edits the server hadn't acknowledged are lost, and undo
@@ -431,6 +422,18 @@ element with a new doc and provider, or reload the page.
 
 The element only sees errors thrown while Lexical runs the update. Errors in
 Lexical's later commit phase don't reach it.
+
+These failures are rare and hard to reproduce, so send them to your error
+tracker. The error is the one Lexical threw, and its stack shows which part
+of the document failed to apply:
+
+```js
+document.addEventListener("lexxy-realtime:desync", ({ detail }) => {
+  Sentry.captureException(detail.error, { tags: { lexxy_realtime: "desync" } });
+});
+```
+
+If you see these errors, please open an issue with the stack trace.
 
 ### Undo and redo
 
@@ -557,8 +560,8 @@ directly.
 
 Your durable store holds the collaborative document as Yjs updates. When the
 rest of your app needs it as rich text (display, search, mailers), render it
-on the server with the `yrby` gem's `Y::Lexxy`. It produces the same HTML as
-Lexxy, byte for byte:
+on the server with the `yrby` gem's `Y::Lexxy`. It produces the same HTML
+as Lexxy does:
 
 ```ruby
 ydoc = Y::Doc.new
@@ -650,8 +653,8 @@ permanent editor doesn't survive the visit.
 Ruby 3.4+, Rails 8.0.2+, and Lexxy 0.9.29+. Both the npm peer range and the
 gem's dependency require Lexxy 0.9.29, which includes an attachment
 construction fix this package needs. lexxy-realtime also patches
-`@lexical/yjs` when it binds an editor, to work around an upstream bug. See
-[`CONTRIBUTING.md`](CONTRIBUTING.md) for details and upstream status.
+`@lexical/yjs` when it binds an editor, to work around two upstream bugs.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for details and upstream status.
 
 ## License
 

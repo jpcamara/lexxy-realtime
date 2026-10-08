@@ -63,9 +63,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Breaking:** `lexxy_realtime:install` no longer generates
   `app/channels/document_channel.rb` or the Action Cable boilerplate. It
   adds the storage migration, plus import-map pins if the app uses import
-  maps. An app upgrading from the generated
-  channel can delete it. Move any access check from its `authorized?` into
-  an `authorize_document` block.
+  maps. An app upgrading from the generated channel can delete it. Move
+  any access check from its `authorized?` into an `authorize_document`
+  block.
 - **Breaking:** collaborative fields are built on yrby-rails'
   `Y::Collaborative`. `record.collaborative_document(:body)` returns yrby's
   document handle. `find_or_create_collaborative_document` and the
@@ -119,8 +119,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   server hadn't acknowledged yet are lost. It rebuilds at most once every
   15 seconds, and a failure inside that window waits for it to end. When
   the element unbinds, the editor gets back the editable state it had
-  before the failure. With a host-supplied document it only dispatches the
-  event, and the host recreates the element to recover.
+  before the failure. With a host-supplied document it stops syncing and
+  makes the editor read-only, but doesn't rebuild. The host recreates the
+  element to recover.
 - When Lexxy builds a new Lexical editor without disconnecting its
   children, as it does when a Turbo morph changes its `connected`
   attribute, the element binds the new editor, so its edits sync.

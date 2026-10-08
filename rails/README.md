@@ -33,8 +33,8 @@ your Lexxy import:
 npm install lexxy-realtime   # yarn, bun, and pnpm also work
 ```
 
-With import maps, there is no npm install; the generator pins assets
-this gem ships, one pin for each module the page must load once:
+With import maps, there's no npm install. The generator pins assets this
+gem ships, one for each module the page must load only once:
 
 ```ruby
 # config/importmap.rb, added by the generator
@@ -47,15 +47,18 @@ pin "@rails/actioncable", to: "actioncable.esm.js"
 pin "@rails/activestorage", to: "activestorage.esm.js"
 ```
 
-`@37signals/lexxy` points at the Lexxy gem's own asset, the same file as
-its `lexxy` pin, and lexxy-realtime reaches lexical through Lexxy's
-`Lexical` re-export, so the page runs one copy of lexical. yrby-client and
-yjs are separate files that lexxy-realtime imports. Two copies of either
-would mean two `<yrby-document>` classes or two Yjs runtimes, which breaks
-the binding, so other code that imports them gets the same copy.
-`@rails/actioncable` is Rails' own file, which `<yrby-document>` loads for
-its default consumer. The generator keeps any of these pins the app
-already has and adds the rest, so run it again after upgrading.
+`@37signals/lexxy` points at the same file as the Lexxy gem's own `lexxy`
+pin, so the browser loads Lexxy once. lexxy-realtime gets lexical from
+Lexxy's `Lexical` export, so there's also one copy of lexical.
+
+yrby-client and yjs are separate files. A second copy of either would mean
+a second `<yrby-document>` class or a second Yjs, and the editor binding
+would break. With separate pins, any other code that imports them gets the
+same copy as lexxy-realtime. `@rails/actioncable` is Rails' own file, and
+`<yrby-document>` uses it for its default consumer.
+
+The generator keeps pins the app already has and adds the missing ones, so
+run it again after upgrading.
 
 Either way, your entrypoint imports both:
 
@@ -193,7 +196,7 @@ next reconnect and starts again after the page reloads.
 
 While a grant is rejected and not renewed, `<yrby-document>` makes the
 editor inert, so nobody types into a document that can't sync. The editor
-is also inert before the first sync, while the page can't reach the
+is also inert before its first sync and whenever the page can't reach the
 server.
 
 ## Configuration
