@@ -46,6 +46,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   bundle runs against Lexxy's re-exported Lexical namespace, so the ceiling
   keeps a future major release from reaching apps before it's tested.
 
+### Fixed
+
+- An error while applying a remote update no longer leaves the editor out
+  of sync without a trace. Yjs runs the apply inside `Y.applyUpdate`, and
+  y-protocols catches and logs anything it throws. By then the document
+  already holds the update, so the editor stayed behind the document for
+  good, and a reconnect didn't fix it. The broken binding could also delete
+  visible text on later edits. Now the element stops syncing in both
+  directions, makes the editor read-only, and dispatches a bubbling
+  `lexxy-realtime:desync` event. Recreate the element or reload the page
+  to edit again.
+
 ## [0.7.1] - 2026-10-03
 
 ### Changed

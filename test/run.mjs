@@ -57,6 +57,17 @@ try {
   // nothing there: good
 }
 
+let exitCode = 0;
+
+// Unit checks need no server, so they run before it boots.
+if (runHeadless) {
+  console.log("\n=== unit checks ===");
+  for (const name of ["remote_apply"]) {
+    console.log(`\n--- ${name} ---`);
+    if (run("bun", [join(here, "headless", `${name}.mjs`)]).status !== 0) exitCode = 1;
+  }
+}
+
 console.log(`> booting yrby test server on :${PORT}`);
 const server = spawn("bundle", ["exec", "puma", "-p", PORT, "config.ru"], {
   cwd: serverDir,
@@ -64,7 +75,6 @@ const server = spawn("bundle", ["exec", "puma", "-p", PORT, "config.ru"], {
   stdio: "ignore",
 });
 
-let exitCode = 0;
 const shutdown = () => {
   try {
     server.kill("SIGTERM");

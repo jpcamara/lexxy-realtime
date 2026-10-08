@@ -15649,7 +15649,8 @@ function resolveConsumer() {
 	if (typeof configuredConsumer === "function") configuredConsumer = configuredConsumer();
 	return configuredConsumer || (sharedConsumer ??= createConsumer());
 }
-var Collaboration = class extends HTMLElement {
+const Base = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
+var Collaboration = class extends Base {
 	#teardown = null;
 	connectedCallback() {
 		this.editorElement = this.closest("lexxy-editor");
@@ -15696,7 +15697,18 @@ var Collaboration = class extends HTMLElement {
 		const excludedProperties = attachmentExclusions(this.editor);
 		const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
 		patchCollabElementSplice(binding);
-		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
+		let restoreEditable = null;
+		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => {
+			const wasEditable = this.editor.isEditable();
+			this.editor.setEditable(false);
+			restoreEditable = () => {
+				if (wasEditable) this.editor.setEditable(true);
+			};
+			this.dispatchEvent(new CustomEvent("lexxy-realtime:desync", {
+				bubbles: true,
+				detail: { error }
+			}));
+		});
 		const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
 		registerCursorTheme(this.editor);
 		const cursorsContainer = this.#createCursorsContainer();
@@ -15724,6 +15736,7 @@ var Collaboration = class extends HTMLElement {
 			awareness.off("update", renderCursors);
 			unsubscribeCursorRender();
 			unsubscribeListeners();
+			restoreEditable?.();
 			cancelBootstrap();
 			cursorsContainer.remove();
 			if (ownsProvider) {
@@ -15780,15 +15793,30 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
 		if (timer) clearInterval(timer);
 	};
 }
-function registerCollaborationListeners(editor, provider, binding) {
+function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
+	let desynced = false;
+	return (events, transaction) => {
+		if (transaction.origin === binding) return;
+		if (desynced) return;
+		try {
+			sync(binding, provider, events, false);
+		} catch (error) {
+			desynced = true;
+			console.error("lexxy-realtime: a remote update failed to apply; the editor is out of sync with the document.", error);
+			onDesync?.(error);
+		}
+	};
+}
+function registerCollaborationListeners(editor, provider, binding, onDesync) {
 	const unsubscribeUpdateListener = editor.registerUpdateListener(({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
 		editor.getEditorState().read(() => {
 			if (tags.has("skip-collab") === false) syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags);
 		});
 	});
-	const observer = (events, transaction) => {
-		if (transaction.origin !== binding) syncYjsChangesToLexical(binding, provider, events, false);
-	};
+	const observer = createRemoteApplier(provider, binding, { onDesync: (error) => {
+		unsubscribeUpdateListener();
+		onDesync(error);
+	} });
 	binding.root.getSharedType().observeDeep(observer);
 	return () => {
 		unsubscribeUpdateListener();

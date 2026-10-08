@@ -40,7 +40,11 @@ function resolveConsumer() {
   return configuredConsumer || (sharedConsumer ??= createConsumer());
 }
 
-export class Collaboration extends HTMLElement {
+// Node (SSR, unit tests) has no HTMLElement; the module must still load
+// there, so only registration is browser-gated (see index.js).
+const Base = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
+
+export class Collaboration extends Base {
   #teardown = null;
 
   connectedCallback() {
@@ -125,7 +129,16 @@ export class Collaboration extends HTMLElement {
     const excludedProperties = attachmentExclusions(this.editor);
     const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
     patchCollabElementSplice(binding);
-    const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding);
+    let restoreEditable = null;
+    const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => {
+      // The editor no longer matches the document, so typing into it would
+      // look saved without reaching anyone. Make it read-only until the
+      // element is removed.
+      const wasEditable = this.editor.isEditable();
+      this.editor.setEditable(false);
+      restoreEditable = () => { if (wasEditable) this.editor.setEditable(true); };
+      this.dispatchEvent(new CustomEvent('lexxy-realtime:desync', { bubbles: true, detail: { error } }));
+    });
     const cancelBootstrap = bootstrapWhenSynced(this.editor, provider, binding, initialEditorState);
 
     // Remote cursors/selections are rendered by @lexical/yjs (syncCursorPositions)
@@ -165,6 +178,7 @@ export class Collaboration extends HTMLElement {
       awareness.off('update', renderCursors);
       unsubscribeCursorRender();
       unsubscribeListeners();
+      restoreEditable?.();
       cancelBootstrap();
       cursorsContainer.remove();
       if (ownsProvider) {
@@ -258,7 +272,37 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
   };
 }
 
-function registerCollaborationListeners(editor, provider, binding) {
+// Applies Yjs changes to Lexical and reports a failure, so the editor can't
+// fall out of sync without anyone knowing. This observer runs inside
+// Y.applyUpdate, and y-protocols wraps that call in a catch that only logs.
+// When Lexical's apply throws, the Y.Doc already has the update and the
+// error goes nowhere. The editor then shows less than the document for
+// good. A reconnect brings no new updates, so the observer never runs again
+// for the missing content. A throw also leaves the binding's cached offsets
+// wrong, and later applies can delete visible text.
+//
+// After the first failure the applier stops applying and reports once.
+// Errors thrown while Lexical renders the update to the DOM happen later, in
+// a microtask, and aren't caught here. Tests can pass their own `sync`.
+export function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
+  let desynced = false;
+  return (events, transaction) => {
+    if (transaction.origin === binding) return;
+    if (desynced) return;
+    try {
+      sync(binding, provider, events, false);
+    } catch (error) {
+      desynced = true;
+      console.error(
+        'lexxy-realtime: a remote update failed to apply; the editor is out of sync with the document.',
+        error
+      );
+      onDesync?.(error);
+    }
+  };
+}
+
+function registerCollaborationListeners(editor, provider, binding, onDesync) {
   const unsubscribeUpdateListener = editor.registerUpdateListener(
     ({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
       editor.getEditorState().read(() => {
@@ -278,11 +322,14 @@ function registerCollaborationListeners(editor, provider, binding) {
     }
   );
 
-  const observer = (events, transaction) => {
-    if (transaction.origin !== binding) {
-      syncYjsChangesToLexical(binding, provider, events, false);
-    }
-  };
+  // After a failed apply, the binding's caches no longer match the document,
+  // so stop sending local edits through it as well.
+  const observer = createRemoteApplier(provider, binding, {
+    onDesync: (error) => {
+      unsubscribeUpdateListener();
+      onDesync(error);
+    },
+  });
 
   binding.root.getSharedType().observeDeep(observer);
 

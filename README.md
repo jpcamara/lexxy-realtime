@@ -341,6 +341,20 @@ provider.connect(); // YrbyProvider does not auto-connect
 The element waits for the editor to initialize on its own, so you can append
 it as soon as the `<lexxy-editor>` is in the DOM.
 
+### When a remote update fails to apply
+
+If Lexical throws while applying a change from another user, the editor no
+longer matches the shared document. The element then stops syncing in both
+directions, makes the editor read-only, and dispatches a bubbling
+`lexxy-realtime:desync` event with the error in `event.detail.error`.
+Recreate the element or reload the page to edit again:
+
+```js
+document.addEventListener("lexxy-realtime:desync", () => {
+  showNotice("This editor lost sync. Reload to keep editing.");
+});
+```
+
 ### A single copy of `lexical` and `yjs`
 
 Lexxy and lexxy-realtime both leave `lexical` (and lexxy-realtime leaves
