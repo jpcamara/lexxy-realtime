@@ -91,7 +91,7 @@ const $isTokenOrSegmented = Lexical.$isTokenOrSegmented;
 Lexical.$isTokenOrTab;
 const $nodesOfType = Lexical.$nodesOfType;
 Lexical.$normalizeCaret;
-Lexical.$normalizeSelection__EXPERIMENTAL;
+const $normalizeSelection__EXPERIMENTAL = Lexical.$normalizeSelection__EXPERIMENTAL;
 Lexical.$onUpdate;
 Lexical.$parseSerializedNode;
 Lexical.$removeTextFromCaretRange;
@@ -121,14 +121,14 @@ Lexical.COMMAND_PRIORITY_BEFORE_LOW;
 Lexical.COMMAND_PRIORITY_BEFORE_NORMAL;
 Lexical.COMMAND_PRIORITY_CRITICAL;
 Lexical.COMMAND_PRIORITY_EDITOR;
-Lexical.COMMAND_PRIORITY_HIGH;
+const COMMAND_PRIORITY_HIGH = Lexical.COMMAND_PRIORITY_HIGH;
 Lexical.COMMAND_PRIORITY_LOW;
 Lexical.COMMAND_PRIORITY_NORMAL;
 Lexical.COMPOSITION_END_COMMAND;
 Lexical.COMPOSITION_END_TAG;
 Lexical.COMPOSITION_START_COMMAND;
 Lexical.COMPOSITION_START_TAG;
-Lexical.CONTROLLED_TEXT_INSERTION_COMMAND;
+const CONTROLLED_TEXT_INSERTION_COMMAND = Lexical.CONTROLLED_TEXT_INSERTION_COMMAND;
 Lexical.COPY_COMMAND;
 Lexical.CUT_COMMAND;
 Lexical.DEFAULT_EDITOR_DOM_CONFIG;
@@ -15639,6 +15639,150 @@ function registerCursorTheme(editor) {
 	document.head.appendChild(style);
 }
 //#endregion
+//#region src/text_reconciliation.js
+const bindings = /* @__PURE__ */ new WeakSet();
+const patchedPrototypes = /* @__PURE__ */ new WeakSet();
+const repairs = /* @__PURE__ */ new WeakSet();
+const elementsWithRepairs = /* @__PURE__ */ new WeakSet();
+const reconciliationOrigin = Object.freeze({ name: "lexxy-realtime reconciliation" });
+function registerTextReconciliation(binding) {
+	bindings.add(binding);
+	const proto = binding.root.constructor.prototype;
+	if (!patchedPrototypes.has(proto)) {
+		const apply = proto.applyChildrenYjsDelta;
+		proto.applyChildrenYjsDelta = function(current, deltas) {
+			if (!bindings.has(current)) return apply.call(this, current, deltas);
+			rebuildChildren(this, current, deltas, apply);
+		};
+		const syncChildren = proto.syncChildrenFromYjs;
+		proto.syncChildrenFromYjs = function(current) {
+			const result = syncChildren.call(this, current);
+			if (bindings.has(current)) releaseEmptyRepairs(this);
+			return result;
+		};
+		patchedPrototypes.add(proto);
+	}
+	return () => bindings.delete(binding);
+}
+function sharedTypeOf(sharedType) {
+	return sharedType instanceof YMap ? sharedType.get("__type") : sharedType.getAttribute?.("__type");
+}
+function rebuildChildren(element, binding, deltas, apply) {
+	const sources = survivingTextSources(element._children, deltas);
+	const xmlText = element._xmlText;
+	let snapshot = xmlText.toDelta();
+	const headers = [];
+	let previousIsText = false;
+	let offset = 0;
+	for (const { insert } of snapshot) if (typeof insert === "string") {
+		if (!previousIsText && insert.length) {
+			const header = textHeader(binding, sources.get(offset));
+			binding.doc.transact(() => xmlText.insertEmbed(offset + headers.length, header), reconciliationOrigin);
+			headers.push(header);
+			previousIsText = true;
+		}
+		offset += insert.length;
+	} else {
+		const type = sharedTypeOf(insert);
+		previousIsText = insert instanceof YMap && typeof type === "string" && type !== "linebreak";
+		offset++;
+	}
+	if (headers.length) snapshot = xmlText.toDelta();
+	snapshot = snapshot.filter(({ insert }) => typeof insert === "string" || typeof sharedTypeOf(insert) === "string");
+	element._children = [];
+	for (const { insert } of snapshot) {
+		const child = typeof insert === "object" && insert._collabNode;
+		if (child && typeof child._text === "string") {
+			child._text = "";
+			child._normalized = false;
+		}
+	}
+	apply.call(element, binding, snapshot);
+	for (const header of headers) if (header._collabNode) repairs.add(header._collabNode);
+	if (headers.length) elementsWithRepairs.add(element);
+}
+function survivingTextSources(children, deltas) {
+	const sources = /* @__PURE__ */ new Map();
+	if (!deltas.some((delta) => delta.delete != null)) return sources;
+	const ranges = [];
+	let end = 0;
+	for (const child of children) {
+		const start = end;
+		end += child.getSize();
+		if (typeof child._text === "string") ranges.push({
+			start,
+			end,
+			child
+		});
+	}
+	let before = 0;
+	let after = 0;
+	for (const delta of deltas) if (delta.retain != null) {
+		before += delta.retain;
+		after += delta.retain;
+	} else if (delta.delete != null) {
+		const end = before + delta.delete;
+		for (const range of ranges) if (range.start >= before && range.start < end && range.end > end) sources.set(after, range.child);
+		before = end;
+	} else if (delta.insert != null) after += typeof delta.insert === "string" ? delta.insert.length : 1;
+	return sources;
+}
+function textHeader(binding, source) {
+	const node = source?.getNode();
+	const properties = binding.nodeProperties.get(node?.getType() || "text");
+	const header = new YMap(Object.entries(properties).map(([key, value]) => [key, node ? node[key] : value]));
+	const unmergeable = $createTextNode().toggleUnmergeable().getDetail();
+	header.set("__detail", (node?.getDetail() || properties.__detail || 0) | unmergeable);
+	const state = node?.exportJSON().$;
+	if (state && Object.keys(state).length) header.set("__state", new YMap(Object.entries(state)));
+	return header;
+}
+function releaseEmptyRepairs(element) {
+	if (!elementsWithRepairs.has(element)) return;
+	elementsWithRepairs.delete(element);
+	const children = element._children;
+	for (let i = 0; i < children.length; i++) {
+		const child = children[i];
+		if (!repairs.has(child)) continue;
+		if (child._text === "" && typeof children[i + 1]?._text === "string") {
+			repairs.delete(child);
+			const node = child.getNode();
+			if (node?.isUnmergeable()) node.toggleUnmergeable();
+		} else elementsWithRepairs.add(element);
+	}
+}
+function syncEditorUpdate(binding, provider, update) {
+	const { editorState, prevEditorState, dirtyElements, dirtyLeaves, tags } = update;
+	const remote = tags.has(COLLABORATION_TAG) || tags.has(HISTORIC_TAG);
+	let { normalizedNodes } = update;
+	const sync = () => editorState.read(() => {
+		if (remote) for (const key of dirtyElements.keys()) {
+			const parent = key === "root" ? binding.root : binding.collabNodeMap.get(key);
+			for (const child of parent?._children || []) if (child._text === "" && $getNodeByKey(child._key) === null) {
+				if (normalizedNodes === update.normalizedNodes) normalizedNodes = new Set(normalizedNodes);
+				normalizedNodes.add(child._key);
+			}
+		}
+		syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags);
+	});
+	if (remote) binding.doc.transact(sync, reconciliationOrigin);
+	else sync();
+}
+//#endregion
+//#region src/selection_normalization.js
+function registerSelectionNormalization(editor) {
+	return editor.registerCommand(CONTROLLED_TEXT_INSERTION_COMMAND, () => {
+		const selection = $getSelection();
+		if ($isRangeSelection(selection) && selection.isCollapsed() && selection.anchor.type === "element") {
+			const element = selection.anchor.getNode();
+			const offset = selection.anchor.offset;
+			const child = element.getChildAtIndex(offset === element.getChildrenSize() ? offset - 1 : offset);
+			if ($isTextNode(child) && child.isSimpleText() && !child.isUnmergeable()) $normalizeSelection__EXPERIMENTAL(selection);
+		}
+		return false;
+	}, COMMAND_PRIORITY_HIGH);
+}
+//#endregion
 //#region src/editor_collaboration.js
 let sharedConsumer;
 let configuredConsumer;
@@ -15697,6 +15841,8 @@ var Collaboration = class extends Base {
 		const excludedProperties = attachmentExclusions(this.editor);
 		const binding = createBinding(this.editor, provider, id, doc, docMap, excludedProperties);
 		patchCollabElementSplice(binding);
+		const stopTextReconciliation = registerTextReconciliation(binding);
+		const stopSelectionNormalization = registerSelectionNormalization(this.editor);
 		let restoreEditable = null;
 		const unsubscribeListeners = registerCollaborationListeners(this.editor, provider, binding, (error) => {
 			const wasEditable = this.editor.isEditable();
@@ -15737,6 +15883,8 @@ var Collaboration = class extends Base {
 			unsubscribeCursorRender();
 			unsubscribeListeners();
 			restoreEditable?.();
+			stopSelectionNormalization();
+			stopTextReconciliation();
 			cancelBootstrap();
 			cursorsContainer.remove();
 			if (ownsProvider) {
@@ -15796,7 +15944,7 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
 function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
 	let desynced = false;
 	return (events, transaction) => {
-		if (transaction.origin === binding) return;
+		if (transaction.origin === binding || transaction.origin === reconciliationOrigin) return;
 		if (desynced) return;
 		try {
 			sync(binding, provider, events, false);
@@ -15808,10 +15956,8 @@ function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChange
 	};
 }
 function registerCollaborationListeners(editor, provider, binding, onDesync) {
-	const unsubscribeUpdateListener = editor.registerUpdateListener(({ dirtyElements, dirtyLeaves, editorState, normalizedNodes, prevEditorState, tags }) => {
-		editor.getEditorState().read(() => {
-			if (tags.has("skip-collab") === false) syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags);
-		});
+	const unsubscribeUpdateListener = editor.registerUpdateListener((update) => {
+		if (!update.tags.has("skip-collab")) syncEditorUpdate(binding, provider, update);
 	});
 	const observer = createRemoteApplier(provider, binding, { onDesync: (error) => {
 		unsubscribeUpdateListener();

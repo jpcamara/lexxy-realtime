@@ -62,7 +62,7 @@ let exitCode = 0;
 // Unit checks need no server, so they run before it boots.
 if (runHeadless) {
   console.log("\n=== unit checks ===");
-  for (const name of ["remote_apply"]) {
+  for (const name of ["remote_apply", "text_integrity"]) {
     console.log(`\n--- ${name} ---`);
     if (run("bun", [join(here, "headless", `${name}.mjs`)]).status !== 0) exitCode = 1;
   }

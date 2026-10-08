@@ -48,6 +48,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Two peers typing into the same empty paragraph at once could duplicate
+  text that had just arrived from a third peer. When the caret is on the
+  paragraph next to plain text, the element now moves it into that text
+  before inserting. A caret next to unmergeable or special text stays where
+  it is.
+- Remote changes that arrived in an unexpected order could delete
+  characters, formatting, or NodeState, or show text twice. This happened
+  when a peer received a merge before the text it merged into, when one user
+  removed or undid a text node while another typed into it, and when a new
+  text node was inserted at the start of an existing one. The element now
+  keeps those characters, with the formatting and NodeState of the text
+  they came from when that's known. Each remote change rebuilds the
+  affected block's text nodes from the shared document. Neither fix changes
+  the Yjs document format.
 - An error while applying a remote update no longer leaves the editor out
   of sync without a trace. Yjs runs the apply inside `Y.applyUpdate`, and
   y-protocols catches and logs anything it throws. By then the document
