@@ -19,7 +19,8 @@ import type { Awareness } from "y-protocols/awareness";
 /**
  * Sets the Action Cable consumer that every <yrby-document> on the page
  * uses (YrbyDocumentElement.consumer). Call once at boot, before editors
- * mount. A function is called right away.
+ * mount. A function is called the first time a <yrby-document> needs a
+ * consumer, and its result is reused.
  */
 export declare function setConsumer(
   consumerOrFactory: CableConsumer | (() => CableConsumer),

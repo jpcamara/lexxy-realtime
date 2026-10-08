@@ -40,9 +40,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   or provider. Without a `<yrby-document>` ancestor, assign `doc` and
   `provider` before the element connects. Importing `lexxy-realtime`
   registers `<yrby-document>`.
-- **Breaking:** `setConsumer` sets `YrbyDocumentElement.consumer` and calls
-  a function argument right away. The per-element `consumer` property is
-  gone.
+- **Breaking:** `setConsumer` sets `YrbyDocumentElement.consumer`. A
+  function argument runs the first time a `<yrby-document>` needs a
+  consumer, and its result is reused. The per-element `consumer` property
+  is gone.
 - The element renders a doc's existing content when it binds, and moving
   it within one turn keeps its binding. An element that replaces it in the
   same turn, for example through a Turbo Stream, takes the document over.

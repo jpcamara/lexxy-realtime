@@ -1,7 +1,9 @@
 // Lifecycle e2e: runs the scenarios in lifecycle_app.js in a real browser
 // and checks their results. They cover binding to a <yrby-document>
 // session, moves, removal with pending edits, late editor initialization,
-// seeding, desync recovery, grant refresh, and host-supplied providers.
+// seeding, same-turn replacement, editor rebuilds, desync recovery,
+// read-only editors, lazy consumers, grant refresh, and host-supplied
+// providers.
 // Assumes the test server is up and `npm run build:test` has run.
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -99,6 +101,11 @@ const scenarios = [
   ["readOnlyKept", [
     ["a read-only editor stays read-only after desync recovery", "r.afterRecovery === true"],
     ["a read-only editor stays read-only after removal during a desync", "r.afterRemoval === true"],
+  ]],
+  ["lazyConsumer", [
+    ["setConsumer doesn't call the factory right away", "r.notCalledAtSet === true"],
+    ["the factory is called once, when a <yrby-document> needs a consumer", "r.calledOnce === true"],
+    ["assigning YrbyDocumentElement.consumer afterwards replaces it", "r.assignable === true"],
   ]],
   ["removalKeepsPending", [
     ["a removed editor's session keeps its pending edits", "r.keptWhileRemoved === true"],

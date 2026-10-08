@@ -332,7 +332,8 @@ setConsumer(() => createConsumer());
 ```
 
 `setConsumer` sets yrby-client's `YrbyDocumentElement.consumer`. It calls a
-function argument right away.
+function argument the first time a `<yrby-document>` needs a consumer and
+reuses the result.
 
 ### Assign a doc and provider
 

@@ -2,7 +2,7 @@
 // <lexxy-collaboration> elements against the yrby test server and reports
 // what happened, so lifecycle.mjs can assert on it. Exposes window.__lc.
 import "@37signals/lexxy";
-import { YrbyProvider } from "../../src/index.js"; // registers <lexxy-collaboration> and <yrby-document>
+import { YrbyProvider, setConsumer } from "../../src/index.js"; // registers <lexxy-collaboration> and <yrby-document>
 import { YrbyDocumentElement } from "yrby-client/element";
 import * as Y from "yjs";
 import { createConsumer } from "@rails/actioncable";
@@ -331,6 +331,31 @@ const scenarios = {
     second.yrbyDocument.remove();
     await sleep(50);
     return { afterRecovery, afterRemoval };
+  },
+
+  // setConsumer with a factory calls it when a <yrby-document> first needs
+  // a consumer, and only once. Assigning a consumer afterwards replaces it.
+  async lazyConsumer() {
+    const original = YrbyDocumentElement.consumer;
+    let calls = 0;
+    try {
+      setConsumer(() => {
+        calls += 1;
+        return gate.consumer;
+      });
+      await sleep(50);
+      const notCalledAtSet = calls === 0;
+      const first = await mount({ grant: uid("lc-lazy") });
+      const second = await mount({ grant: uid("lc-lazy") });
+      const calledOnce = calls === 1;
+      first.yrbyDocument.remove();
+      second.yrbyDocument.remove();
+      await sleep(50);
+      YrbyDocumentElement.consumer = original;
+      return { notCalledAtSet, calledOnce, assignable: YrbyDocumentElement.consumer === original };
+    } finally {
+      YrbyDocumentElement.consumer = original;
+    }
   },
 
   // Removing the editor keeps unacknowledged edits delivering. The session

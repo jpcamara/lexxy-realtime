@@ -16,7 +16,8 @@ import { registerSelectionNormalization } from './selection_normalization';
 
 // Sets the Action Cable consumer that every <yrby-document> on the page
 // uses. Call it once at boot, before editors mount. It accepts a consumer
-// or a function that returns one, and calls the function right away.
+// or a function that returns one. The function runs the first time a
+// <yrby-document> needs a consumer, and its result is reused.
 //
 //   import { createConsumer } from "@anycable/web";
 //   import { setConsumer } from "lexxy-realtime";
@@ -25,8 +26,37 @@ import { registerSelectionNormalization } from './selection_normalization';
 // Without it, <yrby-document> creates an @rails/actioncable consumer from
 // the page's action-cable-url meta tag, or /cable.
 export function setConsumer(consumerOrFactory) {
-  YrbyDocumentElement.consumer =
-    typeof consumerOrFactory === 'function' ? consumerOrFactory() : consumerOrFactory;
+  if (typeof consumerOrFactory !== 'function') {
+    setConsumerValue(consumerOrFactory);
+    return;
+  }
+  // <yrby-document> reads YrbyDocumentElement.consumer each time it
+  // starts a session, so a getter defers the factory until then. A thrown
+  // factory isn't cached, and the next read calls it again.
+  let resolved = false;
+  let consumer;
+  Object.defineProperty(YrbyDocumentElement, 'consumer', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!resolved) {
+        consumer = consumerOrFactory();
+        resolved = true;
+      }
+      return consumer;
+    },
+    // A later plain assignment replaces the factory.
+    set: setConsumerValue,
+  });
+}
+
+function setConsumerValue(consumer) {
+  Object.defineProperty(YrbyDocumentElement, 'consumer', {
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value: consumer,
+  });
 }
 
 // <yrby-document> dispatches yrby:synced once per session it acquires. An
