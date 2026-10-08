@@ -12,42 +12,70 @@ export type {
   StatusEvent,
 } from "yrby-client";
 
-import type { CableConsumer } from "yrby-client";
+import type { ConsumerSource } from "yrby-client/element";
+import type { Binding } from "@lexical/yjs";
+import type { Doc } from "yjs";
+import type { Awareness } from "y-protocols/awareness";
 
 /**
- * Register the shared Action Cable consumer for every <lexxy-collaboration>
- * element. Call once at boot, before editors mount. Accepts the consumer or
- * a function returning one, resolved lazily on first use. A consumer
- * assigned directly on an element still wins.
+ * Sets the Action Cable consumer that every <yrby-document> on the page
+ * uses (YrbyDocumentElement.consumer). Call once at boot, before editors
+ * mount. Accepts a consumer, a promise of one, or a function returning
+ * either. A function is called the first time a <yrby-document> needs a
+ * consumer, and its result is reused.
  */
 export declare function setConsumer(
-  consumerOrFactory: CableConsumer | (() => CableConsumer),
+  consumer: ConsumerSource,
 ): void;
 
 /**
- * The <lexxy-collaboration> custom element. Place it inside a <lexxy-editor>
- * and it wires the editor's Lexical instance to a YrbyProvider. Attributes:
- * doc-id, name, color, channel-name, channel-params (JSON). Assign
- * `consumer` on the element to override the shared one from setConsumer.
+ * A Yjs provider assigned by the host. y-websocket and Hocuspocus
+ * providers fit this shape.
+ */
+export interface CollaborationProvider {
+  awareness: Awareness;
+  synced: boolean;
+  whenSynced?: Promise<unknown>;
+  doc?: Doc;
+}
+
+/** The detail of the `lexxy-realtime:desync` event. */
+export interface DesyncDetail {
+  /** What the remote apply threw. */
+  error: unknown;
+  /**
+   * True when the element will rebuild from a new yrby session. False with
+   * a host-supplied provider, where the host has to recover.
+   */
+  recovering: boolean;
+}
+
+/**
+ * The <lexxy-collaboration> custom element. Place it inside a
+ * <lexxy-editor>. By default it binds the editor to the session of its
+ * closest <yrby-document>. To use another provider, assign `doc` and
+ * `provider` before the element connects. Attributes: doc-id, name, color.
  */
 export declare class Collaboration extends HTMLElement {
-  consumer?: CableConsumer;
+  /** The bound doc, or the one the host assigned. */
+  get doc(): Doc | null;
+  set doc(doc: Doc | null | undefined);
+  /** The bound provider, or the one the host assigned. */
+  get provider(): CollaborationProvider | null;
+  set provider(provider: CollaborationProvider | null | undefined);
+  /** The bound provider's Awareness, while the editor is bound. */
+  get awareness(): Awareness | undefined;
+  /** The @lexical/yjs binding, while the editor is bound. */
+  get binding(): Binding | undefined;
   connectedCallback(): void;
   disconnectedCallback(): void;
 }
 
-/**
- * Detail of the `lexxy-realtime:desync` event. The element dispatches it,
- * bubbling, when a remote update fails to apply. The editor is then
- * read-only and no longer syncs in either direction. Recreate the element
- * or reload the page to edit again.
- */
-export interface DesyncEventDetail {
-  error: unknown;
-}
-
 declare global {
   interface HTMLElementEventMap {
-    'lexxy-realtime:desync': CustomEvent<DesyncEventDetail>;
+    "lexxy-realtime:desync": CustomEvent<DesyncDetail>;
+  }
+  interface DocumentEventMap {
+    "lexxy-realtime:desync": CustomEvent<DesyncDetail>;
   }
 }

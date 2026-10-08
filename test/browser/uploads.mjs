@@ -44,7 +44,7 @@ const check = (label, ok) => {
   if (!ok) failures++;
 };
 
-execFileSync("curl", ["-s", "-X", "POST", `http://localhost:${PORT}/reset/${ROOM}`]);
+execFileSync("curl", ["-s", "-X", "POST", `http://localhost:${PORT}/reset/${ROOM}:body`]);
 
 open("alice", "Alice");
 check("Alice synced", await ready("alice"));

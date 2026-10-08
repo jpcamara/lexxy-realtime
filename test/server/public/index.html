@@ -20,15 +20,35 @@
     </script>
     <h1>lexxy-realtime · yrby</h1>
     <script>
-      // Simulates a server-rendered existing Action Text body: Lexxy reads its
-      // initial HTML from the value attribute. Written into the markup before
-      // the editor element is parsed and upgraded.
-      const seedHtml = new URLSearchParams(location.search).get("seedHtml");
-      if (seedHtml) {
-        document.write(`<lexxy-editor id="editor" name="editor" data-direct-upload-url="/rails/active_storage/direct_uploads" data-blob-url-template="/rails/active_storage/blobs/redirect/:signed_id/:filename" value="${seedHtml.replace(/"/g, "&quot;")}"></lexxy-editor>`);
-      } else {
-        document.write('<lexxy-editor id="editor" name="editor" data-direct-upload-url="/rails/active_storage/direct_uploads" data-blob-url-template="/rails/active_storage/blobs/redirect/:signed_id/:filename"></lexxy-editor>');
-      }
+      // Writes the markup the Rails helper renders, before the custom
+      // elements upgrade: <yrby-document> around the editor and
+      // <lexxy-collaboration> inside it. seedHtml stands in for an existing
+      // Action Text body, which Lexxy reads from the value attribute.
+      // mode=host renders a bare editor, and app.js assigns a doc and
+      // provider to the element itself.
+      (() => {
+        const params = new URLSearchParams(location.search);
+        const attr = (value) => String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+        const room = params.get("room") || "browser-demo";
+        const seedHtml = params.get("seedHtml");
+        const editorAttributes =
+          'id="editor" name="editor" data-direct-upload-url="/rails/active_storage/direct_uploads" ' +
+          'data-blob-url-template="/rails/active_storage/blobs/redirect/:signed_id/:filename"' +
+          (seedHtml ? ` value="${attr(seedHtml)}"` : "");
+        if (params.get("mode") === "host") {
+          document.write(`<lexxy-editor ${editorAttributes}></lexxy-editor>`);
+          return;
+        }
+        const refresh = params.get("refresh");
+        document.write(
+          `<yrby-document grant="${attr(params.get("grant") || room)}" name="body" channel="DocumentChannel"` +
+            (refresh ? ` refresh="${attr(refresh)}"` : "") +
+            `><lexxy-editor ${editorAttributes}>` +
+            `<lexxy-collaboration doc-id="${attr(room)}" name="${attr(params.get("name") || "User")}" ` +
+            `color="${attr(params.get("color") || "#3b82f6")}"></lexxy-collaboration>` +
+            "</lexxy-editor></yrby-document>"
+        );
+      })();
     </script>
     <script type="module" src="/app.js"></script>
   </body>

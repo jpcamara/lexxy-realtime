@@ -19,6 +19,10 @@ npm run test:browser  # just the browser e2e
   authoritative, record-before-distribute path: every change is durably logged
   before it's relayed, and a document is rebuilt from the log on a cold start.
   `GET /content/:id` returns the durable state for assertions.
+  Headless clients subscribe with `{ id: room }`. `<yrby-document>`
+  subscribes with `{ grant, name }`, stored under the key `grant:name`. A
+  grant that starts with `reject` is rejected, and `GET /grant/:grant`
+  returns `{ grant }` for refresh tests.
 
 - **`headless/`** — Node/Yjs tests driving the `YrbyProvider` (no DOM):
   - `convergence.mjs` — two clients sync both ways; a late joiner is caught up
@@ -32,7 +36,10 @@ npm run test:browser  # just the browser e2e
   [`agent-browser`](https://www.npmjs.com/package/agent-browser). `app.js` is
   bundled into `server/public/` (`npm run build:test`); `e2e.mjs` opens two
   editors that converge both ways, then opens a third cold client that rebuilds
-  the document from the server.
+  the document from the server. `lifecycle.mjs` covers binding to a
+  `<yrby-document>` session, moves, removal with pending edits, desync
+  recovery, grant refresh, and host-supplied providers. `navigation.mjs`
+  types in three browsers while one navigates with Turbo and Turbolinks.
 
 ## Note on the Lexxy patch
 

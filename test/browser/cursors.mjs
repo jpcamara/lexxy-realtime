@@ -47,7 +47,7 @@ const check = (label, ok) => {
   if (!ok) failures++;
 };
 
-execFileSync("curl", ["-s", "-X", "POST", `http://localhost:${PORT}/reset/${ROOM}`]);
+execFileSync("curl", ["-s", "-X", "POST", `http://localhost:${PORT}/reset/${ROOM}:body`]);
 
 // Three users join and each plants a caret.
 open("alice", "Alice");

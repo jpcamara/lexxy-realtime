@@ -34,23 +34,28 @@ npm install lexxy-realtime   # yarn, bun, and pnpm also work
 ```
 
 With import maps, there is no npm install; the generator pins assets
-this gem ships:
+this gem ships, one pin for each module the page must load once:
 
 ```ruby
 # config/importmap.rb, added by the generator
-pin "lexical", to: "lexxy_realtime/lexical.js"
-pin "@37signals/lexxy", to: "lexxy_realtime/lexxy.js"
+pin "@37signals/lexxy", to: "lexxy.js"
 pin "lexxy-realtime", to: "lexxy_realtime/lexxy-realtime.js"
+pin "yrby-client", to: "lexxy_realtime/yrby-client.js"
+pin "yrby-client/element", to: "lexxy_realtime/yrby-client.js"
+pin "yjs", to: "lexxy_realtime/yjs.js"
+pin "@rails/actioncable", to: "actioncable.esm.js"
 pin "@rails/activestorage", to: "activestorage.esm.js"
 ```
 
-`lexical` is the one module the Lexxy and lexxy-realtime bundles share,
-so both ship with it external and it resolves through its own pin. The
-`@37signals/lexxy` pin must point at this gem's build: Lexxy's own
-asset bundles a second copy of `lexical`, and two copies break the
-collaboration binding, so remove any pin of Lexxy's asset. Keep
-`stylesheet_link_tag "lexxy"` for the editor's CSS. These assets are a
-stopgap until Lexxy ships import-map-ready builds itself.
+`@37signals/lexxy` points at the Lexxy gem's own asset, the same file as
+its `lexxy` pin, and lexxy-realtime reaches lexical through Lexxy's
+`Lexical` re-export, so the page runs one copy of lexical. yrby-client and
+yjs are separate files that lexxy-realtime imports. Two copies of either
+would mean two `<yrby-document>` classes or two Yjs runtimes, which breaks
+the binding, so other code that imports them gets the same copy.
+`@rails/actioncable` is Rails' own file, which `<yrby-document>` loads for
+its default consumer. The generator keeps any of these pins the app
+already has and adds the rest, so run it again after upgrading.
 
 Either way, your entrypoint imports both:
 
@@ -140,10 +145,57 @@ connection identifiers are available. `editable_by?` stands for your own
 permission check. If the block returns false or nil, the channel rejects
 the subscription before sending anything.
 
-To limit how long a grant lasts, pass `expires_in:` to the form helper,
-as in `form.collaborative_rich_textarea :body, expires_in: 1.hour`.
-Without it, GlobalID's default of one month applies. An editor whose
-grant has expired reconnects after the page reloads.
+## Grant lifetime and refresh
+
+A grant lasts as long as GlobalID's signed-id default, which is one month
+under Rails, and `expires_in:` on the form helper shortens it. The grant is
+part of the rendered page, though, and Action Cable resubscribes with it
+after every network drop. If the grant expires before the user is done
+editing, the editor stops syncing at the next reconnect. To avoid that,
+pair `expires_in:` with `refresh:`, a URL the page fetches when a
+subscription is rejected:
+
+```erb
+<%= form.collaborative_rich_textarea :body, expires_in: 10.minutes,
+                                             refresh: grant_post_path(@post) %>
+```
+
+```ruby
+# config/routes.rb:  resources :posts do get :grant, on: :member end
+# app/controllers/posts_controller.rb
+def grant
+  @post = current_user.posts.find(params[:id]) # your own authorization, again
+  render json: { grant: @post.collaborative_rich_text_grant(:body, expires_in: 10.minutes) }
+end
+```
+
+`collaborative_rich_text_grant` makes the same grant the form helper
+renders, for `LexxyRealtime::DocumentChannel`. A grant from yrby-rails'
+`collaborative_sgid` doesn't work here, because the channel checks a
+different purpose.
+
+That action grants write access, so its check must be at least as strict
+as the page that renders the form. If it skips authorization, anyone who
+can reach the URL gets a grant, and a short `expires_in:` protects nothing.
+
+When a subscription is rejected, `<yrby-document>` fetches the URL with the
+session cookie, and the action runs your authorization again. If the
+response is `{ "grant": ... }`, the page resubscribes with the new grant and
+keeps the document and any edits the server hasn't acknowledged. Any other
+response, a non-2xx status, a second rejection, or a refresh that takes
+longer than 15 seconds stops syncing until the page reloads, and
+`<yrby-document>` dispatches `yrby:error`. The page doesn't renew grants on
+a timer, so it won't interrupt a healthy subscription. Every reconnect
+after expiry is a fresh permission check, which is why you'd want a short
+lifetime in the first place.
+
+Without `refresh:`, an editor whose grant has expired stops syncing at its
+next reconnect and starts again after the page reloads.
+
+While a grant is rejected and not renewed, `<yrby-document>` makes the
+editor inert, so nobody types into a document that can't sync. The editor
+is also inert before the first sync, while the page can't reach the
+server.
 
 ## Configuration
 

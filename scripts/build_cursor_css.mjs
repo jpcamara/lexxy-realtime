@@ -1,4 +1,4 @@
-// Writes the cursor stylesheet as real files from the same source the
+// Writes the package stylesheet as real files from the same source the
 // runtime injects: dist/lexxy-realtime.css for npm consumers and the gem's
 // asset for Rails apps. Both are for apps whose Content-Security-Policy
 // blocks injected style tags; the :root marker tells the runtime the file
@@ -12,9 +12,10 @@ import { CURSOR_CSS } from "../src/cursor_theme.js";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
-const banner = `/* lexxy-realtime remote cursor styles. Optional: the element injects
- * these rules itself; include this file instead when your Content-Security-
- * Policy blocks inline style tags. Generated from src/cursor_theme.js. */
+const banner = `/* lexxy-realtime styles: remote cursors and <yrby-document> layout.
+ * Optional: the element injects these rules itself; include this file
+ * instead when your Content-Security-Policy blocks inline style tags.
+ * Generated from src/cursor_theme.js. */
 :root { --lexxy-realtime-cursor-styles: file; }
 `;
 

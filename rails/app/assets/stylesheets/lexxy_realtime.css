@@ -1,7 +1,15 @@
-/* lexxy-realtime remote cursor styles. Optional: the element injects
- * these rules itself; include this file instead when your Content-Security-
- * Policy blocks inline style tags. Generated from src/cursor_theme.js. */
+/* lexxy-realtime styles: remote cursors and <yrby-document> layout.
+ * Optional: the element injects these rules itself; include this file
+ * instead when your Content-Security-Policy blocks inline style tags.
+ * Generated from src/cursor_theme.js. */
 :root { --lexxy-realtime-cursor-styles: file; }
+/* <yrby-document> only groups the editor with its session. Custom
+   elements are inline by default, which would wrap the editor in an inline
+   box and can change form layout, so it renders no box of its own. */
+yrby-document {
+  display: contents;
+}
+
 .lexxy-collab-cursor {
   background-color: var(--lexical-cursor-color);
   width: 2px;

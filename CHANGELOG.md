@@ -15,7 +15,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Add a permission check with
   `LexxyRealtime::DocumentChannel.authorize_document`.
 - `collaborative_rich_textarea` accepts `expires_in:` to limit how long the
-  grant lasts.
+  grant lasts, and `refresh:`, the URL of an action that returns a new
+  grant as `{ "grant": ... }`. When the server rejects the subscription,
+  the page fetches a new grant and resubscribes without losing the
+  document or unacknowledged edits.
+- `record.collaborative_rich_text_grant(:body, expires_in:)` returns the
+  grant the form helper renders, for refresh actions.
+- The `lexxy-realtime:desync` event and the element's `doc`, `provider`,
+  `awareness`, and `binding` properties are in the TypeScript declarations.
 - `has_collaborative_rich_text` takes `nodes:`, the `Y::Lexxy` render rules
   for the app's custom Lexical nodes. Without a rule, a custom node can
   disappear from the stored HTML while the editors still show it.
@@ -24,6 +31,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Breaking:** the form helper wraps the editor in yrby-client's
+  `<yrby-document>`, and `<lexxy-collaboration>` binds the editor to that
+  element's document session. The session owns the `Y.Doc` and provider,
+  keeps unacknowledged edits after the editor is removed, and handles
+  Turbo and Turbolinks visits. `<lexxy-collaboration>` no longer reads
+  `channel-name` or `channel-params` and no longer creates a consumer, doc,
+  or provider. Without a `<yrby-document>` ancestor, assign `doc` and
+  `provider` before the element connects. Importing `lexxy-realtime`
+  registers `<yrby-document>`.
+- **Breaking:** `setConsumer` sets `YrbyDocumentElement.consumer`. A
+  function argument runs the first time a `<yrby-document>` needs a
+  consumer, and its result is reused. The per-element `consumer` property
+  is gone.
+- The element renders a doc's existing content when it binds, and moving
+  it within one turn keeps its binding. An element that replaces it in the
+  same turn, for example through a Turbo Stream, takes the document over.
+- The package stylesheet sets `yrby-document { display: contents }`, so the
+  element around the editor doesn't change form layout. The element
+  injects it, and it is in `lexxy-realtime.css` for apps that load the
+  file.
+- **Breaking:** the gem's import-map assets are three files, so the page
+  loads one copy of each shared module: `lexxy_realtime/lexxy-realtime.js`,
+  `lexxy_realtime/yrby-client.js` (pinned as `yrby-client` and
+  `yrby-client/element`), and `lexxy_realtime/yjs.js` (pinned as `yjs`).
+  `@rails/actioncable` resolves to Rails' `actioncable.esm.js`. Import-map
+  apps re-run `bin/rails generate lexxy_realtime:install`, which adds the
+  pins the app doesn't have yet.
+- `@rails/actioncable` is a dependency of the npm package, because
+  `<yrby-document>` loads it for its default consumer.
 - **Breaking:** `lexxy_realtime:install` no longer generates
   `app/channels/document_channel.rb` or the Action Cable boilerplate. It
   adds the storage migration, plus import-map pins if the app uses import
@@ -41,7 +77,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   are replaced by `LexxyRealtime.grant_purpose`. The grant's purpose is
   separate from yrby-rails', so yrby-rails' `Y::DocumentChannel` rejects
   it.
-- Requires yrby 0.8.1 or later, yrby-rails 0.7, and yrby-client 0.6.
+- Requires yrby 0.8.1 or later, yrby-rails 0.7, and yrby-client 0.7.
 - The `lexxy` gem dependency gains a `< 2.0` ceiling. The collaboration
   bundle runs against Lexxy's re-exported Lexical namespace, so the ceiling
   keeps a future major release from reaching apps before it's tested.
@@ -69,8 +105,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   good, and a reconnect didn't fix it. The broken binding could also delete
   visible text on later edits. Now the element stops syncing in both
   directions, makes the editor read-only, and dispatches a bubbling
-  `lexxy-realtime:desync` event. Recreate the element or reload the page
-  to edit again.
+  `lexxy-realtime:desync` event. With a `<yrby-document>` it discards the
+  session and binds a new one that loads the server's state, without
+  seeding from the editor and with undo history cleared. Local edits the
+  server hadn't acknowledged yet are lost. It rebuilds at most once every
+  15 seconds, and a failure inside that window waits for it to end. When
+  the element unbinds, the editor gets back the editable state it had
+  before the failure. With a host-supplied document it only dispatches the
+  event, and the host recreates the element to recover.
+- When Lexxy builds a new Lexical editor without disconnecting its
+  children, as it does when a Turbo morph changes its `connected`
+  attribute, the element binds the new editor, so its edits sync.
 
 ## [0.7.1] - 2026-10-03
 

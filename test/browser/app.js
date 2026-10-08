@@ -1,12 +1,12 @@
-// Browser test entry. Renders a real Lexxy editor wired to the yrby test
-// server through the YrbyProvider, mirroring how a Rails host wires it:
-// create the provider, set it on <lexxy-collaboration>, append, then connect().
+// Browser test entry. index.html renders a real Lexxy editor inside a
+// <yrby-document>, the way the Rails helper does, and the element binds to
+// the document's session on its own.
 //
 // Reads `room`, `name`, `color` from the query string so two agent-browser
-// sessions can join the same document as different users. `mode=zero` skips
-// all host wiring: attributes only, no consumer/doc/provider assignment,
-// exercising the element's self-initializing path (auto-created shared
-// consumer). Exposes window.__test for assertions.
+// sessions can join the same document as different users. `mode=host`
+// renders a bare editor and assigns a YrbyProvider to the element, the
+// host-supplied provider path. `mode=setconsumer` sets the app-wide
+// consumer with setConsumer. Exposes window.__test for assertions.
 import "@37signals/lexxy";
 import { YrbyProvider, setConsumer } from "../../src/index.js"; // also registers <lexxy-collaboration>
 import * as Y from "yjs";
@@ -27,12 +27,13 @@ const params = new URLSearchParams(location.search);
 const room = params.get("room") || "browser-demo";
 const name = params.get("name") || "User";
 const color = params.get("color") || "#3b82f6";
-const zeroConfig = params.get("mode") === "zero";
+const hostMode = params.get("mode") === "host";
 const setConsumerMode = params.get("mode") === "setconsumer";
 
-// `cable` points every consumer path at a different gateway (the AnyCable
-// leg passes the anycable-go ws URL). The meta tag is what a Rails layout
-// renders, so zero-config elements ride it exactly the way an app's would.
+// `cable` points every consumer at a different gateway (the AnyCable leg
+// passes the anycable-go ws URL). A Rails layout renders the meta tag, and
+// the default consumer reads it. <yrby-document> creates its consumer after
+// this module runs, so the tag is in place by then.
 const cableUrl = params.get("cable");
 if (cableUrl) {
   const meta = document.createElement("meta");
@@ -41,21 +42,20 @@ if (cableUrl) {
   document.head.appendChild(meta);
 }
 
-const editor = document.getElementById("editor");
-
-function buildCollaborationElement() {
-  const collab = document.createElement("lexxy-collaboration");
-  collab.setAttribute("doc-id", room);
-  collab.setAttribute("name", name);
-  collab.setAttribute("color", color);
-  collab.setAttribute("channel-name", "DocumentChannel");
-  collab.setAttribute("channel-params", JSON.stringify({ id: room }));
-  return collab;
+if (setConsumerMode) {
+  // The app-wide consumer (the @anycable/web path). With a cable URL this
+  // is the real @anycable/web client, so the documented
+  // setConsumer(() => createConsumer()) pairing runs against a live gateway.
+  window.__configuredConsumer = cableUrl
+    ? createAnycableConsumer(cableUrl)
+    : createConsumer(`ws://${location.host}/cable`);
+  setConsumer(() => window.__configuredConsumer);
 }
 
+const editor = document.getElementById("editor");
+
 function installTestHooks(collab) {
-  // Zero-config never holds doc/provider; read them back off the element,
-  // lazily, since the element assigns them during its own init.
+  // Read doc and provider from the element lazily, since it binds later.
   window.__test = {
     get doc() { return collab.doc; },
     get provider() { return collab.provider; },
@@ -155,12 +155,14 @@ function installTestHooks(collab) {
       const el = document.querySelector("lexxy-editor");
       return !!el && typeof el.checkValidity === "function" && !el.checkValidity();
     },
-    // Detach and re-attach the collaboration element: unbind + re-bind.
+    // Detach the collaboration element and attach it again after a delay,
+    // so it unbinds and binds again to the same document. A move within one
+    // turn would keep the binding.
     remountCollab: () => {
       const c = document.querySelector("lexxy-collaboration");
       const parent = c.parentElement;
       c.remove();
-      parent.appendChild(c);
+      setTimeout(() => parent.appendChild(c), 50);
       return "remounted";
     },
     // A second, non-collaborative editor on the same page. Its registry
@@ -213,41 +215,28 @@ function installTestHooks(collab) {
   document.body.dataset.collabReady = "true";
 }
 
-function start() {
-  const collab = buildCollaborationElement();
-
-  if (setConsumerMode) {
-    // The app-wide default (the @anycable/web path): one boot-time call,
-    // attribute-only element. It must ride exactly this consumer. With a
-    // cable URL this is the real @anycable/web client, not the compat
-    // default, so the documented setConsumer(() => createConsumer())
-    // pairing runs against a live gateway.
-    window.__configuredConsumer = cableUrl
-      ? createAnycableConsumer(cableUrl)
-      : createConsumer(`ws://${location.host}/cable`);
-    setConsumer(() => window.__configuredConsumer);
-    editor.appendChild(collab);
-  } else if (!zeroConfig) {
-    const consumer = createConsumer(cableUrl || `ws://${location.host}/cable`);
-    const doc = new Y.Doc();
-    const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: room });
-    collab.consumer = consumer;
-    collab.doc = doc;
-    collab.provider = provider;
-    editor.appendChild(collab);
-    provider.connect();
-  } else {
-    // The element creates its own shared consumer (action-cable-url meta or
-    // /cable) and its own doc + provider, and connects itself.
-    editor.appendChild(collab);
-  }
-
+function startHostMode() {
+  const consumer = createConsumer(cableUrl || `ws://${location.host}/cable`);
+  // The channel keys <yrby-document> subscriptions as "grant:name", so
+  // this provider joins the same document as the other pages in the room.
+  const doc = new Y.Doc();
+  const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: `${room}:body` });
+  const collab = document.createElement("lexxy-collaboration");
+  collab.setAttribute("doc-id", room);
+  collab.setAttribute("name", name);
+  collab.setAttribute("color", color);
+  collab.doc = doc;
+  collab.provider = provider;
+  editor.appendChild(collab);
+  provider.connect();
   installTestHooks(collab);
 }
 
-// Lexxy initializes <lexxy-editor> on its own connectedCallback; wait for it.
-if (editor.editor) {
-  start();
+if (!hostMode) {
+  installTestHooks(document.querySelector("lexxy-collaboration"));
+} else if (editor.editor) {
+  // Lexxy initializes <lexxy-editor> in its own connectedCallback.
+  startHostMode();
 } else {
-  editor.addEventListener("lexxy:initialize", start, { once: true });
+  editor.addEventListener("lexxy:initialize", startHostMode, { once: true });
 }
