@@ -1,0 +1,5 @@
+# Built by `bun run build` and `bun run build:importmap`. The gem ships these
+# files, and CI checks that they match the source. Marking them generated
+# makes GitHub collapse them in pull request diffs.
+rails/app/assets/javascript/** linguist-generated=true
+rails/app/assets/stylesheets/lexxy_realtime.css linguist-generated=true
