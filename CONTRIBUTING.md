@@ -64,9 +64,16 @@ case a no-op. The patch lives in `attachment_sync.js`.
 `applyChildrenYjsDelta` for bindings this package creates. A peer can
 receive the deletion of a text node's metadata before the metadata of the
 text that absorbed it, and the stock code then deletes text that should
-survive. The override rebuilds the children from the shared value instead.
-`test/headless/text_integrity.mjs` covers it, and
-`LEXXY_TEST_LEGACY=1` runs the same checks without the fixes.
+survive. The override checks each remote change first. Ordinary changes go
+through the stock incremental code. When a change would leave text without
+its metadata, the override rebuilds that block's children from the shared
+value instead. Repairs are written under `reconciliationOrigin`, so the
+remote applier and the Yjs undo manager both ignore them.
+`test/headless/text_integrity.mjs` covers it, and `LEXXY_TEST_LEGACY=1` runs
+the same checks without the fixes. These fixes mirror
+[jpcamara/lexical#3](https://github.com/jpcamara/lexical/pull/3) and
+[#4](https://github.com/jpcamara/lexical/pull/4), which fix the same bugs in
+Lexical itself.
 
 `attachmentExclusions` uses the `excludedProperties` option of
 `createBinding` to keep browser-only values out of the shared document: the
