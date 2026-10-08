@@ -310,6 +310,29 @@ const scenarios = {
     return result;
   },
 
+  // An editor the host made read-only stays read-only after a desync,
+  // whether the element recovers or is removed.
+  async readOnlyKept() {
+    const first = await mount({ grant: uid("lc-readonly") });
+    first.editor.editor.setEditable(false);
+    const doc = first.element.doc;
+    fault(first.editor, doc);
+    const recovered = await settled(() => first.element.binding && first.element.doc !== doc && first.element.provider.synced, 10000);
+    const afterRecovery = recovered && !first.editor.editor.isEditable();
+    first.yrbyDocument.remove();
+    await sleep(50);
+
+    const second = await mount({ grant: uid("lc-readonly-remove") });
+    second.editor.editor.setEditable(false);
+    second.element.addEventListener("lexxy-realtime:desync", () => second.element.remove(), { once: true });
+    fault(second.editor, second.element.doc);
+    await sleep(300);
+    const afterRemoval = !second.element.binding && !second.editor.editor.isEditable();
+    second.yrbyDocument.remove();
+    await sleep(50);
+    return { afterRecovery, afterRemoval };
+  },
+
   // Removing the editor keeps unacknowledged edits delivering. The session
   // closes once the server acknowledges them.
   async removalKeepsPending() {

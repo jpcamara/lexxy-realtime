@@ -287,7 +287,9 @@ export class Collaboration extends Base {
       binding,
       synced,
       stopSyncing: sync.stop,
-      readOnly: false,
+      // Set by #desync: whether the editor was editable before the desync
+      // made it read-only. Teardown restores it.
+      editableBeforeDesync: null,
       teardown: () => {
         synced?.signal.removeEventListener('abort', onAbort);
         cancelUploadCleanup();
@@ -304,7 +306,7 @@ export class Collaboration extends Base {
         // take this editor's cursor out of presence. A host provider keeps
         // whatever presence the host manages.
         synced?.lease.setPresence(null);
-        if (bound.readOnly) editor.setEditable(true);
+        if (bound.editableBeforeDesync !== null) editor.setEditable(bound.editableBeforeDesync);
       },
     };
     this.#bound = bound;
@@ -327,7 +329,7 @@ export class Collaboration extends Base {
   #desync(bound, error) {
     if (this.#bound !== bound) return;
     bound.stopSyncing();
-    bound.readOnly = true;
+    bound.editableBeforeDesync = bound.editor.isEditable();
     bound.editor.setEditable(false);
     const recovering = !!bound.synced;
     this.dispatchEvent(new CustomEvent('lexxy-realtime:desync', { bubbles: true, detail: { error, recovering } }));

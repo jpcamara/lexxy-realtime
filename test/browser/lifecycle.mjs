@@ -96,6 +96,10 @@ const scenarios = [
     ["edits in the rebuilt editor reach the server", "r.stored === true"],
     ["a second rebuild binds again", "r.round2 === true"],
   ]],
+  ["readOnlyKept", [
+    ["a read-only editor stays read-only after desync recovery", "r.afterRecovery === true"],
+    ["a read-only editor stays read-only after removal during a desync", "r.afterRemoval === true"],
+  ]],
   ["removalKeepsPending", [
     ["a removed editor's session keeps its pending edits", "r.keptWhileRemoved === true"],
     ["the pending edit reaches the server after removal", "r.stored === true"],

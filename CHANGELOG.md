@@ -97,9 +97,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   session and binds a new one that loads the server's state, without
   seeding from the editor and with undo history cleared. Local edits the
   server hadn't acknowledged yet are lost. It rebuilds at most once every
-  15 seconds, and a failure inside that window waits for it to end. With a
-  host-supplied document it only dispatches the event, and the host
-  recreates the element to recover.
+  15 seconds, and a failure inside that window waits for it to end. When
+  the element unbinds, the editor gets back the editable state it had
+  before the failure. With a host-supplied document it only dispatches the
+  event, and the host recreates the element to recover.
 - When Lexxy builds a new Lexical editor without disconnecting its
   children, as it does when a Turbo morph changes its `connected`
   attribute, the element binds the new editor, so its edits sync.
