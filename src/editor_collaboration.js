@@ -1,12 +1,25 @@
 import {
   createBinding,
+  createUndoManager,
   syncYjsChangesToLexical,
   syncCursorPositions,
   setLocalStateFocus,
   initLocalState,
 } from '@lexical/yjs';
-import { $getRoot, $createParagraphNode, HISTORY_MERGE_TAG, COLLABORATION_TAG, CLEAR_HISTORY_COMMAND } from 'lexical';
-import { Doc } from 'yjs';
+import {
+  $getRoot,
+  $createParagraphNode,
+  HISTORY_MERGE_TAG,
+  COLLABORATION_TAG,
+  CLEAR_HISTORY_COMMAND,
+  UNDO_COMMAND,
+  REDO_COMMAND,
+  CAN_UNDO_COMMAND,
+  CAN_REDO_COMMAND,
+  COMMAND_PRIORITY_HIGH,
+  mergeRegister,
+} from 'lexical';
+import { Doc, UndoManager } from 'yjs';
 import { YrbyDocumentElement } from 'yrby-client/element';
 import { attachmentExclusions, patchCollabElementSplice } from './attachment_sync';
 import { registerUploadCleanup } from './upload_cleanup';
@@ -237,7 +250,9 @@ export class Collaboration extends Base {
 
     let bound;
     const sync = registerCollaborationListeners(editor, provider, binding, (error) => this.#desync(bound, error));
-    const cancelBootstrap = bootstrapWhenSynced(editor, provider, binding, initialEditorState);
+    // Seeding writes the existing body into the document. It isn't an edit
+    // the user made, so it shouldn't be undoable.
+    const cancelBootstrap = bootstrapWhenSynced(editor, provider, binding, initialEditorState, () => sync.clearUndo());
 
     // @lexical/yjs renders remote carets and selections (syncCursorPositions)
     // into this overlay through `binding.cursorsContainer`.
@@ -409,7 +424,7 @@ function emptyEditorState(state) {
 //
 // The returned function stops the fallback poll and makes a late
 // whenSynced resolution a no-op.
-function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
+function bootstrapWhenSynced(editor, provider, binding, initialEditorState, onSeeded) {
   let done = false;
   let timer;
   const seed = () => {
@@ -421,6 +436,7 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
       // The binding diffs against the cleared state, so every restored
       // node counts as new and goes into the collab tree.
       editor.setEditorState(initialEditorState, { tag: HISTORY_MERGE_TAG });
+      onSeeded?.();
       return;
     }
     // A new, empty document. Lexical won't keep the root empty, so the
@@ -433,8 +449,9 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
         root.clear();
         root.append($createParagraphNode());
       },
-      { tag: HISTORY_MERGE_TAG }
+      { tag: HISTORY_MERGE_TAG, discrete: true }
     );
+    onSeeded?.();
   };
 
   seed();
@@ -476,7 +493,7 @@ export function createRemoteApplier(provider, binding, { onDesync, sync = syncYj
     if (transaction.origin === binding || transaction.origin === reconciliationOrigin) return;
     if (desynced) return;
     try {
-      sync(binding, provider, events, false);
+      sync(binding, provider, events, transaction.origin instanceof UndoManager);
     } catch (error) {
       desynced = true;
       console.error(
@@ -496,14 +513,53 @@ function registerCollaborationListeners(editor, provider, binding, onDesync) {
   const observer = createRemoteApplier(provider, binding, { onDesync });
   const root = binding.root.getSharedType();
   root.observeDeep(observer);
+  const undo = registerYjsUndo(editor, binding);
 
   let stopped = false;
   return {
+    clearUndo: () => undo.clear(),
     stop() {
       if (stopped) return;
       stopped = true;
       unsubscribeUpdateListener();
       root.unobserveDeep(observer);
+      undo.stop();
+    },
+  };
+}
+
+// Undo and redo go through a Yjs UndoManager, the way Lexical's
+// CollaborationPlugin does it. Lexxy's own history restores whole editor
+// snapshots tagged historic, and @lexical/yjs doesn't send historic updates
+// to the document. After one undo the editor and the document disagree, and
+// every later keystroke copies whole subtrees into the document again.
+//
+// The UndoManager tracks only this binding's changes, so undo never removes
+// another user's edits. Its commands run at a higher priority than Lexxy's
+// history and stop there. Lexxy's toolbar follows CAN_UNDO_COMMAND and
+// CAN_REDO_COMMAND, so we report the Yjs stacks through them.
+function registerYjsUndo(editor, binding) {
+  const undoManager = createUndoManager(binding, binding.root.getSharedType());
+  const report = () => {
+    editor.dispatchCommand(CAN_UNDO_COMMAND, undoManager.undoStack.length > 0);
+    editor.dispatchCommand(CAN_REDO_COMMAND, undoManager.redoStack.length > 0);
+  };
+  undoManager.on('stack-item-added', report);
+  undoManager.on('stack-item-popped', report);
+  undoManager.on('stack-cleared', report);
+  const unregister = mergeRegister(
+    editor.registerCommand(UNDO_COMMAND, () => { undoManager.undo(); return true; }, COMMAND_PRIORITY_HIGH),
+    editor.registerCommand(REDO_COMMAND, () => { undoManager.redo(); return true; }, COMMAND_PRIORITY_HIGH),
+    editor.registerCommand(CLEAR_HISTORY_COMMAND, () => { undoManager.clear(); return false; }, COMMAND_PRIORITY_HIGH)
+  );
+  report();
+  return {
+    clear: () => undoManager.clear(),
+    stop() {
+      unregister();
+      undoManager.destroy();
+      editor.dispatchCommand(CAN_UNDO_COMMAND, false);
+      editor.dispatchCommand(CAN_REDO_COMMAND, false);
     },
   };
 }

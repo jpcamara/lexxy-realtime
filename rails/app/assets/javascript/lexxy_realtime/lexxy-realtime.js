@@ -111,8 +111,8 @@ Lexical.$updateRangeSelectionFromCaretRange;
 Lexical.ArtificialNode__DO_NOT_USE;
 Lexical.BEFORE_INPUT_COMMAND;
 Lexical.BLUR_COMMAND;
-Lexical.CAN_REDO_COMMAND;
-Lexical.CAN_UNDO_COMMAND;
+const CAN_REDO_COMMAND = Lexical.CAN_REDO_COMMAND;
+const CAN_UNDO_COMMAND = Lexical.CAN_UNDO_COMMAND;
 Lexical.CLEAR_EDITOR_COMMAND;
 const CLEAR_HISTORY_COMMAND = Lexical.CLEAR_HISTORY_COMMAND;
 Lexical.CLICK_COMMAND;
@@ -185,7 +185,7 @@ Lexical.OUTDENT_CONTENT_COMMAND;
 Lexical.PASTE_COMMAND;
 Lexical.PASTE_TAG;
 Lexical.ParagraphNode;
-Lexical.REDO_COMMAND;
+const REDO_COMMAND = Lexical.REDO_COMMAND;
 Lexical.REMOVE_TEXT_COMMAND;
 const RootNode = Lexical.RootNode;
 Lexical.SELECTION_CHANGE_COMMAND;
@@ -198,7 +198,7 @@ Lexical.SKIP_SELECTION_FOCUS_TAG;
 Lexical.TEXT_TYPE_TO_FORMAT;
 Lexical.TabNode;
 const TextNode = Lexical.TextNode;
-Lexical.UNDO_COMMAND;
+const UNDO_COMMAND = Lexical.UNDO_COMMAND;
 Lexical.addClassNamesToElement;
 Lexical.buildImportMap;
 Lexical.configExtension;
@@ -237,7 +237,7 @@ Lexical.isModifierMatch;
 Lexical.isSelectionCapturedInDecoratorInput;
 Lexical.isSelectionWithinEditor;
 Lexical.makeStepwiseIterator;
-Lexical.mergeRegister;
+const mergeRegister = Lexical.mergeRegister;
 Lexical.normalizeClassNames;
 Lexical.removeClassNamesFromElement;
 const removeFromParent = Lexical.removeFromParent;
@@ -3085,7 +3085,7 @@ mod.DIFF_VERSIONS_COMMAND__EXPERIMENTAL;
 mod.TOGGLE_CONNECT_COMMAND;
 const createBinding = mod.createBinding;
 mod.createBindingV2__EXPERIMENTAL;
-mod.createUndoManager;
+const createUndoManager = mod.createUndoManager;
 mod.getAnchorAndFocusCollabNodesForUserState;
 const initLocalState = mod.initLocalState;
 mod.renderSnapshot__EXPERIMENTAL;
@@ -3549,7 +3549,7 @@ var Collaboration = class extends Base {
 		});
 		let bound;
 		const sync = registerCollaborationListeners(editor, provider, binding, (error) => this.#desync(bound, error));
-		const cancelBootstrap = bootstrapWhenSynced(editor, provider, binding, initialEditorState);
+		const cancelBootstrap = bootstrapWhenSynced(editor, provider, binding, initialEditorState, () => sync.clearUndo());
 		registerCursorTheme(editor);
 		const cursorsContainer = createCursorsContainer(editorElement);
 		binding.cursorsContainer = cursorsContainer;
@@ -3654,7 +3654,7 @@ function emptyEditorState(state) {
 		return !!only && only.getType() === "paragraph" && only.getChildrenSize() === 0;
 	});
 }
-function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
+function bootstrapWhenSynced(editor, provider, binding, initialEditorState, onSeeded) {
 	let done = false;
 	let timer;
 	const seed = () => {
@@ -3664,13 +3664,18 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
 		if (binding.root.getSharedType().length > 0) return;
 		if (initialEditorState && !emptyEditorState(initialEditorState)) {
 			editor.setEditorState(initialEditorState, { tag: HISTORY_MERGE_TAG });
+			onSeeded?.();
 			return;
 		}
 		editor.update(() => {
 			const root = $getRoot();
 			root.clear();
 			root.append($createParagraphNode());
-		}, { tag: HISTORY_MERGE_TAG });
+		}, {
+			tag: HISTORY_MERGE_TAG,
+			discrete: true
+		});
+		onSeeded?.();
 	};
 	seed();
 	if (!done) if (provider.whenSynced?.then) provider.whenSynced.then(seed, () => {});
@@ -3689,7 +3694,7 @@ function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChange
 		if (transaction.origin === binding || transaction.origin === reconciliationOrigin) return;
 		if (desynced) return;
 		try {
-			sync(binding, provider, events, false);
+			sync(binding, provider, events, transaction.origin instanceof UndoManager);
 		} catch (error) {
 			desynced = true;
 			console.error("lexxy-realtime: a remote update failed to apply; the editor is out of sync with the document.", error);
@@ -3704,13 +3709,48 @@ function registerCollaborationListeners(editor, provider, binding, onDesync) {
 	const observer = createRemoteApplier(provider, binding, { onDesync });
 	const root = binding.root.getSharedType();
 	root.observeDeep(observer);
+	const undo = registerYjsUndo(editor, binding);
 	let stopped = false;
-	return { stop() {
-		if (stopped) return;
-		stopped = true;
-		unsubscribeUpdateListener();
-		root.unobserveDeep(observer);
-	} };
+	return {
+		clearUndo: () => undo.clear(),
+		stop() {
+			if (stopped) return;
+			stopped = true;
+			unsubscribeUpdateListener();
+			root.unobserveDeep(observer);
+			undo.stop();
+		}
+	};
+}
+function registerYjsUndo(editor, binding) {
+	const undoManager = createUndoManager(binding, binding.root.getSharedType());
+	const report = () => {
+		editor.dispatchCommand(CAN_UNDO_COMMAND, undoManager.undoStack.length > 0);
+		editor.dispatchCommand(CAN_REDO_COMMAND, undoManager.redoStack.length > 0);
+	};
+	undoManager.on("stack-item-added", report);
+	undoManager.on("stack-item-popped", report);
+	undoManager.on("stack-cleared", report);
+	const unregister = mergeRegister(editor.registerCommand(UNDO_COMMAND, () => {
+		undoManager.undo();
+		return true;
+	}, COMMAND_PRIORITY_HIGH), editor.registerCommand(REDO_COMMAND, () => {
+		undoManager.redo();
+		return true;
+	}, COMMAND_PRIORITY_HIGH), editor.registerCommand(CLEAR_HISTORY_COMMAND, () => {
+		undoManager.clear();
+		return false;
+	}, COMMAND_PRIORITY_HIGH));
+	report();
+	return {
+		clear: () => undoManager.clear(),
+		stop() {
+			unregister();
+			undoManager.destroy();
+			editor.dispatchCommand(CAN_UNDO_COMMAND, false);
+			editor.dispatchCommand(CAN_REDO_COMMAND, false);
+		}
+	};
 }
 //#endregion
 //#region src/index.js
