@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-08
+
+### Upgrading from 0.7
+
+1. Delete `app/channels/document_channel.rb`. The gem ships
+   `LexxyRealtime::DocumentChannel`. Move any check from the old
+   `authorized?` into a `LexxyRealtime::DocumentChannel.authorize_document`
+   block.
+2. Run `bin/rails generate lexxy_realtime:install` again. Import-map apps
+   get the new `yjs`, `yrby-client`, `yrby-client/element`, and
+   `@rails/actioncable` pins. Pins you already have are kept.
+3. With a bundler, update the npm package to 0.8. It requires
+   yrby-client 0.7.
+4. Code that built `<lexxy-collaboration>` with `channel-name` or
+   `channel-params` should render `collaborative_rich_textarea` instead, or
+   assign its own `doc` and `provider`.
+5. Pages that are open during the deploy need a reload to reconnect.
+
 ### Added
 
 - `LexxyRealtime::DocumentChannel` ships in the gem. It extends yrby-rails'
@@ -430,7 +448,8 @@ runtime when it binds, so the packages on disk are never modified.
 
 - Uses a single lockfile, `bun.lock`. Removed `package-lock.json`.
 
-[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/jpcamara/lexxy-realtime/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.5.0...v0.6.0
