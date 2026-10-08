@@ -1,6 +1,7 @@
-// createRemoteApplier reports a throw from the Yjs-to-Lexical apply instead
-// of letting y-protocols swallow it. It reports once per binding and stops
-// applying after the first failure. No server needed.
+// Unit checks for createRemoteApplier. It catches a throw from the
+// Yjs-to-Lexical apply and reports it, once per binding, before y-protocols
+// can log and discard it. After the first failure it stops applying. These
+// checks need no server.
 import { createRemoteApplier } from "../../src/editor_collaboration.js";
 import { reconciliationOrigin } from "../../src/text_reconciliation.js";
 import { check, done } from "./support.mjs";

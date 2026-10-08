@@ -4,19 +4,20 @@ require "test_helper"
 require "action_view"
 require_relative "fixtures/yjs_fixtures"
 
-# Runs the ```ruby blocks from both READMEs against the real gem, so an
-# example that drifts from the API fails the suite. Each block evaluates
-# inside its own anonymous module with a small prelude supplying the
-# names examples use without declaring (key, note, and so on).
+# Runs every ```ruby block in both READMEs against the gem, so an example
+# that doesn't match the API fails the suite. Each block runs in its own
+# anonymous module. The prelude defines names the examples use without
+# declaring them, such as key and note.
 class ReadmeExamplesTest < Minitest::Test
   ROOT = File.expand_path("../..", __dir__)
 
-  # Blocks that are configuration fragments rather than runnable Ruby.
+  # Configuration fragments that can't run on their own.
   SKIP = [
     /\A# Gemfile/,
     %r{\A# config/importmap\.rb},
-    # Initializers run inside Rails.application.config.to_prepare, which
-    # needs a booted app. document_channel_test covers authorize_document.
+    # The initializer example calls Rails.application.config.to_prepare,
+    # which needs a booted app. document_channel_test covers
+    # authorize_document.
     %r{\A# config/initializers/}
   ].freeze
 
@@ -44,7 +45,7 @@ class ReadmeExamplesTest < Minitest::Test
 
   def teardown
     LexxyRealtime.identity = @identity_before
-    # Examples must not leak configuration into other tests.
+    # Reset configuration an example may have changed.
     LexxyRealtime.channel_name = nil
   end
 
@@ -60,17 +61,17 @@ class ReadmeExamplesTest < Minitest::Test
       executed += 1
 
       body = block
-      # A bare macro line is a fragment; give it a model to live in.
+      # Wrap a bare macro line in a model class so it can run.
       if body.match?(/\A\s*has_collaborative_rich_text/)
         body = "Class.new(ApplicationRecord) do\n  self.table_name = \"posts\"\n#{body}end\n"
       end
       container = Module.new
       container.module_eval(PRELUDE + body, "#{path}:example_#{i + 1}")
-    rescue Exception => e # rubocop:disable Lint/RescueException -- report which example broke
+    rescue Exception => e # rubocop:disable Lint/RescueException -- report which example failed
       flunk "#{File.basename(path)} example #{i + 1} raised #{e.class}: #{e.message}\n#{block}"
     end
 
-    assert_operator executed, :>=, 1, "no runnable examples found in #{path}; extraction is broken"
+    assert_operator executed, :>=, 1, "found no runnable examples in #{path}, so block extraction is broken"
   end
 
   def test_root_readme_ruby_examples
@@ -81,8 +82,8 @@ class ReadmeExamplesTest < Minitest::Test
     run_blocks(File.join(ROOT, "rails", "README.md"))
   end
 
-  # ERB examples call form builder methods; every method named in one must
-  # exist on the prepended builder module.
+  # Every form.method call in the ERB examples must exist on Rails'
+  # FormBuilder or on LexxyRealtime::FormBuilder.
   def test_erb_examples_call_real_form_builder_methods
     calls = []
     [File.join(ROOT, "README.md"), File.join(ROOT, "rails", "README.md")].each do |path|

@@ -1,26 +1,28 @@
 import { $nodesOfType, HISTORY_MERGE_TAG } from 'lexical';
 
 // Upload nodes sync without their File, so only the uploading client can
-// finish them. Pagehide and Turbo discard remove this client's own
-// file-bearing nodes while the binding can still sync the deletion. A
-// client alone past an awareness settle delay removes remaining file-less
-// placeholders, presuming their uploader gone -- the backstop for lost
-// pagehide sends and for discards no event covers (streams, morphing).
+// finish them. On pagehide and before Turbo discards the page, this client
+// removes its own nodes that hold a File, while the binding can still sync
+// the deletion. A client that stays alone past an awareness settle delay
+// removes any remaining placeholders without a File, because their
+// uploader is probably gone. That covers deletions from a pagehide that
+// never reached the server, and page changes that fire no event, such as
+// Turbo Streams and morphing.
 export function registerUploadCleanup(editorElement, editor, provider, awareness) {
-  // Teardown also fires on DOM moves, where the upload lives on, so it
-  // cannot remove nodes. A persisted pagehide means bfcache: the page
-  // and its upload may come back.
+  // Teardown also runs on DOM moves, where the upload keeps going, so
+  // teardown doesn't remove nodes. A persisted pagehide means the page went
+  // into the bfcache, and the page and its upload may come back.
   const removeOwnPendingUploads = (event) => {
     if (event?.persisted) return;
     removePendingUploadNodes(editor);
   };
   window.addEventListener('pagehide', removeOwnPendingUploads);
 
-  // Plain DOM events; apps without Turbo never fire them. An editor
-  // inside data-turbo-permanent survives the navigation, upload included,
-  // so it is left alone. The listeners run in the capture phase so they
-  // remove the nodes before <yrby-document> handles turbo:before-cache and
-  // unbinds the editor.
+  // These are plain DOM events, so apps without Turbo never fire them. An
+  // editor inside data-turbo-permanent survives the navigation with its
+  // upload, so we leave it alone. The listeners run in the capture phase,
+  // so they remove the nodes before <yrby-document> handles
+  // turbo:before-cache and unbinds the editor.
   const removeUploadsBeforeTurboDiscard = (event) => {
     if (editorElement.closest('[data-turbo-permanent]')) return;
     if (event.type === 'turbo:before-frame-render' && !event.target.contains(editorElement)) return;
@@ -39,13 +41,15 @@ export function registerUploadCleanup(editorElement, editor, provider, awareness
   };
 }
 
-// A synced client that has seen no other awareness state for the whole
-// settle delay removes file-less upload nodes, presuming their uploader
-// gone. The delay must outlast y-protocols' ~15s awareness renewal, or
-// the last client into a quiet room sweeps a live upload; sweeping has no
-// deadline, so long is safe. Awareness stays best-effort: a tab throttled
-// past the delay looks absent while its upload runs. Own file-bearing
-// nodes are never touched, since being alone while uploading is normal.
+// A synced client that sees no other awareness state for the whole settle
+// delay removes upload nodes that have no File, assuming their uploader
+// left. The delay has to be longer than y-protocols' awareness renewal,
+// which is about 15 seconds. Otherwise the last client to join a quiet room
+// could remove a live upload. Nothing needs the sweep to happen quickly, so
+// a long delay is fine. Awareness is best-effort, though. A tab throttled
+// past the delay looks absent while its upload is still running. The sweep
+// never removes this client's own nodes that hold a File, because being
+// alone while uploading is normal.
 const ORPHAN_SWEEP_SETTLE_MS = 25000;
 
 function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
@@ -58,7 +62,7 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
     timer = null;
     if (cancelled || !alone()) return;
     if (!provider.synced) {
-      // Not synced yet; try again after another settle delay.
+      // Not synced yet, so try again after another settle delay.
       schedule();
       return;
     }
@@ -97,8 +101,8 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
   schedule();
 
   return () => {
-    // The flag also covers the whenSynced continuation, which can fire
-    // after teardown and would otherwise re-arm the timer.
+    // The flag also stops the whenSynced callback, which can run after
+    // teardown and would otherwise start the timer again.
     cancelled = true;
     clearTimeout(timer);
     timer = null;
@@ -107,9 +111,9 @@ function removeOrphanedUploadsWhenAlone(editor, provider, awareness) {
   };
 }
 
-// Remove this client's own in-flight upload nodes -- the ones still holding
-// a local File. Remote copies have `file` excluded from sync, so a
-// file-bearing node is always ours.
+// Removes this client's own in-flight upload nodes, the ones that still hold
+// a local File. `file` is excluded from sync, so a node with a File always
+// belongs to this client.
 function removePendingUploadNodes(editor) {
   const uploadType = 'action_text_attachment_upload';
   const info = editor?._nodes?.get?.(uploadType);

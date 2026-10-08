@@ -3,9 +3,9 @@
 require "active_support/concern"
 
 module LexxyRealtime
-  # Adds collaborative Lexxy editing to an attribute. Storage and the signed
-  # token come from yrby-rails' Y::Collaborative. When Action Text is
-  # available, it also declares the matching +has_rich_text+ association.
+  # Adds collaborative Lexxy editing to an attribute. yrby-rails'
+  # Y::Collaborative stores the document. When Action Text is available,
+  # this also declares the matching +has_rich_text+ association.
   module Collaborative
     extend ActiveSupport::Concern
 
@@ -15,23 +15,23 @@ module LexxyRealtime
         # Including it here too covers models loaded without the engine.
         include Y::Collaborative unless include?(Y::Collaborative)
         include Model unless include?(Model)
-        # nodes: is ours, not Action Text's. It holds Y::Lexxy render rules
-        # for the app's custom Lexical nodes.
+        # Action Text doesn't accept nodes:, so take it out first. It holds
+        # the Y::Lexxy render rules for the app's custom Lexical nodes.
         nodes = options.delete(:nodes)
         has_rich_text(name, **options) if respond_to?(:has_rich_text)
         self.collaborative_rich_text_names = (collaborative_rich_text_names + [name.to_sym]).freeze
         self.collaborative_rich_text_rules =
           collaborative_rich_text_rules.merge(name.to_sym => (nodes || {}).dup.freeze).freeze
 
-        # encrypted: true encrypts both halves. has_rich_text gets the option
-        # for the body, and the document is stored through
-        # Y::EncryptedDocument. Without Action Text, declare +encrypts+ on
-        # the plain attribute yourself.
+        # encrypted: true encrypts the rendered body and the document.
+        # has_rich_text receives the option for the body, and
+        # Y::EncryptedDocument stores the document. Without Action Text,
+        # declare +encrypts+ on the plain attribute yourself.
         has_collaborative_document(name, encrypted: options[:encrypted] || false)
       end
     end
 
-    # The instance API, present only on models that declared an attribute.
+    # Instance methods. Only models that declare a collaborative attribute include them.
     module Model
       extend ActiveSupport::Concern
 
@@ -97,8 +97,9 @@ module LexxyRealtime
         raise ArgumentError, "#{name.inspect} is not collaborative on #{self.class.name}"
       end
 
-      # Live editors show a custom node that the stored HTML can't render
-      # without a rule. Warn once per class, field, and set of types.
+      # Editors in the browser show custom nodes that the server can't
+      # render without a rule. Logs a warning once per class, field, and
+      # set of types.
       def report_unknown_node_types(name, renderer)
         types = renderer.unknown_types.sort
         return if types.empty?

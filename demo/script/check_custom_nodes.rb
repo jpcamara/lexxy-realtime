@@ -13,11 +13,11 @@ begin
 
   html = post.reload.body.to_s
   failures = []
-  # Without the "mark" rule, the text would be saved without its <mark> tag.
+  # Without the "mark" rule, the text is saved without its <mark> tag.
   failures << "comment mark markup missing" unless html.include?(%(<mark class="comment-mark">rocks</mark>))
   # Hashtags are text runs, so they're saved as plain text.
   failures << "hashtag text missing" unless html.include?("#ruby")
-  failures << "hashtag unexpectedly carries markup (text runs degrade to text)" if html.include?(%(class="hashtag"))
+  failures << "hashtag has markup, but text runs should save as plain text" if html.include?(%(class="hashtag"))
 
   abort(failures.join("; ")) if failures.any?
   puts "custom nodes render check ok"

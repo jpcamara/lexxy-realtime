@@ -3,8 +3,8 @@ import { copyFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// The pages link Lexxy's real stylesheets so the harness looks like an
-// actual Lexxy editor (icons, chrome, typography), not a bare page.
+// The test pages link Lexxy's stylesheets so the editors look like real Lexxy
+// editors, with icons, toolbar, and typography.
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const cssTarget = join(root, "test", "server", "public", "lexxy-css");
 mkdirSync(cssTarget, { recursive: true });
@@ -12,10 +12,10 @@ for (const f of ["lexxy.css", "lexxy-variables.css", "lexxy-content.css", "lexxy
   copyFileSync(join(root, "node_modules", "@37signals", "lexxy", "dist", "stylesheets", f), join(cssTarget, f));
 }
 
-// Bundle the browser test apps into the test server's public/ dir. Everything is
-// inlined (no externals) so each page is a single self-contained script: Lexxy,
-// lexxy-realtime, Yjs, y-protocols, the ActionCable consumer, and the real
-// @rails/activestorage (the uploads e2e drives DirectUpload for real).
+// Bundle the browser test apps into the test server's public/ directory.
+// Nothing is external, so each page loads one script containing Lexxy,
+// lexxy-realtime, Yjs, y-protocols, the Action Cable consumer, and
+// @rails/activestorage. The uploads e2e uses the real DirectUpload.
 const bundle = (input, file) =>
   defineConfig({
     input,

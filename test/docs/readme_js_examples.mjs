@@ -1,8 +1,7 @@
-// Compiles every ```js block in README.md against the real package.
-// Imports resolve into src/, so a renamed export or a removed API in an
-// example fails the build. Examples are not executed (most need a
-// browser); this catches the drift that matters: imports, exports, and
-// syntax.
+// Bundles every ```js block in README.md against the package source.
+// Imports resolve into src/, so an example that uses a renamed or removed
+// export fails. The examples don't run, since most of them need a browser.
+// This checks their imports, exports, and syntax.
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -14,11 +13,12 @@ const readme = readFileSync(join(root, "README.md"), "utf8");
 
 const blocks = [...readme.matchAll(/^```js\n([\s\S]*?)^```/gm)].map((m) => m[1]);
 if (blocks.length === 0) {
-  console.error("no ```js blocks found in README.md; extraction is broken");
+  console.error("found no ```js blocks in README.md, so block extraction is broken");
   process.exit(1);
 }
 
-// Bare imports the examples may use; everything else must resolve.
+// Packages the examples may import without bundling. Every other import must
+// resolve.
 const EXTERNAL = [
   "@37signals/lexxy",
   "@rails/actioncable",
@@ -66,8 +66,8 @@ for (const [i, block] of blocks.entries()) {
 
 rmSync(dir, { recursive: true, force: true });
 
-// The ```html example's <lexxy-collaboration> attributes must all be ones
-// the element actually reads (getAttribute calls in the source).
+// Every attribute on <lexxy-collaboration> in the ```html examples must be one
+// the element reads with getAttribute.
 const source = readFileSync(join(root, "src", "editor_collaboration.js"), "utf8");
 const known = new Set([...source.matchAll(/getAttribute\('([^']+)'\)/g)].map((m) => m[1]));
 const htmlBlocks = [...readme.matchAll(/^```html\n([\s\S]*?)^```/gm)].map((m) => m[1]);

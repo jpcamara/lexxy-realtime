@@ -1,5 +1,5 @@
-// Compile-only consumer. Exercises every public export against the shipped
-// declarations, so a missing or wrong declaration fails `tsc`.
+// This file is compiled but never run. It uses every public export against
+// the shipped declarations, so a missing or wrong declaration fails `tsc`.
 import { Collaboration, setConsumer, YrbyProvider } from "lexxy-realtime";
 import type { CableConsumer, DesyncDetail, ProviderStatus, StatusEvent } from "lexxy-realtime";
 import * as Y from "yjs";
@@ -47,7 +47,7 @@ element.addEventListener("lexxy-realtime:desync", (event) => {
 });
 document.addEventListener("lexxy-realtime:desync", (event) => void event.detail.error);
 
-// @anycable/web works through its ActionCable-compat consumer.
+// @anycable/web works through its Action Cable compatible consumer.
 import { createCable, createConsumer } from "@anycable/web";
 
 const anycable: CableConsumer = createConsumer("ws://localhost:8080/cable");
@@ -55,8 +55,8 @@ setConsumer(anycable);
 setConsumer(() => createConsumer());
 void new YrbyProvider(new Y.Doc(), anycable, "SyncChannel");
 
-// createCable() returns AnyCable's native Cable, which has no
-// `subscriptions`; the compat createConsumer() is the supported shape.
+// createCable() returns AnyCable's own Cable, which has no `subscriptions`.
+// Use createConsumer() instead.
 // @ts-expect-error
 const notAConsumer: CableConsumer = createCable("ws://localhost:8080/cable");
 void notAConsumer;

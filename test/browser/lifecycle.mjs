@@ -11,8 +11,8 @@ import { dirname, join } from "node:path";
 
 const PORT = process.env.PORT || 4111;
 const here = dirname(fileURLToPath(import.meta.url));
-// Resolve the local binary directly: `npx` per-call overhead is too slow for the
-// polling loops below.
+// Call the local binary directly. Starting `npx` on every call is too slow for
+// the polling loops below.
 const AB = process.env.AB_BIN || join(here, "..", "..", "node_modules", ".bin", "agent-browser");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -29,7 +29,7 @@ const ab = (session, ...args) => {
 };
 
 const S = "lifecycle";
-// agent-browser prints booleans as a bare `true`/`false`; assert on that.
+// agent-browser prints booleans as a bare true or false, so match on that.
 const isTrue = (js) => /\btrue\b/.test(ab(S, "eval", js));
 
 async function waitEval(js, label, ms = 30000) {
@@ -42,11 +42,11 @@ async function waitEval(js, label, ms = 30000) {
   return false;
 }
 
-// Run a scenario and wait for its result object to land (or an error).
+// Runs a scenario and waits for its result object or an error.
 async function runScenario(name) {
   ab(S, "eval", `window.__lc.run(${JSON.stringify(name)})`);
   const ok = await waitEval(`window.__lc.results[${JSON.stringify(name)}] != null`, `${name} completed`, 60000);
-  // Log the raw result object for visibility (printed by agent-browser, not parsed).
+  // Print the raw result object so a failure is easier to read.
   const raw = ab(S, "eval", `JSON.stringify(window.__lc.results[${JSON.stringify(name)}] ?? null)`).trim();
   console.log(`  ${name}: ${raw.replace(/\\(.)/g, "$1").replace(/^"|"$/g, "")}`);
   if (isTrue(`!!(window.__lc.results[${JSON.stringify(name)}] && window.__lc.results[${JSON.stringify(name)}].error)`)) {
@@ -54,7 +54,7 @@ async function runScenario(name) {
   }
   return ok;
 }
-// Assert a boolean field on a completed scenario result.
+// Checks an expression against a finished scenario's result.
 const field = (name, expr) =>
   isTrue(`(() => { const r = window.__lc.results[${JSON.stringify(name)}]; return !!r && (${expr}); })()`);
 
@@ -65,8 +65,8 @@ const check = (label, ok) => {
 };
 
 ab(S, "open", `http://localhost:${PORT}/lifecycle.html`);
-if (!(await waitEval("document.body.dataset.lcReady === 'true'", "lifecycle harness ready"))) {
-  console.log("FAILED: harness did not load");
+if (!(await waitEval("document.body.dataset.lcReady === 'true'", "lifecycle page ready"))) {
+  console.log("FAILED: lifecycle page did not load");
   process.exit(1);
 }
 
@@ -135,8 +135,8 @@ const scenarios = [
     ["recovery discards the old session's doc", "r.oldDocDestroyed === true"],
     ["recovery loads the server's content into a new session", "r.keptText === true"],
     ["recovery makes the editor editable again", "r.editable === true"],
-    ["undo after recovery can't restore the desynced state", "r.undoKeptText === true"],
-    ["edits after recovery reach the server, local-only changes don't", "r.editsSync === true"],
+    ["undo after recovery keeps the server's content", "r.undoKeptText === true"],
+    ["edits after recovery reach the server without the local-only change", "r.editsSync === true"],
     ["a second failure inside 15 seconds reports recovering: true", "r.secondRecovering === true"],
     ["the editor stays read-only on the old doc until the window ends", "r.waitsReadOnly === true"],
     ["the second rebuild runs when the window ends", "r.secondRebuildAfterWindow === true"],
@@ -144,7 +144,7 @@ const scenarios = [
   ]],
   ["desyncThenRemove", [
     ["removing the element in the desync handler unbinds it", "r.unbound === true"],
-    ["a removed element doesn't discard the session", "r.sessionKept === true"],
+    ["removing the element keeps the session open", "r.sessionKept === true"],
     ["unbinding restores editing", "r.editable === true"],
   ]],
   ["rejectThenRefresh", [
@@ -173,7 +173,7 @@ const scenarios = [
     ["removal before the first sync clears the poll", "r.leaked === false"],
   ]],
   ["misplaced", [
-    ["a misplaced element throws nothing", "r.threw === false"],
+    ["a misplaced element doesn't throw", "r.threw === false"],
     ["an element outside a <lexxy-editor> logs an error", "r.reportedEditor === true"],
     ["an element with no <yrby-document> or host provider logs an error", "r.reportedDocument === true"],
   ]],

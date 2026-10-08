@@ -4,12 +4,12 @@ require "test_helper"
 require File.join(Gem.loaded_specs.fetch("yrby-rails").full_gem_path, "app/channels/y/document_channel")
 require_relative "../app/channels/lexxy_realtime/document_channel"
 
-# No Rails app here: point the cable server at the test adapter by hand.
+# There's no Rails app, so set the cable server's adapter here.
 ActionCable.server.config.cable = { "adapter" => "test" }
 ActionCable.server.config.logger = Logger.new(File::NULL)
 
-# The gem's channel: Y::DocumentChannel plus rendering the Action Text
-# attribute after each change.
+# LexxyRealtime::DocumentChannel is Y::DocumentChannel plus rendering the
+# Action Text attribute after each change.
 class DocumentChannelTest < ActionCable::Channel::TestCase
   tests LexxyRealtime::DocumentChannel
 
@@ -26,15 +26,15 @@ class DocumentChannelTest < ActionCable::Channel::TestCase
 
   def grant(field = :body, **) = @post.to_sgid(for: LexxyRealtime.grant_purpose(field), **).to_s
 
-  def test_the_form_helpers_grant_subscribes_and_gets_the_opening_handshake
+  def test_the_form_helper_grant_subscribes_and_receives_the_first_sync_message
     subscribe grant: grant, name: "body"
 
     assert_predicate subscription, :confirmed?
-    assert transmissions.any? { |m| m["update"].present? }, "expected a SyncStep1 handshake"
-    assert_equal 0, Y::Document.count, "subscribing alone stores nothing"
+    assert transmissions.any? { |m| m["update"].present? }, "expected a SyncStep1 message"
+    assert_equal 0, Y::Document.count, "subscribing does not create a document"
   end
 
-  def test_an_update_is_recorded_and_materialized_into_the_attribute
+  def test_an_update_is_stored_and_rendered_into_the_attribute
     subscribe grant: grant, name: "body"
     frame = Y.wrap_update(lexxy_full_state)
     perform :receive, "update" => Base64.strict_encode64(frame), "id" => 7
@@ -59,7 +59,7 @@ class DocumentChannelTest < ActionCable::Channel::TestCase
   def test_a_grant_for_another_field_is_rejected
     subscribe grant: grant(:body), name: "title"
 
-    assert_predicate subscription, :rejected?, "a :body grant must not open :title"
+    assert_predicate subscription, :rejected?, "a :body grant does not open :title"
   end
 
   def test_a_grant_for_a_field_without_collaborative_rich_text_is_rejected
@@ -101,8 +101,8 @@ class DocumentChannelTest < ActionCable::Channel::TestCase
   end
 end
 
-# A lexxy-realtime grant must not open yrby-rails' channel. That channel
-# neither renders the field nor runs LexxyRealtime::DocumentChannel's
+# Y::DocumentChannel rejects a lexxy-realtime grant. That channel doesn't
+# render the field or run LexxyRealtime::DocumentChannel's
 # authorize_document block.
 class YrbyDocumentChannelTest < ActionCable::Channel::TestCase
   tests Y::DocumentChannel

@@ -3,9 +3,9 @@
 require "test_helper"
 require "open3"
 
-# Boot a minimal Rails app in a subprocess to exercise the engine
-# initializers, eager loading, Action Text macro, and FormBuilder
-# integration.
+# Boots a minimal Rails app in a subprocess to check the engine
+# initializers, eager loading, the Action Text macro, and the FormBuilder
+# methods.
 class EngineBootTest < Minitest::Test
   def test_the_engine_boots_a_real_rails_application
     script = File.expand_path("support/boot_check.rb", __dir__)

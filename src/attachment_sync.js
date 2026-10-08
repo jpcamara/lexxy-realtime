@@ -1,13 +1,14 @@
-// Attachment property exclusions and an empty-document binding
-// workaround for @lexical/yjs.
+// Attachment properties that must not sync, and a fix that lets
+// @lexical/yjs bind an empty document.
 
-// What stays local: `file` (yjs cannot encode a File and throws
-// mid-sync), `editor` (live object reference), `previewSrc` (client-local
-// object URL), and `uploadUrl` / `blobUrlTemplate` (host config; without
-// them a peer cannot start a duplicate DirectUpload). `progress`,
-// `uploadError`, and `pendingPreview` sync on purpose, so peers render
-// live progress, the error state, and the poll-until-ready placeholder
-// for server-generated previews.
+// These attachment properties stay on the local client. Yjs can't encode a
+// File and throws partway through a sync. `editor` is a live object, and
+// `previewSrc` is an object URL that only works in this browser.
+// `uploadUrl` and `blobUrlTemplate` are host config, and keeping them local
+// stops a peer from starting a second DirectUpload. `progress`,
+// `uploadError`, and `pendingPreview` do sync, so peers see upload
+// progress, errors, and the placeholder shown while the server generates a
+// preview.
 const UNSYNCABLE_ATTACHMENT_PROPERTIES = new Set([
   'editor',
   'file',
@@ -22,8 +23,8 @@ const LEXXY_ATTACHMENT_NODE_TYPES = new Set([
   'custom_action_text_attachment',
 ]);
 
-// The excluded-properties map for createBinding, keyed by the node
-// classes the editor actually registered.
+// Builds the excludedProperties map for createBinding, keyed by the node
+// classes this editor registered.
 export function attachmentExclusions(editor) {
   const excludedProperties = new Map();
   const nodes = editor?._nodes;
@@ -36,15 +37,14 @@ export function attachmentExclusions(editor) {
   return excludedProperties;
 }
 
-// @lexical/yjs's CollabElementNode.splice throws (dev) or records
-// `undefined` (prod) when an empty binding removes a child at an index
-// that has none, with nothing to insert -- which is what the
-// empty-collab-tree bootstrap does. Make that case a no-op so an empty
-// document can bind. createBinding builds binding.root without hitting
-// the case, so patching the unexported prototype through the live binding
-// root right after bind is in time. The patch lands once, on the
-// prototype shared by every @lexical/yjs binding on the page, and is
-// never reverted.
+// In @lexical/yjs, CollabElementNode.splice throws in development, and
+// records `undefined` in production, when it removes a child at an index
+// that has none and has nothing to insert. Binding an empty document makes
+// exactly that call, so we turn it into a no-op. createBinding builds
+// binding.root without making the call, so patching right after binding is
+// early enough. The prototype isn't exported, so we reach it through
+// binding.root. Every @lexical/yjs binding on the page shares that
+// prototype. We patch it once and never undo the patch.
 export function patchCollabElementSplice(binding) {
   const proto = binding?.root?.constructor?.prototype;
   if (!proto || typeof proto.splice !== 'function' || proto.__yrbySplicePatched) return;

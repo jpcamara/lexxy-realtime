@@ -7,9 +7,9 @@ require "json"
 class HelperTest < Minitest::Test
   include ActiveSupport::Testing::TimeHelpers
 
-  # A view context with real tag helpers. The test uses ActionView's
-  # FormBuilder and stubs Lexxy's editor method to yield its child
-  # content.
+  # A view context with real tag helpers. The tests use Action View's
+  # FormBuilder and stub Lexxy's editor method so it renders the block's
+  # content inside the editor tag.
   class FakeView
     include ActionView::Helpers::TagHelper
     include ActionView::Helpers::CaptureHelper
@@ -26,7 +26,7 @@ class HelperTest < Minitest::Test
     def try(attribute) = respond_to?(attribute) ? public_send(attribute) : nil
   end
 
-  ActionView::Helpers::FormBuilder.prepend(LexxyRealtime::FormBuilder) # as the engine does
+  ActionView::Helpers::FormBuilder.prepend(LexxyRealtime::FormBuilder) # the engine does this at boot
 
   def setup
     @post = Post.create!(title: "Doc")
@@ -65,7 +65,7 @@ class HelperTest < Minitest::Test
 
     html = @form.collaborative_rich_textarea(:body)
 
-    assert_includes html, "<lexxy-collaboration", "renders through the adapter-path helper"
+    assert_includes html, "<lexxy-collaboration", "renders through rich_text_area"
   end
 
   def test_wires_the_elements_to_the_record
@@ -75,7 +75,7 @@ class HelperTest < Minitest::Test
 
     assert_equal "post-#{@post.id}-body", attrs["doc-id"]
     assert_equal "Ada", attrs["name"]
-    assert_equal %w[color doc-id name], attrs.keys.sort, "the collaboration element only carries identity"
+    assert_equal %w[color doc-id name], attrs.keys.sort, "the collaboration element has only identity attributes"
 
     assert_equal "LexxyRealtime::DocumentChannel", document["channel"]
     assert_equal "body", document["name"]
@@ -132,7 +132,7 @@ class HelperTest < Minitest::Test
     default = element_attributes(@form.collaborative_rich_textarea(:body))
 
     assert_equal default["color"], element_attributes(@form.collaborative_rich_textarea(:body))["color"],
-                 "derived cursor color is stable per name"
+                 "the same name gets the same derived color"
     assert_match(/\Ahsl\(\d+, 70%, 45%\)\z/, default["color"])
   end
 

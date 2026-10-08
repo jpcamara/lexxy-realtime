@@ -1,22 +1,24 @@
-// Reproduction: the check-then-act bootstrap race in @lexical/react's
-// CollaborationPlugin, run against a real sync server.
+// Reproduces the check-then-act race in the bootstrap step of @lexical/react's
+// CollaborationPlugin, using a real sync server.
 //
-// The plugin's decision procedure (LexicalCollaborationPlugin.dev.mjs):
+// The plugin decides whether to seed the document like this
+// (LexicalCollaborationPlugin.dev.mjs):
 //
 //   provider.on('sync', ...) -> onBootstrap():
 //     if (shouldBootstrap && root.isEmpty() && root._xmlText._length === 0) {
 //       initializeEditor(editor, initialEditorState);   // seeds the shared doc
 //     }
 //
-// Both guards read the LOCAL replica of the shared root. Two clients whose
-// first sync completes before either sees the other's seed both pass the
-// guard and both seed; the CRDT merges both. This script runs that exact
-// predicate for two simultaneous clients and prints the converged document.
+// Both checks read the client's local copy of the shared root. If two clients
+// finish their first sync before either receives the other's seed, both pass
+// the check and both seed the document. The CRDT then keeps both seeds. This
+// script runs the same check for two clients at once and prints the merged
+// document.
 //
-// Lexical's collaboration docs acknowledge this ("two clients ... could
-// both try to initialize the content resulting in document corruption")
-// and gate client bootstrap to dev-testing; their production guidance is
-// server-side seeding.
+// Lexical's collaboration docs describe this case ("two clients ... could
+// both try to initialize the content resulting in document corruption").
+// They recommend client bootstrap only for development and testing, and
+// seeding the document on the server in production.
 import * as Y from "yjs";
 import { ActionCableProvider as YrbyProvider } from "yrby-client";
 import { rawConsumer, URL } from "./support.mjs";
@@ -29,9 +31,9 @@ function makeClient(label) {
 }
 
 function seedIfEmpty({ label, doc }) {
-  // The plugin's predicate, verbatim: the root XmlText is empty on this
-  // replica. (root.isEmpty() and root._xmlText._length === 0 both read the
-  // same local shared type.)
+  // The plugin's check. root.isEmpty() and root._xmlText._length === 0 both
+  // read this client's local root XmlText, so checking its length is the same
+  // test.
   const root = doc.get("root", Y.XmlText);
   if (root.length === 0) {
     root.insert(0, `[SEED-${label}]`);
@@ -43,30 +45,30 @@ function seedIfEmpty({ label, doc }) {
 const a = makeClient("A");
 const b = makeClient("B");
 
-// Two users open the never-collaborated document at the same moment.
+// Two users open a new, empty document at the same moment.
 a.provider.connect();
 b.provider.connect();
 await Promise.all([a.provider.whenSynced, b.provider.whenSynced]);
 
-// Each client's 'sync' fires; each runs onBootstrap's guard on its replica.
+// Each client gets its 'sync' event and runs onBootstrap's check on its own copy.
 const aSeeded = seedIfEmpty(a);
 const bSeeded = seedIfEmpty(b);
 
-// Let the CRDT converge.
+// Give the updates time to reach both clients.
 await new Promise((r) => setTimeout(r, 1500));
 
 const aText = a.doc.get("root", Y.XmlText).toString();
 const bText = b.doc.get("root", Y.XmlText).toString();
 
-console.log(`A passed the empty-guard and seeded: ${aSeeded}`);
-console.log(`B passed the empty-guard and seeded: ${bSeeded}`);
-console.log(`A's converged document: ${JSON.stringify(aText)}`);
-console.log(`B's converged document: ${JSON.stringify(bText)}`);
+console.log(`A saw an empty document and seeded it: ${aSeeded}`);
+console.log(`B saw an empty document and seeded it: ${bSeeded}`);
+console.log(`A's document after merging: ${JSON.stringify(aText)}`);
+console.log(`B's document after merging: ${JSON.stringify(bText)}`);
 
 const duplicated = aSeeded && bSeeded && aText.includes("SEED-A") && aText.includes("SEED-B");
 console.log(duplicated
-  ? "RACE REPRODUCED: both clients seeded; the document holds the initial content twice."
-  : "race did not fire this run");
+  ? "RACE REPRODUCED: both clients seeded, so the document has the initial content twice."
+  : "the race did not happen on this run");
 
 a.provider.disconnect();
 b.provider.disconnect();

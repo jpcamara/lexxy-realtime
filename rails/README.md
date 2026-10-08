@@ -21,10 +21,10 @@ bin/rails generate lexxy_realtime:install
 bin/rails db:migrate
 ```
 
-The generator adds yrby's table migration, plus import-map pins if the app
-uses import maps. The channel ships in the gem
-(`LexxyRealtime::DocumentChannel`), and the `Y::Document` and
-`Y::DocumentUpdate` models come from `yrby-rails`.
+The generator adds yrby's table migration. If the app uses import maps, it
+also adds pins. The channel, `LexxyRealtime::DocumentChannel`, ships in the
+gem. The `Y::Document` and `Y::DocumentUpdate` models come from
+`yrby-rails`.
 
 With a bundler, install the JavaScript package and import it next to
 your Lexxy import:
@@ -33,8 +33,8 @@ your Lexxy import:
 npm install lexxy-realtime   # yarn, bun, and pnpm also work
 ```
 
-With import maps, there is no npm install; the generator pins assets
-this gem ships, one pin for each module the page must load once:
+With import maps, there's no npm install. The generator pins assets this
+gem ships, one for each module the page must load only once:
 
 ```ruby
 # config/importmap.rb, added by the generator
@@ -47,15 +47,18 @@ pin "@rails/actioncable", to: "actioncable.esm.js"
 pin "@rails/activestorage", to: "activestorage.esm.js"
 ```
 
-`@37signals/lexxy` points at the Lexxy gem's own asset, the same file as
-its `lexxy` pin, and lexxy-realtime reaches lexical through Lexxy's
-`Lexical` re-export, so the page runs one copy of lexical. yrby-client and
-yjs are separate files that lexxy-realtime imports. Two copies of either
-would mean two `<yrby-document>` classes or two Yjs runtimes, which breaks
-the binding, so other code that imports them gets the same copy.
-`@rails/actioncable` is Rails' own file, which `<yrby-document>` loads for
-its default consumer. The generator keeps any of these pins the app
-already has and adds the rest, so run it again after upgrading.
+`@37signals/lexxy` points at the same file as the Lexxy gem's own `lexxy`
+pin, so the browser loads Lexxy once. lexxy-realtime gets lexical from
+Lexxy's `Lexical` export, so there's also one copy of lexical.
+
+yrby-client and yjs are separate files. A second copy of either would mean
+a second `<yrby-document>` class or a second Yjs, and the editor binding
+would break. With separate pins, any other code that imports them gets the
+same copy as lexxy-realtime. `@rails/actioncable` is Rails' own file, and
+`<yrby-document>` uses it for its default consumer.
+
+The generator keeps pins the app already has and adds the missing ones, so
+run it again after upgrading.
 
 Either way, your entrypoint imports both:
 
@@ -81,10 +84,10 @@ end
 Render the form only for users who may edit the record, then open the page
 in two browsers and edit together. You don't write a channel. The helper
 renders a signed grant for the record and field, and
-`LexxyRealtime::DocumentChannel` only opens a document for a valid grant.
-The record must be persisted (the document key derives from it). A record with
-an existing body works: the first collaborative open seeds the document
-from it.
+`LexxyRealtime::DocumentChannel` opens a document only for a valid grant.
+The record must be saved first, because the document key comes from its id.
+If the record already has a body, the first editor to open it copies that
+body into the new document.
 
 Encryption works the way Action Text's does:
 
@@ -92,41 +95,39 @@ Encryption works the way Action Text's does:
 has_collaborative_rich_text :body, encrypted: true
 ```
 
-The rendered body goes through `ActionText::EncryptedRichText`, and the
-collaborative document (CRDT state and update payloads) is stored through
-yrby's `Y::EncryptedDocument`. Both use Active Record encryption, so the
-app must configure encryption keys. Without Action Text, declare
-`encrypts` on the plain attribute yourself.
+Action Text stores the rendered body with `ActionText::EncryptedRichText`.
+yrby's `Y::EncryptedDocument` stores the collaborative document, both the
+CRDT state and each update. Both use Active Record encryption, so the app
+needs encryption keys configured. Without Action Text, declare `encrypts`
+on the plain attribute yourself.
 
-Use it for new attributes. Existing plaintext rows need migration
-before you add `encrypted: true`: enable `support_unencrypted_data`,
-rewrite each document, update, and rich-text row through its encrypted
-class, then turn it back off. There is no built-in task for that yet.
-And if your channel came from an earlier pre-release checkout, update it
-to the current record-based storage first; a channel calling
-`Y::Document` directly stores encrypted attributes as plaintext.
+This works best on new attributes. To encrypt an attribute that already
+has plaintext rows, enable `support_unencrypted_data`, rewrite each
+document, update, and rich-text row through its encrypted class, then
+turn the setting off again. The gem doesn't include a task for this.
 
 ## How the body stays current
 
-The channel records each CRDT update, renders the full document with
+The channel saves each CRDT update, renders the full document with
 `Y::Lexxy`, and saves the HTML through the Action Text writer. This
-happens synchronously in `refresh_collaborative_rich_text`, so
-reads use the stored `post.body` value.
+happens in `refresh_collaborative_rich_text`, inside the channel's handler
+for each update. There's no background job, so `post.body` is up to date as
+soon as the channel finishes handling the update.
 
-If rendering fails, the update remains stored and the error is logged.
-The next successful update renders the full document again. Until then,
-`post.body` keeps its previous value.
+If rendering fails, the channel logs the error and keeps the update. The
+next update renders the full document again. Until then, `post.body`
+keeps its previous value.
 
 ## Access control
 
 The form helper renders a signed grant for the record and field.
-`LexxyRealtime::DocumentChannel` is yrby-rails' `Y::DocumentChannel` with
-Action Text rendering added. The grant has its own purpose, so yrby-rails'
-`Y::DocumentChannel` rejects it, and the block below can't be skipped by
-subscribing there instead. The channel rejects a missing, tampered, expired, or
-wrong-field grant, a deleted record, and a field that isn't declared with
-`has_collaborative_rich_text`. A valid grant means your app rendered the
-form for this user.
+`LexxyRealtime::DocumentChannel` extends yrby-rails' `Y::DocumentChannel`
+and adds Action Text rendering. The grant uses its own purpose, so
+`Y::DocumentChannel` rejects it. A client can't get around the block below
+by subscribing to that channel. The channel rejects a missing, tampered,
+expired, or wrong-field grant, a deleted record, and a field that isn't
+declared with `has_collaborative_rich_text`. A valid grant means your app
+rendered the form for this user.
 
 To also check the user's current permissions when they subscribe, give
 the channel a block:
@@ -140,10 +141,10 @@ Rails.application.config.to_prepare do
 end
 ```
 
-The block runs inside the channel, so `current_user` and your other
-connection identifiers are available. `editable_by?` stands for your own
+The block runs inside the channel, so you can use `current_user` and your
+other connection identifiers. `editable_by?` is a placeholder for your own
 permission check. If the block returns false or nil, the channel rejects
-the subscription before sending anything.
+the subscription before it sends anything.
 
 ## Grant lifetime and refresh
 
@@ -181,20 +182,21 @@ can reach the URL gets a grant, and a short `expires_in:` protects nothing.
 When a subscription is rejected, `<yrby-document>` fetches the URL with the
 session cookie, and the action runs your authorization again. If the
 response is `{ "grant": ... }`, the page resubscribes with the new grant and
-keeps the document and any edits the server hasn't acknowledged. Any other
-response, a non-2xx status, a second rejection, or a refresh that takes
-longer than 15 seconds stops syncing until the page reloads, and
-`<yrby-document>` dispatches `yrby:error`. The page doesn't renew grants on
-a timer, so it won't interrupt a healthy subscription. Every reconnect
-after expiry is a fresh permission check, which is why you'd want a short
-lifetime in the first place.
+keeps the document and any edits the server hasn't acknowledged. If the
+refresh fails, the editor stops syncing until the page reloads, and
+`<yrby-document>` dispatches `yrby:error`. A refresh fails when the response
+is an error or has no grant, when it takes longer than 15 seconds, or when
+the server rejects the new grant. The page doesn't renew grants on a timer,
+so it won't interrupt a working subscription. Every reconnect after the
+grant expires runs your permission check again, and that's the reason to
+keep the lifetime short.
 
 Without `refresh:`, an editor whose grant has expired stops syncing at its
 next reconnect and starts again after the page reloads.
 
 While a grant is rejected and not renewed, `<yrby-document>` makes the
 editor inert, so nobody types into a document that can't sync. The editor
-is also inert before the first sync, while the page can't reach the
+is also inert before its first sync and whenever the page can't reach the
 server.
 
 ## Configuration
@@ -203,8 +205,8 @@ server.
 LexxyRealtime.identity = ->(view) { { name: view.current_user.handle, color: nil } }
 ```
 
-By default, identity uses the first available `current_user` value from
-`name`, `username`, or `handle`, then falls back to `"Anonymous"`.
+By default, the cursor name is the first of `current_user.name`,
+`username`, or `handle` that has a value. Without one it's `"Anonymous"`.
 
 Full documentation, the demo app, and the JavaScript package:
 [repository README](https://github.com/jpcamara/lexxy-realtime#readme).

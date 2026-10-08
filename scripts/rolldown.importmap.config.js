@@ -31,8 +31,8 @@ const TEST_MODE = Boolean(process.env.IMPORTMAP_ASSETS_OUT);
 const shim = fileURLToPath(new URL('./importmap/lexical_shim.js', import.meta.url));
 const yrbyClient = /^yrby-client(\/|$)/;
 
-// Like Lexxy's gem asset, each pin ships readable (with a sourcemap)
-// and minified; the pins reference the readable file.
+// Like Lexxy's gem asset, each pin ships as a readable file with a
+// sourcemap and as a minified file. The pins point at the readable one.
 const build = (input, file, options = {}) => ({
   input,
   ...options,
@@ -54,8 +54,8 @@ const configs = [
 ];
 
 if (TEST_MODE) {
-  // The stand-in for the Lexxy gem's own asset: fully self-contained,
-  // lexical embedded, exactly as the real gem ships it.
+  // Stands in for the Lexxy gem's own asset. It's self-contained with
+  // lexical embedded, the way the real gem ships it.
   configs.push(build('scripts/importmap/lexxy.js', 'lexxy'));
   // Rails serves this file from the actioncable gem.
   mkdirSync(ASSETS, { recursive: true });

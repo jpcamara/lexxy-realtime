@@ -1,11 +1,10 @@
-// Real-upload e2e: a PNG goes through Lexxy's own upload pipeline
-// (contents.uploadFiles -> DirectUpload -> the server's ActiveStorage
-// direct-upload endpoint -> disk service), and the attachment that lands in
-// the shared document materializes for a live peer and a late joiner, both
-// of whom render actual pixels from the served blob URL.
+// Uploads e2e. A PNG goes through Lexxy's own upload code: contents.uploadFiles,
+// then DirectUpload, then the server's Active Storage direct upload endpoint
+// and disk service. The attachment must appear for a connected peer and for a
+// late joiner, and both must load the image from the served blob URL.
 //
-// Assumes the test server is running on PORT (run.mjs handles that) and the
-// browser bundle is built (npm run build:test).
+// Expects the test server on PORT (run.mjs starts it) and a built browser
+// bundle (npm run build:test).
 import { execFileSync } from "node:child_process";
 
 const PORT = process.env.PORT || 4111;
@@ -51,14 +50,14 @@ check("Alice synced", await ready("alice"));
 open("bob", "Bob");
 check("Bob synced", await ready("bob"));
 
-// Alice uploads a real PNG through the editor's own pipeline.
+// Alice uploads a PNG through the editor's upload code.
 ab("alice", "eval", 'window.__test.uploadPng("real-upload.png")');
 check(
-  "upload finished: Alice's attachment carries a real sgid",
+  "upload finished and Alice's attachment has an sgid",
   await waitEval("alice", "window.__test.attachmentSgids().length > 0", "alice sgid present")
 );
 check(
-  "Alice renders the served blob (real pixels, ActiveStorage URL)",
+  "Alice's image loads from the Active Storage blob URL",
   await waitEval(
     "alice",
     '(() => { const i = window.__test.renderedImage(); return !!i && i.naturalWidth > 0 && String(i.src).includes("/rails/active_storage/"); })()',
@@ -66,13 +65,13 @@ check(
   )
 );
 
-// The attachment materializes for the live peer with the same real bytes.
+// Bob gets the same attachment and image.
 check(
-  "Bob received the attachment node with the sgid",
+  "Bob received the attachment with its sgid",
   await waitEval("bob", "window.__test.attachmentSgids().length > 0", "bob sgid present")
 );
 check(
-  "Bob renders the served blob (real pixels)",
+  "Bob's image loads from the blob URL",
   await waitEval(
     "bob",
     '(() => { const i = window.__test.renderedImage(); return !!i && i.naturalWidth > 0 && String(i.src).includes("/rails/active_storage/"); })()',
@@ -80,7 +79,7 @@ check(
   )
 );
 
-// No zombie upload placeholder remains anywhere once the upload completed.
+// After the upload completes, the shared document has no upload placeholder.
 check(
   "no upload placeholder left in the shared doc",
   await waitEval("bob", '!window.__test.docRoot().includes("attachment_upload")', "no upload node in doc")
@@ -89,15 +88,15 @@ check(
 ab("alice", "close");
 ab("bob", "close");
 
-// A late joiner rebuilds from the server and still renders the real image.
+// A late joiner loads the document from the server and shows the image.
 open("carol", "Carol");
 check("late joiner synced", await ready("carol"));
 check(
-  "late joiner materialized the attachment from the durable doc",
+  "late joiner has the attachment from the stored document",
   await waitEval("carol", "window.__test.attachmentSgids().length > 0", "carol sgid present")
 );
 check(
-  "late joiner renders the served blob (real pixels)",
+  "late joiner's image loads from the blob URL",
   await waitEval(
     "carol",
     '(() => { const i = window.__test.renderedImage(); return !!i && i.naturalWidth > 0 && String(i.src).includes("/rails/active_storage/"); })()',
@@ -110,4 +109,4 @@ if (failures > 0) {
   console.log(`\nFAILED: ${failures} check(s) failed`);
   process.exit(1);
 }
-console.log(`\nPASS: real uploads e2e (room ${ROOM})`);
+console.log(`\nPASS: uploads e2e (room ${ROOM})`);

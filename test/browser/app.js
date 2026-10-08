@@ -14,8 +14,8 @@ import { createConsumer } from "@rails/actioncable";
 import { createConsumer as createAnycableConsumer } from "@anycable/web";
 import { $getRoot } from "lexical";
 
-// Collaboration errors are logged, not thrown (a bad remote update must not
-// kill the page), so the e2e reads them from here.
+// The element logs collaboration errors with console.error so a bad remote
+// update doesn't break the page. The e2e reads them from here.
 window.__errors = [];
 const originalConsoleError = console.error;
 console.error = (...args) => {
@@ -61,7 +61,7 @@ function installTestHooks(collab) {
     get provider() { return collab.provider; },
     get awareness() { return collab.awareness; },
     room,
-    // What the user actually sees: the editor's contenteditable text.
+    // The editor's visible text.
     text: () => {
       const ce = editor.querySelector('[contenteditable="true"]') || editor.querySelector("[contenteditable]");
       return ce ? ce.innerText : "";
@@ -69,10 +69,9 @@ function installTestHooks(collab) {
     synced: () => !!collab.provider?.synced,
     usesConfiguredConsumer: () => !!window.__configuredConsumer && collab.provider?.consumer === window.__configuredConsumer,
     errors: () => window.__errors,
-    // Insert an attachment the way a finished upload does: a real
-    // action_text_attachment node with an sgid, appended to the root. Uses
-    // the class registered on the editor so the test exercises whatever
-    // class the editor actually holds.
+    // Inserts an attachment the way a finished upload does: an
+    // action_text_attachment node with an sgid, appended to the root. It uses
+    // the class registered on this editor.
     insertAttachment: (sgid) => {
       const lexical = editor.editor;
       let klass;
@@ -92,9 +91,9 @@ function installTestHooks(collab) {
         $getRoot().append(node);
       });
     },
-    // A real upload through Lexxy's own pipeline: build a PNG File and hand
-    // it to contents.uploadFiles, the same entry the drop handler uses.
-    // DirectUpload posts to the server's ActiveStorage endpoint for real.
+    // Uploads a PNG through Lexxy's own upload code. It passes a File to
+    // contents.uploadFiles, the same call the drop handler makes, and
+    // DirectUpload posts it to the server's Active Storage endpoint.
     uploadPng: (name) => {
       const b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
       const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -102,8 +101,8 @@ function installTestHooks(collab) {
       editor.contents.uploadFiles([file], { selectLast: true });
       return "uploading";
     },
-    // The rendered image on the page for an uploaded attachment: its served
-    // src and whether the browser actually decoded pixels from it.
+    // The image rendered for an uploaded attachment: its src and whether the
+    // browser decoded it.
     renderedImage: () => {
       const img = editor.querySelector("[contenteditable] img, action-text-attachment img, img");
       if (!img) return null;
@@ -114,12 +113,12 @@ function installTestHooks(collab) {
       const json = JSON.stringify(editor.editor.getEditorState().toJSON());
       return [...json.matchAll(/"sgid":"([^"]+)"/g)].map((m) => m[1]);
     },
-    // The shared doc's root as XML, for asserting what actually synced.
+    // The shared doc's root as XML, for checking what synced.
     docRoot: () => (collab.doc?.share.get("root") ? collab.doc.share.get("root").toString() : ""),
-    // Insert a provisional upload node without starting DirectUpload (no
-    // uploadUrl). The default File exercises the Yjs exclusions across a
-    // re-bind. opts.orphan omits the File, staging the shared state a
-    // crashed uploader leaves behind.
+    // Inserts an upload node without starting DirectUpload, since it has no
+    // uploadUrl. By default the node has a File, which checks the Yjs
+    // exclusions after a rebind. opts.orphan leaves out the File, which matches
+    // what a crashed uploader leaves in the shared doc.
     insertUploadNode: (name, opts = {}) => {
       const lexical = editor.editor;
       let klass;
@@ -139,17 +138,18 @@ function installTestHooks(collab) {
         }, { discrete: true });
         return "ok";
       } catch (e) {
-        // A discrete update throws synchronously (yjs "Unexpected content
-        // type" when an excluded property leaks); record it where the e2e
-        // reads errors, since it never reaches console.error.
+        // A discrete update throws synchronously, for example with Yjs's
+        // "Unexpected content type" when an excluded property gets synced.
+        // The error never reaches console.error, so record it where the e2e
+        // reads errors.
         window.__errors.push("insertUploadNode: " + e.message);
         return "ERR: " + e.message;
       }
     },
-    // Lexxy's upload mutation listener flags the editor invalid while an
-    // upload node exists ("Please wait for all files to upload"). If the
-    // klass swap orphans that listener, the editor stays valid. The element
-    // is form-associated but doesn't proxy validationMessage, so ask
+    // Lexxy's upload mutation listener marks the editor invalid while an
+    // upload node exists ("Please wait for all files to upload"). If that
+    // listener stops firing, the editor stays valid. The element is
+    // form-associated but doesn't expose validationMessage, so ask
     // checkValidity().
     editorInvalidWhileUploading: () => {
       const el = document.querySelector("lexxy-editor");
@@ -165,9 +165,9 @@ function installTestHooks(collab) {
       setTimeout(() => parent.appendChild(c), 50);
       return "remounted";
     },
-    // A second, non-collaborative editor on the same page. Its registry
-    // holds the original attachment class; creating an attachment there
-    // exercises Lexical's class-identity assertion outside collaboration.
+    // A second editor on the same page with no collaboration. Creating an
+    // attachment in it runs Lexical's class identity check, which fails if
+    // collaboration changed the classes this editor registered.
     plainEditorAttachment: () => new Promise((resolve) => {
       const el = document.createElement("lexxy-editor");
       document.body.appendChild(el);
@@ -193,11 +193,12 @@ function installTestHooks(collab) {
       else el.addEventListener("lexxy:initialize", run, { once: true });
     }),
     peers: () =>
-      // @lexical/yjs stores presence identity at the top level (s.name), not s.user.
+      // @lexical/yjs stores the user's name at the top level of the awareness
+      // state, as s.name.
       [...(collab.awareness?.getStates().values() ?? [])].map((s) => s.name).filter(Boolean),
-    // Inspect the remote-cursor overlay @lexical/yjs renders: the names of peers
-    // with a visible caret, and the widest selection rect (a caret is ~0px wide;
-    // a real range selection is wider).
+    // Reads the remote cursor overlay @lexical/yjs renders. Returns the names
+    // of peers with a visible caret and the width of the widest selection
+    // rect. A caret is about 0px wide and a range selection is wider.
     cursors: () => {
       const c = document.querySelector(".lexxy-collab-cursors");
       if (!c) return { names: [], maxRectWidth: 0 };

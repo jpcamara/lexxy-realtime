@@ -1,10 +1,9 @@
-// The documented AnyCable client path, at runtime: YrbyProvider on an
-// AnyCable ActionCable-compat consumer against a real anycable-go gateway.
-// Documents converge through record-then-broadcast (RPC), and presence
-// travels AnyCable whispers: client to client through the gateway, never
-// touching the Ruby server. createConsumer comes from @anycable/core, the
-// class @anycable/web re-exports for browsers; node has no DOM, so the
-// core entry point is the one that runs here.
+// Runs YrbyProvider with an AnyCable consumer against a real anycable-go
+// gateway, as the README's AnyCable section describes. The RPC server stores
+// each document update and then broadcasts it. Presence goes out as AnyCable
+// whispers, which anycable-go relays between clients without calling the Ruby
+// server. createConsumer comes from @anycable/core. @anycable/web re-exports
+// it for browsers, but this test has no DOM, so it imports the core package.
 import * as Y from "yjs";
 import { createConsumer } from "@anycable/core";
 import { YrbyProvider } from "../../src/yrby_provider.js";
@@ -12,7 +11,7 @@ import { waitFor, sleep, resetDoc, check, done } from "./support.mjs";
 
 const WS = process.env.CABLE_URL;
 if (!WS) {
-  console.error("FAILED: anycable_client.mjs needs CABLE_URL (the anycable-go ws URL)");
+  console.error("FAILED: anycable_client.mjs needs CABLE_URL set to the anycable-go WebSocket URL");
   process.exit(1);
 }
 
@@ -31,25 +30,25 @@ const a = client("Ana");
 const b = client("Ben");
 
 await waitFor("both synced", () => a.provider.synced && b.provider.synced);
-check("both @anycable/web consumers synced through anycable-go", a.provider.synced && b.provider.synced);
+check("both AnyCable consumers synced through anycable-go", a.provider.synced && b.provider.synced);
 
 a.doc.getText("body").insert(0, "over anycable");
 await waitFor("b converges", () => b.text() === "over anycable");
-check("document update recorded and relayed through the gateway", b.text() === "over anycable");
+check("the document update was stored and relayed through the gateway", b.text() === "over anycable");
 
 await waitFor(
   "b sees Ana's presence",
   () => [...b.provider.awareness.getStates().values()].some((s) => s.name === "Ana")
 );
 check(
-  "presence reached the peer (awareness over AnyCable whisper)",
+  "presence reached the other client as an AnyCable whisper",
   [...b.provider.awareness.getStates().values()].some((s) => s.name === "Ana")
 );
 
 a.provider.destroy();
 await sleep(300);
 const benSeesAna = [...b.provider.awareness.getStates().values()].some((s) => s.name === "Ana");
-check("presence removal propagated on destroy", !benSeesAna);
+check("destroying a provider removes its presence from the other client", !benSeesAna);
 
 b.provider.destroy();
 done(`anycable client (room ${ROOM})`);

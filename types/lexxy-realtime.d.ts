@@ -1,7 +1,7 @@
-// Declarations for lexxy-realtime. The package source is plain JavaScript,
-// so this file is the type surface. YrbyProvider is yrby-client's
-// ActionCableProvider re-exported under this package's name, and its types
-// come from the yrby-client dependency the same way.
+// Type declarations for lexxy-realtime. The package source is plain
+// JavaScript, so its types live here. YrbyProvider is yrby-client's
+// ActionCableProvider exported under this package's name, and its types
+// come from yrby-client.
 
 export { ActionCableProvider as YrbyProvider } from "yrby-client";
 export type {
