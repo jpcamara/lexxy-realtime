@@ -59,10 +59,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   removed or undid a text node while another typed into it, and when a new
   text node was inserted at the start of an existing one. The element now
   keeps those characters, with the formatting and NodeState of the text
-  they came from when that's known. Ordinary remote changes go through
-  @lexical/yjs's own incremental update, and only these cases rebuild the
-  affected block from the shared document. Neither fix changes the Yjs
-  document format.
+  they came from when that's known. Each remote change rebuilds the
+  affected block's text nodes from the shared document. Neither fix changes
+  the Yjs document format.
 - An error while applying a remote update no longer leaves the editor out
   of sync without a trace. Yjs runs the apply inside `Y.applyUpdate`, and
   y-protocols catches and logs anything it throws. By then the document

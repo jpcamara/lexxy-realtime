@@ -38,19 +38,19 @@ export const reconciliationOrigin = Object.freeze({ name: 'lexxy-realtime reconc
 //   inside a transaction that was already open. The binding would add it to
 //   the cache a second time.
 //
-// This patch checks each delta first, without changing anything. Ordinary
-// deltas go to the binding's own incremental update. For the cases above it
-// rebuilds the element's children from the Y.XmlText value instead, and
-// gives text without a header a new header rather than deleting it. The
-// document format stays v1, and the patch only affects bindings created by
-// this package.
+// For bindings created by this package, the patch replaces the incremental
+// update. It rebuilds the element's children from the Y.XmlText value on
+// every remote change, and gives text without a header a new header rather
+// than deleting it. Rebuilding costs a little more than the incremental
+// update, but it doesn't depend on predicting how @lexical/yjs would apply
+// each delta. The document format stays v1.
 export function registerTextReconciliation(binding) {
   bindings.add(binding);
   const proto = binding.root.constructor.prototype;
   if (!patchedPrototypes.has(proto)) {
     const apply = proto.applyChildrenYjsDelta;
     proto.applyChildrenYjsDelta = function (current, deltas) {
-      if (!bindings.has(current) || !needsRebuild(this._children, deltas)) return apply.call(this, current, deltas);
+      if (!bindings.has(current)) return apply.call(this, current, deltas);
       rebuildChildren(this, current, deltas, apply);
     };
     const syncChildren = proto.syncChildrenFromYjs;
@@ -62,105 +62,6 @@ export function registerTextReconciliation(binding) {
     patchedPrototypes.add(proto);
   }
   return () => bindings.delete(binding);
-}
-
-// Runs the binding's incremental update on a copy of the children's sizes
-// and returns true if it would delete text without a header, misplace
-// characters, or cache a header twice. The copy follows
-// getPositionFromElementAndOffset and applyChildrenYjsDelta in @lexical/yjs
-// 0.44.
-function needsRebuild(children, deltas) {
-  const runs = children.map(child => (typeof child._text === 'string'
-    ? { child, text: child._text.length, header: child._normalized ? 0 : 1 }
-    : { child, text: -1, header: 1 }));
-  let index = 0;
-  let splitText = null;
-  for (const delta of deltas) {
-    const { insert } = delta;
-    // Text split off by an embed must be followed by a text header inserted
-    // with it. Otherwise it has no header.
-    if (splitText !== null && (insert == null || typeof insert !== 'object')) return true;
-    if (delta.retain != null) {
-      index += delta.retain;
-    } else if (typeof delta.delete === 'number') {
-      let remaining = delta.delete;
-      while (remaining > 0) {
-        const { run, at, offset, length } = runAt(runs, index, false);
-        if (!run) return true;
-        if (run.text < 0) {
-          runs.splice(at, 1);
-          remaining -= 1;
-          continue;
-        }
-        const count = Math.min(remaining, length);
-        if (offset === 0 && length === sizeOf(run)) {
-          // The header is deleted. Characters after it survive only if a
-          // text node precedes them.
-          const dangling = Math.max(0, run.text - (count - 1));
-          if (dangling > 0) {
-            const previous = runs[at - 1];
-            if (!previous || previous.text < 0) return true;
-            previous.text += dangling;
-          }
-          runs.splice(at, 1);
-        } else {
-          run.text -= count;
-        }
-        remaining -= count;
-      }
-    } else if (typeof insert === 'string') {
-      // Characters belong to a text node only when they follow its header.
-      const { run, length } = runAt(runs, index, true);
-      if (!run || run.text < 0 || length >= sizeOf(run)) return true;
-      run.text += insert.length;
-      index += insert.length;
-    } else if (insert != null) {
-      const type = sharedTypeOf(insert);
-      if (typeof type !== 'string') return true;
-      const cached = insert._collabNode;
-      if (cached !== undefined && runs.some(run => run.child === cached)) return true;
-      const text = insert instanceof YMap && type !== 'linebreak' ? (cached?._text.length ?? 0) : -1;
-      const entry = { child: cached, text, header: 1 };
-      const { run, at, length } = runAt(runs, index, false);
-      if (run && run.text >= 0 && length > 0 && length <= run.text) {
-        // The binding only splits when the embed lands after the run's
-        // first character. Directly after the header, it caches the embed in
-        // front of the run while Yjs gives the run's characters to the embed.
-        if (length === run.text) return true;
-        run.text -= length;
-        runs.splice(at + 1, 0, entry);
-        splitText = length;
-      } else {
-        runs.splice(at, 0, entry);
-      }
-      if (splitText !== null && entry.text >= 0) {
-        entry.text += splitText;
-        splitText = null;
-      }
-      index += 1;
-    } else {
-      return true;
-    }
-  }
-  return splitText !== null;
-}
-
-function sizeOf(run) {
-  return run.text < 0 ? 1 : run.text + run.header;
-}
-
-function runAt(runs, offset, boundaryIsEdge) {
-  let end = 0;
-  for (let at = 0; at < runs.length; at++) {
-    const run = runs[at];
-    const start = end;
-    end += sizeOf(run);
-    if ((boundaryIsEdge ? end >= offset : end > offset) && run.text >= 0) {
-      return { run, at, offset: Math.max(offset - start - 1, 0), length: end - offset };
-    }
-    if (end > offset) return { run, at, offset: start, length: 0 };
-  }
-  return { run: null, at: runs.length, offset: 0, length: 0 };
 }
 
 function sharedTypeOf(sharedType) {
