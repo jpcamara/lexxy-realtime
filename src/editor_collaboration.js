@@ -12,7 +12,7 @@ import { YrbyProvider } from './yrby_provider';
 import { attachmentExclusions, patchCollabElementSplice } from './attachment_sync';
 import { registerUploadCleanup } from './upload_cleanup';
 import { registerCursorTheme } from './cursor_theme';
-import { registerTextReconciliation, syncEditorUpdate } from './text_reconciliation';
+import { registerTextReconciliation, syncEditorUpdate, reconciliationOrigin } from './text_reconciliation';
 import { registerSelectionNormalization } from './selection_normalization';
 
 // One shared Action Cable consumer for every element that isn't handed one.
@@ -292,7 +292,8 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
 export function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
   let desynced = false;
   return (events, transaction) => {
-    if (transaction.origin === binding) return;
+    // Skip changes this binding wrote, including text reconciliation.
+    if (transaction.origin === binding || transaction.origin === reconciliationOrigin) return;
     if (desynced) return;
     try {
       sync(binding, provider, events, false);

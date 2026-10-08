@@ -15642,46 +15642,166 @@ function registerCursorTheme(editor) {
 //#region src/text_reconciliation.js
 const bindings = /* @__PURE__ */ new WeakSet();
 const patchedPrototypes = /* @__PURE__ */ new WeakSet();
+const repairs = /* @__PURE__ */ new WeakSet();
+const elementsWithRepairs = /* @__PURE__ */ new WeakSet();
+const reconciliationOrigin = Object.freeze({ name: "lexxy-realtime reconciliation" });
 function registerTextReconciliation(binding) {
 	bindings.add(binding);
 	const proto = binding.root.constructor.prototype;
 	if (!patchedPrototypes.has(proto)) {
 		const apply = proto.applyChildrenYjsDelta;
 		proto.applyChildrenYjsDelta = function(current, deltas) {
-			if (!bindings.has(current)) return apply.call(this, current, deltas);
-			let snapshot = this._xmlText.toDelta();
-			const sources = survivingTextSources(this._children, deltas);
-			let previousIsText = false;
-			let offset = 0;
-			let added = 0;
-			for (const { insert } of snapshot) if (typeof insert === "string") {
-				if (!previousIsText && insert.length) {
-					const replacement = textHeader(current, sources.get(offset));
-					current.doc.transact(() => this._xmlText.insertEmbed(offset + added, replacement), current);
-					added++;
-					previousIsText = true;
-				}
-				offset += insert.length;
-			} else {
-				previousIsText = insert instanceof YMap && insert.get("__type") !== "linebreak";
-				offset++;
-			}
-			if (added) snapshot = this._xmlText.toDelta();
-			this._children = [];
-			for (const { insert } of snapshot) {
-				const child = typeof insert === "object" && insert._collabNode;
-				if (child && typeof child._text === "string") {
-					child._text = "";
-					child._normalized = false;
-				}
-			}
-			return apply.call(this, current, snapshot);
+			if (!bindings.has(current) || !needsRebuild(this._children, deltas)) return apply.call(this, current, deltas);
+			rebuildChildren(this, current, deltas, apply);
+		};
+		const syncChildren = proto.syncChildrenFromYjs;
+		proto.syncChildrenFromYjs = function(current) {
+			const result = syncChildren.call(this, current);
+			if (bindings.has(current)) releaseEmptyRepairs(this);
+			return result;
 		};
 		patchedPrototypes.add(proto);
 	}
 	return () => bindings.delete(binding);
 }
+function needsRebuild(children, deltas) {
+	const runs = children.map((child) => typeof child._text === "string" ? {
+		child,
+		text: child._text.length,
+		header: child._normalized ? 0 : 1
+	} : {
+		child,
+		text: -1,
+		header: 1
+	});
+	let index = 0;
+	let splitText = null;
+	for (const delta of deltas) {
+		const { insert } = delta;
+		if (splitText !== null && (insert == null || typeof insert !== "object")) return true;
+		if (delta.retain != null) index += delta.retain;
+		else if (typeof delta.delete === "number") {
+			let remaining = delta.delete;
+			while (remaining > 0) {
+				const { run, at, offset, length } = runAt(runs, index, false);
+				if (!run) return true;
+				if (run.text < 0) {
+					runs.splice(at, 1);
+					remaining -= 1;
+					continue;
+				}
+				const count = Math.min(remaining, length);
+				if (offset === 0 && length === sizeOf(run)) {
+					const dangling = Math.max(0, run.text - (count - 1));
+					if (dangling > 0) {
+						const previous = runs[at - 1];
+						if (!previous || previous.text < 0) return true;
+						previous.text += dangling;
+					}
+					runs.splice(at, 1);
+				} else run.text -= count;
+				remaining -= count;
+			}
+		} else if (typeof insert === "string") {
+			const { run, length } = runAt(runs, index, true);
+			if (!run || run.text < 0 || length >= sizeOf(run)) return true;
+			run.text += insert.length;
+			index += insert.length;
+		} else if (insert != null) {
+			const type = sharedTypeOf(insert);
+			if (typeof type !== "string") return true;
+			const cached = insert._collabNode;
+			if (cached !== void 0 && runs.some((run) => run.child === cached)) return true;
+			const entry = {
+				child: cached,
+				text: insert instanceof YMap && type !== "linebreak" ? cached?._text.length ?? 0 : -1,
+				header: 1
+			};
+			const { run, at, length } = runAt(runs, index, false);
+			if (run && run.text >= 0 && length > 0 && length <= run.text) {
+				if (length === run.text) return true;
+				run.text -= length;
+				runs.splice(at + 1, 0, entry);
+				splitText = length;
+			} else runs.splice(at, 0, entry);
+			if (splitText !== null && entry.text >= 0) {
+				entry.text += splitText;
+				splitText = null;
+			}
+			index += 1;
+		} else return true;
+	}
+	return splitText !== null;
+}
+function sizeOf(run) {
+	return run.text < 0 ? 1 : run.text + run.header;
+}
+function runAt(runs, offset, boundaryIsEdge) {
+	let end = 0;
+	for (let at = 0; at < runs.length; at++) {
+		const run = runs[at];
+		const start = end;
+		end += sizeOf(run);
+		if ((boundaryIsEdge ? end >= offset : end > offset) && run.text >= 0) return {
+			run,
+			at,
+			offset: Math.max(offset - start - 1, 0),
+			length: end - offset
+		};
+		if (end > offset) return {
+			run,
+			at,
+			offset: start,
+			length: 0
+		};
+	}
+	return {
+		run: null,
+		at: runs.length,
+		offset: 0,
+		length: 0
+	};
+}
+function sharedTypeOf(sharedType) {
+	return sharedType instanceof YMap ? sharedType.get("__type") : sharedType.getAttribute?.("__type");
+}
+function rebuildChildren(element, binding, deltas, apply) {
+	const sources = survivingTextSources(element._children, deltas);
+	const xmlText = element._xmlText;
+	let snapshot = xmlText.toDelta();
+	const headers = [];
+	let previousIsText = false;
+	let offset = 0;
+	for (const { insert } of snapshot) if (typeof insert === "string") {
+		if (!previousIsText && insert.length) {
+			const header = textHeader(binding, sources.get(offset));
+			binding.doc.transact(() => xmlText.insertEmbed(offset + headers.length, header), reconciliationOrigin);
+			headers.push(header);
+			previousIsText = true;
+		}
+		offset += insert.length;
+	} else {
+		const type = sharedTypeOf(insert);
+		previousIsText = insert instanceof YMap && typeof type === "string" && type !== "linebreak";
+		offset++;
+	}
+	if (headers.length) snapshot = xmlText.toDelta();
+	snapshot = snapshot.filter(({ insert }) => typeof insert === "string" || typeof sharedTypeOf(insert) === "string");
+	element._children = [];
+	for (const { insert } of snapshot) {
+		const child = typeof insert === "object" && insert._collabNode;
+		if (child && typeof child._text === "string") {
+			child._text = "";
+			child._normalized = false;
+		}
+	}
+	apply.call(element, binding, snapshot);
+	for (const header of headers) if (header._collabNode) repairs.add(header._collabNode);
+	if (headers.length) elementsWithRepairs.add(element);
+}
 function survivingTextSources(children, deltas) {
+	const sources = /* @__PURE__ */ new Map();
+	if (!deltas.some((delta) => delta.delete != null)) return sources;
 	const ranges = [];
 	let end = 0;
 	for (const child of children) {
@@ -15693,7 +15813,6 @@ function survivingTextSources(children, deltas) {
 			child
 		});
 	}
-	const sources = /* @__PURE__ */ new Map();
 	let before = 0;
 	let after = 0;
 	for (const delta of deltas) if (delta.retain != null) {
@@ -15716,11 +15835,26 @@ function textHeader(binding, source) {
 	if (state && Object.keys(state).length) header.set("__state", new YMap(Object.entries(state)));
 	return header;
 }
+function releaseEmptyRepairs(element) {
+	if (!elementsWithRepairs.has(element)) return;
+	elementsWithRepairs.delete(element);
+	const children = element._children;
+	for (let i = 0; i < children.length; i++) {
+		const child = children[i];
+		if (!repairs.has(child)) continue;
+		if (child._text === "" && typeof children[i + 1]?._text === "string") {
+			repairs.delete(child);
+			const node = child.getNode();
+			if (node?.isUnmergeable()) node.toggleUnmergeable();
+		} else elementsWithRepairs.add(element);
+	}
+}
 function syncEditorUpdate(binding, provider, update) {
 	const { editorState, prevEditorState, dirtyElements, dirtyLeaves, tags } = update;
+	const remote = tags.has(COLLABORATION_TAG) || tags.has(HISTORIC_TAG);
 	let { normalizedNodes } = update;
-	editorState.read(() => {
-		if (tags.has(COLLABORATION_TAG) || tags.has(HISTORIC_TAG)) for (const key of dirtyElements.keys()) {
+	const sync = () => editorState.read(() => {
+		if (remote) for (const key of dirtyElements.keys()) {
 			const parent = key === "root" ? binding.root : binding.collabNodeMap.get(key);
 			for (const child of parent?._children || []) if (child._text === "" && $getNodeByKey(child._key) === null) {
 				if (normalizedNodes === update.normalizedNodes) normalizedNodes = new Set(normalizedNodes);
@@ -15729,13 +15863,20 @@ function syncEditorUpdate(binding, provider, update) {
 		}
 		syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags);
 	});
+	if (remote) binding.doc.transact(sync, reconciliationOrigin);
+	else sync();
 }
 //#endregion
 //#region src/selection_normalization.js
 function registerSelectionNormalization(editor) {
 	return editor.registerCommand(CONTROLLED_TEXT_INSERTION_COMMAND, () => {
 		const selection = $getSelection();
-		if ($isRangeSelection(selection) && selection.isCollapsed()) $normalizeSelection__EXPERIMENTAL(selection);
+		if ($isRangeSelection(selection) && selection.isCollapsed() && selection.anchor.type === "element") {
+			const element = selection.anchor.getNode();
+			const offset = selection.anchor.offset;
+			const child = element.getChildAtIndex(offset === element.getChildrenSize() ? offset - 1 : offset);
+			if ($isTextNode(child) && child.isSimpleText() && !child.isUnmergeable()) $normalizeSelection__EXPERIMENTAL(selection);
+		}
 		return false;
 	}, COMMAND_PRIORITY_HIGH);
 }
@@ -15901,7 +16042,7 @@ function bootstrapWhenSynced(editor, provider, binding, initialEditorState) {
 function createRemoteApplier(provider, binding, { onDesync, sync = syncYjsChangesToLexical } = {}) {
 	let desynced = false;
 	return (events, transaction) => {
-		if (transaction.origin === binding) return;
+		if (transaction.origin === binding || transaction.origin === reconciliationOrigin) return;
 		if (desynced) return;
 		try {
 			sync(binding, provider, events, false);

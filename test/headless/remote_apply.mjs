@@ -2,6 +2,7 @@
 // of letting y-protocols swallow it. It reports once per binding and stops
 // applying after the first failure. No server needed.
 import { createRemoteApplier } from "../../src/editor_collaboration.js";
+import { reconciliationOrigin } from "../../src/text_reconciliation.js";
 import { check, done } from "./support.mjs";
 
 const binding = { root: { getSharedType: () => ({}) } };
@@ -26,6 +27,13 @@ const fail = () => { throw new Error("apply blew up"); };
   const applier = createRemoteApplier(provider, binding, { sync: (...args) => calls.push(args) });
   applier(["events"], local);
   check("skips events from this binding", calls.length === 0);
+}
+
+{
+  const calls = [];
+  const applier = createRemoteApplier(provider, binding, { sync: (...args) => calls.push(args) });
+  applier(["events"], { origin: reconciliationOrigin });
+  check("skips events from text reconciliation", calls.length === 0);
 }
 
 {
