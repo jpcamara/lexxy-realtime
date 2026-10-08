@@ -187,9 +187,10 @@ const scenarios = {
     write(editor, "FROM YRBY MODE");
     await until(() => !yrbyDocument.session.hasPending, "acknowledged");
     const stored = (await serverRoot(`${grant}:body`)).includes("FROM YRBY MODE");
+    const displayContents = getComputedStyle(yrbyDocument).display === "contents";
     yrbyDocument.remove();
     await sleep(50);
-    return { sameResources, stored, unbound: !element.binding };
+    return { sameResources, stored, displayContents, unbound: !element.binding };
   },
 
   // A move within one turn keeps the session. Moving the whole

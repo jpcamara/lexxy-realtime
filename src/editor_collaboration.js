@@ -10,7 +10,7 @@ import { Doc } from 'yjs';
 import { YrbyDocumentElement } from 'yrby-client/element';
 import { attachmentExclusions, patchCollabElementSplice } from './attachment_sync';
 import { registerUploadCleanup } from './upload_cleanup';
-import { registerCursorTheme } from './cursor_theme';
+import { registerCursorTheme, injectStyles } from './cursor_theme';
 import { registerTextReconciliation, syncEditorUpdate, reconciliationOrigin } from './text_reconciliation';
 import { registerSelectionNormalization } from './selection_normalization';
 
@@ -123,6 +123,7 @@ export class Collaboration extends Base {
   }
 
   connectedCallback() {
+    injectStyles();
     const editorElement = this.closest('lexxy-editor');
     if (!editorElement) {
       console.error('<lexxy-collaboration> must be placed inside a <lexxy-editor>.');

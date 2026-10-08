@@ -47,6 +47,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The element renders a doc's existing content when it binds, and moving
   it within one turn keeps its binding. An element that replaces it in the
   same turn, for example through a Turbo Stream, takes the document over.
+- The package stylesheet sets `yrby-document { display: contents }`, so the
+  element around the editor doesn't change form layout. The element
+  injects it, and it is in `lexxy-realtime.css` for apps that load the
+  file.
 - `@rails/actioncable` is a dependency of the npm package, because
   `<yrby-document>` loads it for its default consumer.
 - **Breaking:** `lexxy_realtime:install` no longer generates

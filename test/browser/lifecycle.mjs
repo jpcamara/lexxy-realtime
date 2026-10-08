@@ -74,6 +74,7 @@ const scenarios = [
   ["yrbySession", [
     ["binds to the <yrby-document> session's doc and provider", "r.sameResources === true"],
     ["edits reach the server through the session", "r.stored === true"],
+    ["<yrby-document> doesn't create a box of its own", "r.displayContents === true"],
     ["removing the <yrby-document> unbinds the editor", "r.unbound === true"],
   ]],
   ["sameTurnMove", [

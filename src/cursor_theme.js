@@ -4,7 +4,8 @@
 // With one, it applies the theme's class names instead and exposes each
 // peer's color as `--lexical-cursor-color`. These rules build on Lexxy's
 // design tokens, so a customized Lexxy theme carries into the
-// collaboration UI.
+// collaboration UI. The stylesheet also holds the one layout rule the
+// package needs for <yrby-document>.
 //
 // The same rules also ship as a real stylesheet (dist/lexxy-realtime.css
 // on npm, lexxy_realtime.css in the gem) for apps whose
@@ -13,6 +14,13 @@
 // way.
 
 export const CURSOR_CSS = `
+/* <yrby-document> only groups the editor with its session. Custom
+   elements are inline by default, which would wrap the editor in an inline
+   box and can change form layout, so it renders no box of its own. */
+yrby-document {
+  display: contents;
+}
+
 .lexxy-collab-cursor {
   background-color: var(--lexical-cursor-color);
   width: 2px;
@@ -59,10 +67,16 @@ export function registerCursorTheme(editor) {
     selection: 'lexxy-collab-selection',
     selectionBg: 'lexxy-collab-selection__bg',
   };
+}
 
+// Adds the stylesheet to the page once, unless the app loads the file.
+// <lexxy-collaboration> calls this when it connects, so the
+// <yrby-document> rule applies before the first sync.
+export function injectStyles() {
+  if (document.getElementById('lexxy-realtime-cursor-styles')) return;
   const fromFile = getComputedStyle(document.documentElement)
     .getPropertyValue('--lexxy-realtime-cursor-styles').trim() !== '';
-  if (fromFile || document.getElementById('lexxy-realtime-cursor-styles')) return;
+  if (fromFile) return;
 
   const style = document.createElement('style');
   style.id = 'lexxy-realtime-cursor-styles';
