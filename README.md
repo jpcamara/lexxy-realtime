@@ -311,6 +311,11 @@ already fired. When the session's signal aborts, the element unbinds the
 editor. It never destroys the doc or provider, and never disconnects the
 consumer, because the session owns them.
 
+`<yrby-document>` keeps the editor inert until its session first syncs, so
+nobody types into a document that can't sync yet. A rejected grant with no
+`refresh` URL, or a refresh that fails, makes the editor inert until the
+next page render.
+
 `<yrby-document>` keeps the session alive while edits are waiting for the
 server, so removing the editor doesn't lose them. Moving the editor within
 one turn keeps the same session. A rejected grant with a `refresh` URL is

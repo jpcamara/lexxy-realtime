@@ -1,5 +1,6 @@
-// Registers <yrby-document>, which <lexxy-collaboration> binds to.
-import 'yrby-client/element';
+// editor_collaboration.js imports yrby-client/element, so importing the
+// package also registers <yrby-document>, which <lexxy-collaboration>
+// binds to.
 import { Collaboration } from './editor_collaboration.js';
 
 export { Collaboration, setConsumer } from './editor_collaboration.js';

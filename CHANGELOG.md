@@ -22,7 +22,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `record.collaborative_rich_text_grant(:body, expires_in:)` returns the
   grant the form helper renders, for refresh actions.
 - The `lexxy-realtime:desync` event and the element's `doc`, `provider`,
-  and `awareness` properties are in the TypeScript declarations.
+  `awareness`, and `binding` properties are in the TypeScript declarations.
 - `has_collaborative_rich_text` takes `nodes:`, the `Y::Lexxy` render rules
   for the app's custom Lexical nodes. Without a rule, a custom node can
   disappear from the stored HTML while the editors still show it.

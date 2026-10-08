@@ -13,6 +13,7 @@ export type {
 } from "yrby-client";
 
 import type { CableConsumer } from "yrby-client";
+import type { Binding } from "@lexical/yjs";
 import type { Doc } from "yjs";
 import type { Awareness } from "y-protocols/awareness";
 
@@ -63,6 +64,8 @@ export declare class Collaboration extends HTMLElement {
   set provider(provider: CollaborationProvider | null | undefined);
   /** The bound provider's Awareness, while the editor is bound. */
   get awareness(): Awareness | undefined;
+  /** The @lexical/yjs binding, while the editor is bound. */
+  get binding(): Binding | undefined;
   connectedCallback(): void;
   disconnectedCallback(): void;
 }

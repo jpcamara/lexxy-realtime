@@ -187,6 +187,11 @@ lifetime in the first place.
 Without `refresh:`, an editor whose grant has expired stops syncing at its
 next reconnect and starts again after the page reloads.
 
+While a grant is rejected and not renewed, `<yrby-document>` makes the
+editor inert, so nobody types into a document that can't sync. The editor
+is also inert before the first sync, while the page can't reach the
+server.
+
 ## Configuration
 
 ```ruby

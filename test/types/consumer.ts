@@ -38,6 +38,8 @@ element.doc = new Y.Doc();
 element.provider = provider;
 const bound: Y.Doc | null = element.doc;
 void bound;
+const binding = element.binding;
+void binding?.root;
 element.addEventListener("lexxy-realtime:desync", (event) => {
   const detail: DesyncDetail = event.detail;
   const recovering: boolean = detail.recovering;
