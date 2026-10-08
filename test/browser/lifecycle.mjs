@@ -89,6 +89,13 @@ const scenarios = [
     ["a same-turn replacement logs no refusal", "r.noRefusal === true"],
     ["a second element is refused while the owner is connected", "r.refused === true"],
   ]],
+  ["editorRebuild", [
+    ["toggling `connected` rebuilds Lexxy's editor", "r.rebuilt === true"],
+    ["the element binds the rebuilt editor", "r.rebound === true"],
+    ["the rebuilt editor shows the document", "r.keptText === true"],
+    ["edits in the rebuilt editor reach the server", "r.stored === true"],
+    ["a second rebuild binds again", "r.round2 === true"],
+  ]],
   ["removalKeepsPending", [
     ["a removed editor's session keeps its pending edits", "r.keptWhileRemoved === true"],
     ["the pending edit reaches the server after removal", "r.stored === true"],

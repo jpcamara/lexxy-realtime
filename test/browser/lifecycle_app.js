@@ -281,6 +281,35 @@ const scenarios = {
     return result;
   },
 
+  // Lexxy rebuilds its Lexical editor without disconnecting its children
+  // when its `connected` attribute changes, as a Turbo 8 morph does, and
+  // dispatches lexxy:initialize again. The element binds the new editor.
+  async editorRebuild() {
+    const grant = uid("lc-rebuild");
+    const { yrbyDocument, editor, element } = await mount({ grant });
+    let expected = "BEFORE MORPH";
+    write(editor, expected);
+    await settled(() => !yrbyDocument.session.hasPending);
+    const result = {};
+    for (const round of [1, 2]) {
+      const lexical = editor.editor;
+      const binding = element.binding;
+      editor.removeAttribute("connected");
+      const rebuilt = await settled(() => editor.editor && editor.editor !== lexical);
+      const rebound = await settled(() => element.binding && element.binding !== binding && element.binding.editor === editor.editor);
+      const keptText = text(editor) === expected;
+      expected = `AFTER MORPH ${round}`;
+      write(editor, expected);
+      await settled(() => !yrbyDocument.session.hasPending);
+      const stored = (await serverRoot(`${grant}:body`)).includes(expected);
+      result[`round${round}`] = rebuilt && rebound && keptText && stored;
+      if (round === 1) Object.assign(result, { rebuilt, rebound, keptText, stored });
+    }
+    yrbyDocument.remove();
+    await sleep(50);
+    return result;
+  },
+
   // Removing the editor keeps unacknowledged edits delivering. The session
   // closes once the server acknowledges them.
   async removalKeepsPending() {

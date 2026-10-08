@@ -58,7 +58,6 @@ export class Collaboration extends Base {
   #hostProvider = null;
   #editorElement = null;
   #yrbyDocument = null;
-  #cancelWait = null;
   #bound = null;
   #lastRecoveryAt = 0;
   #recoveryTimer = null;
@@ -113,6 +112,7 @@ export class Collaboration extends Base {
 
     this.#stop();
     this.#editorElement = editorElement;
+    editorElement.addEventListener('lexxy:initialize', this.#onInitialize);
     if (!this.#hostProvider) {
       if (!yrbyDocument) {
         console.error(
@@ -137,18 +137,17 @@ export class Collaboration extends Base {
     if (event.target === this.#yrbyDocument) this.#start();
   };
 
+  // Lexxy dispatches lexxy:initialize once its editor is ready. It also
+  // builds a new Lexical editor without disconnecting its children, for
+  // example when a Turbo morph changes its `connected` attribute, and
+  // dispatches the event again. #start binds whichever editor is current.
+  #onInitialize = () => this.#start();
+
   #start() {
-    if (this.#cancelWait || !this.isConnected) return;
-    const editorElement = this.#editorElement;
-    if (!editorElement.editor) {
-      const onInitialize = () => {
-        this.#cancelWait = null;
-        this.#start();
-      };
-      editorElement.addEventListener('lexxy:initialize', onInitialize, { once: true });
-      this.#cancelWait = () => editorElement.removeEventListener('lexxy:initialize', onInitialize);
-      return;
-    }
+    if (!this.isConnected || !this.#editorElement) return;
+    const editor = this.#editorElement.editor;
+    if (!editor) return;
+    if (this.#bound && this.#bound.editor !== editor) this.#unbind();
 
     if (this.#hostProvider) {
       if (this.#bound) return;
@@ -160,14 +159,13 @@ export class Collaboration extends Base {
     // Wait for the next yrby:synced when the <yrby-document> has no live session.
     const synced = syncedSessions.get(this.#yrbyDocument);
     if (!synced || synced.signal.aborted) return;
-    if (this.#bound?.synced === synced && this.#bound.editor === editorElement.editor) return;
+    if (this.#bound?.synced === synced) return;
     this.#unbind();
     this.#bind(synced.doc, synced.provider, synced);
   }
 
   #stop() {
-    this.#cancelWait?.();
-    this.#cancelWait = null;
+    this.#editorElement?.removeEventListener('lexxy:initialize', this.#onInitialize);
     this.#yrbyDocument?.removeEventListener('yrby:synced', this.#onSynced);
     this.#yrbyDocument = null;
     this.#editorElement = null;

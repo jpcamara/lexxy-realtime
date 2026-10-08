@@ -100,6 +100,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   15 seconds, and a failure inside that window waits for it to end. With a
   host-supplied document it only dispatches the event, and the host
   recreates the element to recover.
+- When Lexxy builds a new Lexical editor without disconnecting its
+  children, as it does when a Turbo morph changes its `connected`
+  attribute, the element binds the new editor, so its edits sync.
 
 ## [0.7.1] - 2026-10-03
 
