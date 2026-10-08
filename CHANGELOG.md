@@ -44,7 +44,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   a function argument right away. The per-element `consumer` property is
   gone.
 - The element renders a doc's existing content when it binds, and moving
-  it within one turn keeps its binding.
+  it within one turn keeps its binding. An element that replaces it in the
+  same turn, for example through a Turbo Stream, takes the document over.
 - `@rails/actioncable` is a dependency of the npm package, because
   `<yrby-document>` loads it for its default consumer.
 - **Breaking:** `lexxy_realtime:install` no longer generates

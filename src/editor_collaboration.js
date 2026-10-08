@@ -191,9 +191,15 @@ export class Collaboration extends Base {
   #bind(doc, provider, synced) {
     const editorElement = this.#editorElement;
     const editor = editorElement.editor;
-    if (boundDocs.has(doc)) {
-      console.error('<lexxy-collaboration>: this Y.Doc is already bound to another editor.');
-      return;
+    const owner = boundDocs.get(doc);
+    if (owner) {
+      if (owner.isConnected) {
+        console.error('<lexxy-collaboration>: this Y.Doc is already bound to another editor.');
+        return;
+      }
+      // An element that replaced the owner in the same turn connects
+      // before the owner's disconnect microtask releases the doc.
+      owner.#unbind();
     }
 
     // The Yjs document id, used as the @lexical/yjs binding key.

@@ -76,6 +76,16 @@ async function until(condition, label, ms = 10000) {
     await sleep(25);
   }
 }
+// Like until, but reports a timeout as false so a scenario can still
+// return its other results.
+async function settled(condition, ms = 5000) {
+  try {
+    await until(condition, "settled", ms);
+    return true;
+  } catch {
+    return false;
+  }
+}
 const uid = (prefix) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 function text(editor) {
@@ -148,6 +158,13 @@ async function makeEditor() {
   return editor;
 }
 
+function collabFor(grant) {
+  const element = document.createElement("lexxy-collaboration");
+  element.setAttribute("doc-id", grant);
+  element.setAttribute("name", "LC");
+  return element;
+}
+
 function hostCollab(room) {
   const doc = new Y.Doc();
   const provider = new YrbyProvider(doc, consumer, "DocumentChannel", { id: room });
@@ -202,6 +219,66 @@ const scenarios = {
     container.remove();
     await sleep(50);
     return { elementMoveKeptBinding, sameSession, keptText, editsReachDoc };
+  },
+
+  // Replacing an editor or element in one turn (replaceWith, Turbo
+  // Streams) connects the new element before the old one's disconnect
+  // microtask runs. The new element takes the doc over from the
+  // disconnected one. A second element whose owner is still connected is
+  // refused.
+  async sameTurnReplace() {
+    const loggedBefore = logged.length;
+
+    // Replace only the element, inside the same editor.
+    const a = await mount({ grant: uid("lc-replace-element") });
+    write(a.editor, "BEFORE REPLACE");
+    const replacement = collabFor(a.element.getAttribute("doc-id"));
+    a.element.replaceWith(replacement);
+    const elementReplaced = await settled(() => replacement.binding && replacement.doc === a.yrbyDocument.doc);
+    const oldUnbound = !a.element.binding;
+    if (elementReplaced) write(a.editor, "AFTER ELEMENT REPLACE");
+    await settled(() => !a.yrbyDocument.session.hasPending);
+    const elementEditStored = (await serverRoot(`${a.element.getAttribute("doc-id")}:body`)).includes("AFTER ELEMENT REPLACE");
+    a.yrbyDocument.remove();
+
+    // Replace the whole editor, with a new element inside it.
+    const grant = uid("lc-replace-editor");
+    const b = await mount({ grant });
+    write(b.editor, "BEFORE EDITOR REPLACE");
+    const replacementEditor = document.createElement("lexxy-editor");
+    const second = collabFor(grant);
+    replacementEditor.appendChild(second);
+    b.editor.replaceWith(replacementEditor);
+    const editorReplaced = await settled(() => second.binding && second.doc === b.yrbyDocument.doc);
+    const keptText = editorReplaced && text(replacementEditor) === "BEFORE EDITOR REPLACE";
+    if (editorReplaced) write(replacementEditor, "AFTER EDITOR REPLACE");
+    await settled(() => !b.yrbyDocument.session.hasPending);
+    const editorEditStored = (await serverRoot(`${grant}:body`)).includes("AFTER EDITOR REPLACE");
+
+    // A second element while the owner is still connected.
+    const refusedBefore = logged.length;
+    const otherEditor = document.createElement("lexxy-editor");
+    const other = collabFor(grant);
+    otherEditor.appendChild(other);
+    b.yrbyDocument.appendChild(otherEditor);
+    await sleep(300);
+    const refused =
+      !other.binding &&
+      !!second.binding &&
+      logged.slice(refusedBefore).some((m) => m.includes("already bound"));
+
+    const result = {
+      elementReplaced,
+      oldUnbound,
+      editorReplaced,
+      keptText,
+      editsSync: elementEditStored && editorEditStored,
+      noRefusal: !logged.slice(loggedBefore, refusedBefore).some((m) => m.includes("already bound")),
+      refused,
+    };
+    b.yrbyDocument.remove();
+    await sleep(50);
+    return result;
   },
 
   // Removing the editor keeps unacknowledged edits delivering. The session

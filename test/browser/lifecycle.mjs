@@ -80,6 +80,15 @@ const scenarios = [
     ["moving the <yrby-document> keeps the content", "r.keptText === true"],
     ["edits after the move reach the doc", "r.editsReachDoc === true"],
   ]],
+  ["sameTurnReplace", [
+    ["replacing the element in one turn binds the new element", "r.elementReplaced === true"],
+    ["the replaced element is unbound", "r.oldUnbound === true"],
+    ["replacing the editor in one turn binds the new editor to the doc", "r.editorReplaced === true"],
+    ["the new editor shows the document", "r.keptText === true"],
+    ["edits after each replacement reach the server", "r.editsSync === true"],
+    ["a same-turn replacement logs no refusal", "r.noRefusal === true"],
+    ["a second element is refused while the owner is connected", "r.refused === true"],
+  ]],
   ["removalKeepsPending", [
     ["a removed editor's session keeps its pending edits", "r.keptWhileRemoved === true"],
     ["the pending edit reaches the server after removal", "r.stored === true"],
