@@ -1,8 +1,9 @@
 // The gem's import-map assets driving the real stack with no bundler:
-// the static importmap.html page pins lexical, @37signals/lexxy, and
-// lexxy-realtime to the built files. Proves the three-bundle split
-// shares one lexical (an attachment created through the pins lands on
-// the peer) and syncs both ways.
+// the static importmap.html page pins @37signals/lexxy, lexxy-realtime,
+// yrby-client, yjs, and @rails/actioncable to the built files, the way
+// the install generator does. Proves the split shares one lexical (an
+// attachment created through the pins lands on the peer), one yrby-client,
+// and one yjs, and syncs both ways.
 import { execFileSync } from "node:child_process";
 
 const PORT = process.env.PORT || 4111;
@@ -68,6 +69,10 @@ check(
   "attachment materialized on the peer",
   await waitEval("imb", 'window.__test.attachmentSgids().includes("IMAP-SGID-1")', "attachment to ben")
 );
+
+check("one yrby-client copy on the page", /\btrue\b/.test(ab("ima", "eval", "window.__test.oneYrbyClient()")));
+check("setConsumer sets the registered element's consumer", /\btrue\b/.test(ab("ima", "eval", "window.__test.setConsumerReachesElement()")));
+check("one yjs copy on the page", /\btrue\b/.test(ab("ima", "eval", "window.__test.oneYjs()")));
 
 check(
   "no page errors",

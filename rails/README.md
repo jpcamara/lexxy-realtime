@@ -34,23 +34,28 @@ npm install lexxy-realtime   # yarn, bun, and pnpm also work
 ```
 
 With import maps, there is no npm install; the generator pins assets
-this gem ships:
+this gem ships, one pin for each module the page must load once:
 
 ```ruby
 # config/importmap.rb, added by the generator
-pin "lexical", to: "lexxy_realtime/lexical.js"
-pin "@37signals/lexxy", to: "lexxy_realtime/lexxy.js"
+pin "@37signals/lexxy", to: "lexxy.js"
 pin "lexxy-realtime", to: "lexxy_realtime/lexxy-realtime.js"
+pin "yrby-client", to: "lexxy_realtime/yrby-client.js"
+pin "yrby-client/element", to: "lexxy_realtime/yrby-client.js"
+pin "yjs", to: "lexxy_realtime/yjs.js"
+pin "@rails/actioncable", to: "actioncable.esm.js"
 pin "@rails/activestorage", to: "activestorage.esm.js"
 ```
 
-`lexical` is the one module the Lexxy and lexxy-realtime bundles share,
-so both ship with it external and it resolves through its own pin. The
-`@37signals/lexxy` pin must point at this gem's build: Lexxy's own
-asset bundles a second copy of `lexical`, and two copies break the
-collaboration binding, so remove any pin of Lexxy's asset. Keep
-`stylesheet_link_tag "lexxy"` for the editor's CSS. These assets are a
-stopgap until Lexxy ships import-map-ready builds itself.
+`@37signals/lexxy` points at the Lexxy gem's own asset, the same file as
+its `lexxy` pin, and lexxy-realtime reaches lexical through Lexxy's
+`Lexical` re-export, so the page runs one copy of lexical. yrby-client and
+yjs are separate files that lexxy-realtime imports. Two copies of either
+would mean two `<yrby-document>` classes or two Yjs runtimes, which breaks
+the binding, so other code that imports them gets the same copy.
+`@rails/actioncable` is Rails' own file, which `<yrby-document>` loads for
+its default consumer. The generator keeps any of these pins the app
+already has and adds the rest, so run it again after upgrading.
 
 Either way, your entrypoint imports both:
 

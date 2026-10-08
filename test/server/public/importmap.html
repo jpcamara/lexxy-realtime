@@ -9,12 +9,17 @@
       lexxy-editor { display: block; border: 1px solid #ccc; border-radius: 6px; min-height: 8rem; padding: .5rem; }
       [contenteditable] { outline: none; min-height: 6rem; }
     </style>
+    <!-- The pins the install generator adds, plus Lexxy's own pin. -->
     <script type="importmap">
       {
         "imports": {
           "lexxy": "/importmap-assets/lexxy.js",
           "@37signals/lexxy": "/importmap-assets/lexxy.js",
-          "lexxy-realtime": "/importmap-assets/lexxy-realtime.js"
+          "lexxy-realtime": "/importmap-assets/lexxy-realtime.js",
+          "yrby-client": "/importmap-assets/yrby-client.js",
+          "yrby-client/element": "/importmap-assets/yrby-client.js",
+          "yjs": "/importmap-assets/yjs.js",
+          "@rails/actioncable": "/importmap-assets/actioncable.esm.js"
         }
       }
     </script>
@@ -22,6 +27,13 @@
   <body>
     <script>
       window.__err = [];
+      // Yjs reports a second copy on the page with console.error.
+      window.__consoleErrors = [];
+      const consoleError = console.error;
+      console.error = (...args) => {
+        window.__consoleErrors.push(args.map(String).join(" "));
+        consoleError(...args);
+      };
       addEventListener("error", (e) => window.__err.push(String((e.error && e.error.stack) || e.message)));
       addEventListener("unhandledrejection", (e) => window.__err.push("unhandledrejection: " + String((e.reason && e.reason.stack) || e.reason)));
     </script>
@@ -45,8 +57,12 @@
     </script>
     <script type="module">
       import "@37signals/lexxy";
-      import "lexxy-realtime";
+      import { setConsumer } from "lexxy-realtime";
       import { $createActionTextAttachmentNode, Lexical } from "@37signals/lexxy";
+      // The app's own imports of the shared modules, next to lexxy-realtime's.
+      import { DocumentSessionStore } from "yrby-client";
+      import { YrbyDocumentElement } from "yrby-client/element";
+      import * as Y from "yjs";
       const { $getRoot } = Lexical;
 
       const editor = document.getElementById("editor");
@@ -58,6 +74,33 @@
         docRoot: () => (collab.doc?.share.get("root") ? collab.doc.share.get("root").toString() : ""),
         peers: () => [...(collab.awareness?.getStates().values() ?? [])].map((s) => s.name).filter(Boolean),
         errors: () => window.__err,
+        // One yrby-client: the registered <yrby-document> class is the one
+        // the app imports, setConsumer reaches it, and the element's
+        // session lives in the store the app's DocumentSessionStore sees.
+        oneYrbyClient: () => {
+          const yrbyDocument = document.querySelector("yrby-document");
+          const session = yrbyDocument.session;
+          return (
+            customElements.get("yrby-document") === YrbyDocumentElement &&
+            yrbyDocument instanceof YrbyDocumentElement &&
+            !!session &&
+            DocumentSessionStore.for(session.store.consumer) === session.store &&
+            session.store.sessions.includes(session)
+          );
+        },
+        setConsumerReachesElement: () => {
+          const original = YrbyDocumentElement.consumer;
+          const marker = { subscriptions: { create() {} } };
+          setConsumer(marker);
+          const reached = YrbyDocumentElement.consumer === marker;
+          YrbyDocumentElement.consumer = original;
+          return reached;
+        },
+        // One yjs: the bound doc is an instance of the app's Y.Doc, and
+        // Yjs never reported a second copy.
+        oneYjs: () =>
+          collab.doc instanceof Y.Doc &&
+          !window.__consoleErrors.some((m) => m.includes("Yjs was already imported")),
         // Insert an attachment through the pinned modules: $getRoot from
         // Lexxy's Lexical re-export operating inside an editor built by the
         // same pin. lexxy-realtime's bundle reaches the identical copy

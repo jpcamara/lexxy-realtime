@@ -49,8 +49,9 @@ Render the collaborative editor in your form:
 ```
 
 Load the JavaScript. **With import maps** (propshaft + importmap-rails),
-the generator already added the pins, and the bundle shares the lexical
-copy embedded in Lexxy's own asset; just import it:
+the generator already added the pins. The page loads one copy each of
+lexical (the one embedded in Lexxy's own asset), yrby-client, and yjs.
+Import the packages:
 
 ```js
 // app/javascript/application.js
@@ -263,12 +264,29 @@ document and provider (see [Providers](#providers)).
 
 ### Install
 
-**Import maps**: the install generator adds two pins: `lexxy-realtime`
-(a build the gem ships) and `@37signals/lexxy` as an alias of the app's
-own Lexxy asset (the same file as Lexxy's `lexxy` pin; one URL, one
-module). The bundle reaches lexical through Lexxy's documented `Lexical`
-re-export, so the page runs exactly one copy of lexical: the editor's.
-Nothing to install; import the packages in your entry point.
+**Import maps**: the install generator adds a pin for each module the
+page must load once:
+
+```ruby
+# config/importmap.rb, added by the generator
+pin "@37signals/lexxy", to: "lexxy.js"
+pin "lexxy-realtime", to: "lexxy_realtime/lexxy-realtime.js"
+pin "yrby-client", to: "lexxy_realtime/yrby-client.js"
+pin "yrby-client/element", to: "lexxy_realtime/yrby-client.js"
+pin "yjs", to: "lexxy_realtime/yjs.js"
+pin "@rails/actioncable", to: "actioncable.esm.js"
+pin "@rails/activestorage", to: "activestorage.esm.js"
+```
+
+`@37signals/lexxy` is an alias of the app's own Lexxy asset (the same file
+as Lexxy's `lexxy` pin; one URL, one module). The lexxy-realtime build
+reaches lexical through Lexxy's documented `Lexical` re-export, so the
+page runs one copy of lexical: the editor's. yrby-client and yjs are
+separate files that lexxy-realtime imports, so code of your own that
+imports them shares the same `<yrby-document>` class, session store, and
+Yjs. `@rails/actioncable` is Rails' own file. A pin your app already has
+is kept, and re-running the generator adds only missing pins. Nothing to
+install; import the packages in your entry point.
 
 **Bundlers**: install the npm package. npm and bun install its peers
 automatically; with yarn, add `@lexical/yjs yjs y-protocols` yourself:

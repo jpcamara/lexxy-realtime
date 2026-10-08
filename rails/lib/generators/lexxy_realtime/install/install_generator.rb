@@ -26,22 +26,45 @@ module LexxyRealtime
         invoke "yrby:tables"
       end
 
-      # Import-map apps get pins to the assets this gem ships. The Lexxy
-      # pin must point at this gem's build (Lexxy's own asset bundles a
-      # second copy of lexical, which breaks collaboration), so an
-      # existing @37signals/lexxy pin is left for the app to resolve.
-      def add_importmap_pins
-        return unless File.exist?(File.join(destination_root, "config/importmap.rb"))
-        return if File.read(File.join(destination_root, "config/importmap.rb")).include?("lexxy_realtime/")
+      # Import-map apps get pins to the assets this gem ships. Each shared
+      # module has one pin, so the page loads one copy of it:
+      #
+      # - @37signals/lexxy aliases the app's own Lexxy asset (same file as
+      #   the "lexxy" pin; one URL, one module), so lexxy-realtime shares
+      #   the editor's embedded lexical.
+      # - yrby-client and yrby-client/element point at one file, so
+      #   lexxy-realtime and the app share one <yrby-document> class and
+      #   one session store.
+      # - yjs is one copy, because Yjs checks constructors with instanceof.
+      # - @rails/actioncable is Rails' own file. <yrby-document> loads it
+      #   for its default consumer.
+      #
+      # A pin the app already has is left alone, so re-running the
+      # generator adds only what is missing.
+      IMPORTMAP_PINS = {
+        "@37signals/lexxy" => "lexxy.js",
+        "lexxy-realtime" => "lexxy_realtime/lexxy-realtime.js",
+        "yrby-client" => "lexxy_realtime/yrby-client.js",
+        "yrby-client/element" => "lexxy_realtime/yrby-client.js",
+        "yjs" => "lexxy_realtime/yjs.js",
+        "@rails/actioncable" => "actioncable.esm.js",
+        "@rails/activestorage" => "activestorage.esm.js"
+      }.freeze
 
+      def add_importmap_pins
+        importmap = File.join(destination_root, "config/importmap.rb")
+        return unless File.exist?(importmap)
+
+        existing = File.read(importmap)
+        missing = IMPORTMAP_PINS.reject { |name, _| existing.match?(/^\s*pin\s+["']#{Regexp.escape(name)}["']/) }
+        return if missing.empty?
+
+        pins = missing.map { |name, path| %(pin "#{name}", to: "#{path}") }
         append_to_file "config/importmap.rb", <<~RUBY
 
-          # lexxy-realtime. @37signals/lexxy aliases the app's own Lexxy
-          # asset (same file as the "lexxy" pin; one URL, one module), so
-          # the bundle shares the editor's embedded lexical.
-          pin "@37signals/lexxy", to: "lexxy.js"
-          pin "lexxy-realtime", to: "lexxy_realtime/lexxy-realtime.js"
-          pin "@rails/activestorage", to: "activestorage.esm.js"
+          # lexxy-realtime. One pin per shared module, so the page loads one
+          # copy of each.
+          #{pins.join("\n")}
         RUBY
       end
 
@@ -54,9 +77,8 @@ module LexxyRealtime
             1. bin/rails db:migrate
             2. Wire up the JavaScript. With import maps, the generator
                added pins; import "@37signals/lexxy" and "lexxy-realtime"
-               from your entrypoint, and remove any pin for Lexxy's own
-               asset. With a bundler, install the lexxy-realtime npm
-               package and import it.
+               from your entrypoint. With a bundler, install the
+               lexxy-realtime npm package and import it.
             3. Declare `has_collaborative_rich_text :body` on a model and
                render it with `<%= form.collaborative_rich_textarea :body %>`.
                Render it only for users who may edit the record. The

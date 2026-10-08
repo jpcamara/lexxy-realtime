@@ -51,6 +51,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   element around the editor doesn't change form layout. The element
   injects it, and it is in `lexxy-realtime.css` for apps that load the
   file.
+- **Breaking:** the gem's import-map assets are three files, so the page
+  loads one copy of each shared module: `lexxy_realtime/lexxy-realtime.js`,
+  `lexxy_realtime/yrby-client.js` (pinned as `yrby-client` and
+  `yrby-client/element`), and `lexxy_realtime/yjs.js` (pinned as `yjs`).
+  `@rails/actioncable` resolves to Rails' `actioncable.esm.js`. Import-map
+  apps re-run `bin/rails generate lexxy_realtime:install`, which adds the
+  pins the app doesn't have yet.
 - `@rails/actioncable` is a dependency of the npm package, because
   `<yrby-document>` loads it for its default consumer.
 - **Breaking:** `lexxy_realtime:install` no longer generates
