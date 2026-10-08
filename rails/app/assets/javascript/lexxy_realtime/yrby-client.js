@@ -1996,6 +1996,28 @@ function defaultConsumer() {
 	});
 	return sharedConsumer;
 }
+let assignedConsumer;
+let factoryResult;
+function loadConsumer(source) {
+	if (source == null) return defaultConsumer();
+	if (typeof source !== "function") return Promise.resolve(source);
+	if (factoryResult?.factory === source) return factoryResult.consumer;
+	let consumer;
+	try {
+		consumer = Promise.resolve(source());
+	} catch (error) {
+		return Promise.reject(error);
+	}
+	const entry = {
+		factory: source,
+		consumer
+	};
+	factoryResult = entry;
+	consumer.catch(() => {
+		if (factoryResult === entry) factoryResult = void 0;
+	});
+	return consumer;
+}
 function deferred() {
 	let resolve;
 	return {
@@ -2012,8 +2034,22 @@ function blockReport(session) {
 	} : void 0;
 }
 var YrbyDocumentElement = class extends Base {
-	/** Set before adding elements to use another consumer, such as AnyCable's. */
-	static consumer;
+	/**
+	* Set before adding elements to use another consumer, such as AnyCable's.
+	* It takes a consumer, a promise of one, or a function that returns either.
+	* The element calls the function when it first needs a consumer and reuses
+	* the result. If the function throws or its promise rejects, the next
+	* attempt calls it again. Assigning a different value replaces the reused
+	* result. When unset, elements share an `@rails/actioncable` consumer.
+	*/
+	static get consumer() {
+		return assignedConsumer;
+	}
+	static set consumer(value) {
+		if (value === assignedConsumer) return;
+		assignedConsumer = value;
+		factoryResult = void 0;
+	}
 	static observedAttributes = [
 		"grant",
 		"name",
@@ -2038,6 +2074,16 @@ var YrbyDocumentElement = class extends Base {
 	/** Resolves after the current attempt's first sync. If the attempt is abandoned, its promise never resolves. */
 	get whenSynced() {
 		return this.#firstSync.promise;
+	}
+	/**
+	* The `yrby:synced` detail of the session the element is bound to. It is
+	* undefined before the first sync, while the element retargets or the page
+	* is cached, while the document is stalled, and as soon as the lease aborts.
+	* Reading it never creates anything.
+	*/
+	get current() {
+		const detail = this.#attempt?.announced;
+		return detail && !detail.signal.aborted ? detail : void 0;
 	}
 	connectedCallback() {
 		this.#stalledKey = void 0;
@@ -2064,6 +2110,26 @@ var YrbyDocumentElement = class extends Base {
 	deactivate() {
 		this.#live = false;
 		this.#abandon();
+	}
+	/**
+	* Acquires the document again after its session blocked or was discarded.
+	* It doesn't change whether the page is live, so a cached page binds when
+	* Turbo shows it again. It does nothing while the element is bound to, or
+	* still acquiring, a session whose lease hasn't aborted.
+	*
+	* It is safe to call from a lease abort handler, or right after
+	* `session.discard()` in the same call stack. The element drops the ended
+	* attempt immediately, so the settle that would have stalled it acquires
+	* instead. A discarded session is gone from the store, so that acquisition
+	* creates a new session with a new `Y.Doc`. A session that is still blocked
+	* is reported again with `yrby:error`.
+	*/
+	retry() {
+		const attempt = this.#attempt;
+		if (attempt && !attempt.ended && !attempt.lease?.signal.aborted) return;
+		this.#stalledKey = void 0;
+		this.#abandon();
+		this.#requestSettle();
 	}
 	/** Releases the editor lease. The session keeps any unsaved work. */
 	destroy() {
@@ -2104,7 +2170,7 @@ var YrbyDocumentElement = class extends Base {
 			descriptor
 		};
 		this.#attempt = attempt;
-		Promise.resolve(_a.consumer ?? defaultConsumer()).then((consumer) => {
+		loadConsumer(_a.consumer).then((consumer) => {
 			attempt.consumer = consumer;
 		}, (error) => {
 			attempt.ended = { detail: { error } };
@@ -2136,20 +2202,21 @@ var YrbyDocumentElement = class extends Base {
 		});
 	}
 	#announce(attempt) {
-		attempt.announced = true;
 		const lease = attempt.lease;
 		const { session } = lease;
+		const detail = {
+			session,
+			doc: session.doc,
+			provider: session.provider,
+			lease,
+			signal: lease.signal
+		};
+		attempt.announced = detail;
 		this.#restoreInert();
 		this.#firstSync.resolve();
 		this.dispatchEvent(new CustomEvent("yrby:synced", {
 			bubbles: true,
-			detail: {
-				session,
-				doc: session.doc,
-				provider: session.provider,
-				lease,
-				signal: lease.signal
-			}
+			detail
 		}));
 	}
 	#stall(detail) {

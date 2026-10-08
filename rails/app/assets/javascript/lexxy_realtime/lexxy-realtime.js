@@ -3415,36 +3415,9 @@ function registerSelectionNormalization(editor) {
 }
 //#endregion
 //#region src/editor_collaboration.js
-function setConsumer(consumerOrFactory) {
-	if (typeof consumerOrFactory !== "function") {
-		setConsumerValue(consumerOrFactory);
-		return;
-	}
-	let resolved = false;
-	let consumer;
-	Object.defineProperty(YrbyDocumentElement, "consumer", {
-		configurable: true,
-		enumerable: true,
-		get() {
-			if (!resolved) {
-				consumer = consumerOrFactory();
-				resolved = true;
-			}
-			return consumer;
-		},
-		set: setConsumerValue
-	});
+function setConsumer(consumer) {
+	YrbyDocumentElement.consumer = consumer;
 }
-function setConsumerValue(consumer) {
-	Object.defineProperty(YrbyDocumentElement, "consumer", {
-		configurable: true,
-		enumerable: true,
-		writable: true,
-		value: consumer
-	});
-}
-const syncedSessions = /* @__PURE__ */ new WeakMap();
-if (typeof document !== "undefined") document.addEventListener("yrby:synced", (event) => syncedSessions.set(event.target, event.detail), true);
 const boundDocs = /* @__PURE__ */ new WeakMap();
 const RECOVERY_INTERVAL_MS = 15e3;
 const Base = typeof HTMLElement === "undefined" ? class {} : HTMLElement;
@@ -3485,13 +3458,13 @@ var Collaboration = class extends Base {
 		const yrbyDocument = this.#hostProvider ? null : this.closest("yrby-document");
 		if (this.#bound && editorElement === this.#editorElement && yrbyDocument === this.#yrbyDocument && editorElement.editor === this.#bound.editor) return;
 		this.#stop();
+		if (!this.#hostProvider && !yrbyDocument) {
+			console.error("<lexxy-collaboration> needs a <yrby-document> ancestor, or a doc and provider assigned before it connects.");
+			return;
+		}
 		this.#editorElement = editorElement;
 		editorElement.addEventListener("lexxy:initialize", this.#onInitialize);
 		if (!this.#hostProvider) {
-			if (!yrbyDocument) {
-				console.error("<lexxy-collaboration> needs a <yrby-document> ancestor, or a doc and provider assigned before it connects.");
-				return;
-			}
 			this.#yrbyDocument = yrbyDocument;
 			yrbyDocument.addEventListener("yrby:synced", this.#onSynced);
 		}
@@ -3517,8 +3490,8 @@ var Collaboration = class extends Base {
 			this.#bind(this.#hostDoc ?? provider.doc ?? new Doc(), provider, null);
 			return;
 		}
-		const synced = syncedSessions.get(this.#yrbyDocument);
-		if (!synced || synced.signal.aborted) return;
+		const synced = this.#yrbyDocument.current;
+		if (!synced) return;
 		if (this.#bound?.synced === synced) return;
 		this.#unbind();
 		this.#bind(synced.doc, synced.provider, synced);
@@ -3645,9 +3618,7 @@ var Collaboration = class extends Base {
 			this.#recovering = true;
 			const yrbyDocument = this.#yrbyDocument;
 			bound.synced.session.discard();
-			queueMicrotask(() => {
-				if (this.isConnected && this.#yrbyDocument === yrbyDocument) yrbyDocument.activate();
-			});
+			yrbyDocument.retry();
 		};
 		const wait = this.#lastRecoveryAt + RECOVERY_INTERVAL_MS - Date.now();
 		if (wait > 0) this.#recoveryTimer = setTimeout(rebuild, wait);

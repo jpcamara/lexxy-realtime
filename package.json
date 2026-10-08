@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@rails/actioncable": "^7.1.0 || ^8.0.0",
-    "yrby-client": "^0.6.0"
+    "yrby-client": "^0.7.0"
   },
   "peerDependencies": {
     "@37signals/lexxy": "^0.9.29 || ^1.0.0",

@@ -6,7 +6,7 @@
       "name": "lexxy-realtime",
       "dependencies": {
         "@rails/actioncable": "^7.1.0 || ^8.0.0",
-        "yrby-client": "^0.6.0",
+        "yrby-client": "^0.7.0",
       },
       "devDependencies": {
         "@37signals/lexxy": "1.0.0",
@@ -159,6 +159,6 @@
 
     "yjs": ["yjs@13.6.31", "", { "dependencies": { "lib0": "^0.2.99" } }, "sha512-Eq+5BRfbeGyqGVrTJL3bEcr8gKkxPuyuoHmAwpk52fDb8kOVMrfVSTRPd6yiGgX5Fskb96qCRjzjbRjrL4YEnw=="],
 
-    "yrby-client": ["yrby-client@0.6.0", "", { "dependencies": { "lib0": "^0.2.117" }, "peerDependencies": { "@rails/actioncable": ">= 7.1", "y-protocols": "^1.0.5", "yjs": "^13.6.0" }, "optionalPeers": ["@rails/actioncable", "y-protocols", "yjs"] }, "sha512-4xXbMZ7q338ZeoO5+z+goVeBAjmgOmkbzG+XsEWwISuMMS6JF/A+cdDQKcqP14wSxTltyPeO887mQs3uqoK/nA=="],
+    "yrby-client": ["yrby-client@0.7.0", "", { "dependencies": { "lib0": "^0.2.117" }, "peerDependencies": { "@rails/actioncable": ">= 7.1", "y-protocols": "^1.0.5", "yjs": "^13.6.0" }, "optionalPeers": ["@rails/actioncable", "y-protocols", "yjs"] }, "sha512-nVvYcC3ohX4GHp++26+IZiN/bpfmfANPl5LneVjKpGTql53uSjRl36F7XZpNbnB4aOdkKV7AecYVBFLVk3p+dA=="],
   }
 }

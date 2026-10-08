@@ -15,9 +15,10 @@ import { registerTextReconciliation, syncEditorUpdate, reconciliationOrigin } fr
 import { registerSelectionNormalization } from './selection_normalization';
 
 // Sets the Action Cable consumer that every <yrby-document> on the page
-// uses. Call it once at boot, before editors mount. It accepts a consumer
-// or a function that returns one. The function runs the first time a
-// <yrby-document> needs a consumer, and its result is reused.
+// uses. Call it once at boot, before editors mount. It accepts a consumer,
+// a promise of one, or a function that returns either. <yrby-document>
+// calls the function the first time it needs a consumer and reuses the
+// result.
 //
 //   import { createConsumer } from "@anycable/web";
 //   import { setConsumer } from "lexxy-realtime";
@@ -25,48 +26,8 @@ import { registerSelectionNormalization } from './selection_normalization';
 //
 // Without it, <yrby-document> creates an @rails/actioncable consumer from
 // the page's action-cable-url meta tag, or /cable.
-export function setConsumer(consumerOrFactory) {
-  if (typeof consumerOrFactory !== 'function') {
-    setConsumerValue(consumerOrFactory);
-    return;
-  }
-  // <yrby-document> reads YrbyDocumentElement.consumer each time it
-  // starts a session, so a getter defers the factory until then. A thrown
-  // factory isn't cached, and the next read calls it again.
-  let resolved = false;
-  let consumer;
-  Object.defineProperty(YrbyDocumentElement, 'consumer', {
-    configurable: true,
-    enumerable: true,
-    get() {
-      if (!resolved) {
-        consumer = consumerOrFactory();
-        resolved = true;
-      }
-      return consumer;
-    },
-    // A later plain assignment replaces the factory.
-    set: setConsumerValue,
-  });
-}
-
-function setConsumerValue(consumer) {
-  Object.defineProperty(YrbyDocumentElement, 'consumer', {
-    configurable: true,
-    enumerable: true,
-    writable: true,
-    value: consumer,
-  });
-}
-
-// <yrby-document> dispatches yrby:synced once per session it acquires. An
-// element that connects later, for example inside an editor that moved,
-// still needs that event's session, so we keep the latest one for each
-// <yrby-document>. The listener runs in the capture phase, so an app
-// handler that stops propagation doesn't hide the event from us.
-const syncedSessions = new WeakMap();
-if (typeof document !== 'undefined') {
-  document.addEventListener('yrby:synced', (event) => syncedSessions.set(event.target, event.detail), true);
+export function setConsumer(consumer) {
+  YrbyDocumentElement.consumer = consumer;
 }
 
 // @lexical/yjs caches its collab nodes on the Yjs types, so two bindings on
@@ -142,15 +103,15 @@ export class Collaboration extends Base {
     }
 
     this.#stop();
+    if (!this.#hostProvider && !yrbyDocument) {
+      console.error(
+        '<lexxy-collaboration> needs a <yrby-document> ancestor, or a doc and provider assigned before it connects.'
+      );
+      return;
+    }
     this.#editorElement = editorElement;
     editorElement.addEventListener('lexxy:initialize', this.#onInitialize);
     if (!this.#hostProvider) {
-      if (!yrbyDocument) {
-        console.error(
-          '<lexxy-collaboration> needs a <yrby-document> ancestor, or a doc and provider assigned before it connects.'
-        );
-        return;
-      }
       this.#yrbyDocument = yrbyDocument;
       yrbyDocument.addEventListener('yrby:synced', this.#onSynced);
     }
@@ -188,8 +149,10 @@ export class Collaboration extends Base {
     }
 
     // Wait for the next yrby:synced when the <yrby-document> has no live session.
-    const synced = syncedSessions.get(this.#yrbyDocument);
-    if (!synced || synced.signal.aborted) return;
+    // `current` is the live session's yrby:synced detail, or undefined
+    // until the <yrby-document> has one.
+    const synced = this.#yrbyDocument.current;
+    if (!synced) return;
     if (this.#bound?.synced === synced) return;
     this.#unbind();
     this.#bind(synced.doc, synced.provider, synced);
@@ -373,13 +336,10 @@ export class Collaboration extends Base {
       this.#recovering = true;
       const yrbyDocument = this.#yrbyDocument;
       // Discarding releases every lease, which unbinds this element.
+      // retry() then has the <yrby-document> acquire a new session, which
+      // loads the server's state into a fresh Y.Doc.
       bound.synced.session.discard();
-      // The <yrby-document> reacts to the release in a microtask and marks
-      // the document as stalled. activate() is queued after that, so the
-      // element acquires a new session.
-      queueMicrotask(() => {
-        if (this.isConnected && this.#yrbyDocument === yrbyDocument) yrbyDocument.activate();
-      });
+      yrbyDocument.retry();
     };
     const wait = this.#lastRecoveryAt + RECOVERY_INTERVAL_MS - Date.now();
     if (wait > 0) {
