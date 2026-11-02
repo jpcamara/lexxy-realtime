@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "active_support/concern"
+require "lexxy_realtime/attribute"
 
 module LexxyRealtime
   # Adds collaborative Lexxy editing to an attribute. yrby-rails'
