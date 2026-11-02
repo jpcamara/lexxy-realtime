@@ -6,9 +6,9 @@ module LexxyRealtime
   # The collaborative document for one rich-text field: what
   # record.collaborative_document(:body) returns for a field declared with
   # has_collaborative_rich_text. It's yrby-rails' document with this gem's
-  # grant and channel, so the form helper, collaborative_document_tag, and
-  # Y::Agent all subscribe where the field is rendered. An edit from Ruby
-  # renders the body too, as a browser's edit does.
+  # grant, channel, and rendering, so code that takes a yrby-rails document
+  # works with the field as the form helper does. An edit from Ruby renders
+  # the body too, as a browser's edit does.
   class Attribute < Y::Collaborative::Attribute
     # The signed grant LexxyRealtime::DocumentChannel accepts. Pass
     # expires_in: to limit how long it lasts. Without it, GlobalID's default

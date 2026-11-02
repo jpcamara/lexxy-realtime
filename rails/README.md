@@ -173,10 +173,12 @@ end
 ```
 
 For a field declared with `has_collaborative_rich_text`,
-`collaborative_document(:body)` returns this gem's document. Its `grant`
-is the one the form helper renders, and its `channel` is
-`LexxyRealtime::DocumentChannel`, so yrby-rails' `collaborative_document_tag`
-and `Y::Agent` subscribe to the right channel too.
+`collaborative_document(:body)` returns this gem's document. Its `grant` is
+the one the form helper renders, its `channel` is
+`LexxyRealtime::DocumentChannel`, `edit` changes the document from Ruby and
+renders the body, and `refresh` renders the body on demand. Code that takes
+a yrby-rails document, such as `collaborative_document_tag`, gets this
+gem's grant and channel for the field.
 
 That action grants write access, so its check must be at least as strict
 as the page that renders the form. If it skips authorization, anyone who

@@ -9,11 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - For a field declared with `has_collaborative_rich_text`,
-  `collaborative_document(:body)` returns a `LexxyRealtime::Attribute`. Its
-  `grant` and `channel` are this gem's, so yrby-rails'
-  `collaborative_document_tag` and `Y::Agent` work with the field. Its
-  `edit` renders the body after the change, and `refresh` renders it on
-  demand. Requires yrby-rails 0.8.
+  `collaborative_document(:body)` returns a `LexxyRealtime::Attribute`:
+  yrby-rails' document with this gem's grant, channel, and rendering. Code
+  that takes a yrby-rails document, such as `collaborative_document_tag`,
+  works with the field. `edit` changes the document from Ruby and renders
+  the body, and `refresh` renders it on demand. Requires yrby-rails 0.8.
 
 ### Deprecated
 
