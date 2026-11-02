@@ -12,7 +12,7 @@ module LexxyRealtime
   # Action Cable resubscribes with the grant after every dropped
   # connection, and the server rejects an expired grant. Pass refresh: with
   # the URL of an action in your app that returns a new grant as
-  # { grant: record.collaborative_rich_text_grant(:body) }. When the server
+  # { grant: record.collaborative_document(:body).grant }. When the server
   # rejects the subscription, the element fetches that URL and resubscribes
   # with the new grant, keeping the document and any edits the server
   # hasn't acknowledged. Without refresh:, the editor stops syncing until
@@ -31,10 +31,11 @@ module LexxyRealtime
         collaboration_element(record, method, name, color)
       end
 
+      collaboration = record.collaborative_document(method)
       document = {
-        "grant" => record.collaborative_rich_text_grant(method, expires_in: expires_in),
+        "grant" => collaboration.grant(expires_in:),
         "name" => method,
-        "channel" => LexxyRealtime.channel_name
+        "channel" => collaboration.channel
       }
       document["refresh"] = refresh if refresh
       @template.content_tag("yrby-document", editor, document)

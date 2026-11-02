@@ -6,6 +6,7 @@ require "json"
 
 class HelperTest < Minitest::Test
   include ActiveSupport::Testing::TimeHelpers
+  include ActiveSupport::Testing::Deprecation
 
   # A view context with real tag helpers. The tests use Action View's
   # FormBuilder and stub Lexxy's editor method so it renders the block's
@@ -112,15 +113,33 @@ class HelperTest < Minitest::Test
     assert_equal "/posts/1/grant", document["refresh"]
   end
 
-  def test_collaborative_rich_text_grant_matches_the_helper
-    grant = @post.collaborative_rich_text_grant(:body, expires_in: 1.minute)
+  def test_the_documents_grant_matches_the_helper
+    document = @post.collaborative_document(:body)
+    grant = document.grant(expires_in: 1.minute)
 
+    assert_equal "LexxyRealtime::DocumentChannel", document.channel
     assert_equal @post, locate(grant, :body)
     assert_nil Y::Collaborative.locate(grant, :body)
     travel_to(2.minutes.from_now) do
       assert_nil locate(grant, :body), "expires_in applies"
     end
-    assert_raises(ArgumentError) { @post.collaborative_rich_text_grant(:title) }
+  end
+
+  def test_collaborative_rich_text_grant_still_works_and_warns
+    grant = assert_deprecated(/collaborative_document\(name\)\.grant/, LexxyRealtime.deprecator) do
+      assert_raises(ArgumentError) { @post.collaborative_rich_text_grant(:title) }
+      @post.collaborative_rich_text_grant(:body)
+    end
+
+    assert_equal @post, locate(grant, :body)
+  end
+
+  # yrby-rails' own tag renders this gem's grant and channel for the field.
+  def test_collaborative_document_tag_renders_this_gems_grant_and_channel
+    html = @view.extend(Y::Collaborative::Helper).collaborative_document_tag(@post, :body)
+
+    assert_includes html, 'channel="LexxyRealtime::DocumentChannel"'
+    assert_equal @post, locate(html[/ grant="([^"]+)"/, 1], :body)
   end
 
   def test_identity_overrides_and_stable_color

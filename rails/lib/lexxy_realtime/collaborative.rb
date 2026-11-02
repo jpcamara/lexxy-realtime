@@ -44,42 +44,28 @@ module LexxyRealtime
 
       def collaborative_rich_text?(name) = collaborative_rich_text_names.include?(name.to_sym)
 
-      # The signed grant that LexxyRealtime::DocumentChannel accepts for one
-      # field. The form helper renders it, and an app's refresh action
-      # returns a new one as { grant: ... }. Pass expires_in: to limit how
-      # long it lasts. Without it, GlobalID's default of one month applies.
-      def collaborative_rich_text_grant(name, expires_in: nil)
-        ensure_collaborative!(name)
-
-        options = { for: LexxyRealtime.grant_purpose(name) }
-        # GlobalID reads an explicit nil as "never expires", so the option
-        # is only passed when it's given.
-        options[:expires_in] = expires_in if expires_in
-        to_sgid(**options).to_s
+      # A rich-text field's document is a LexxyRealtime::Attribute, with this
+      # gem's grant and channel. Other fields get yrby-rails' document.
+      def collaborative_document(name)
+        collaborative_rich_text?(name) ? LexxyRealtime::Attribute.new(self, name) : super
       end
 
-      # Reloads and renders the document while holding the record lock,
-      # then saves the HTML through the attribute writer. Returns false
-      # when the document has no state.
-      def refresh_collaborative_rich_text(name)
+      # Deprecated. Use collaborative_document(name).grant.
+      def collaborative_rich_text_grant(name, expires_in: nil)
+        LexxyRealtime.deprecator.warn(
+          "collaborative_rich_text_grant(name) is deprecated. Use collaborative_document(name).grant instead."
+        )
         ensure_collaborative!(name)
+        collaborative_document(name).grant(expires_in:)
+      end
 
-        with_lock do
-          strict_loading!(false) if strict_loading? # the writer lazily loads the rich-text row
-          state = collaborative_document(name).load_state
-          break false if state.nil?
-
-          doc = Y::Doc.new
-          doc.apply_update(state)
-          renderer = Y::Lexxy.new(doc, nodes: collaborative_rich_text_rules.fetch(name.to_sym))
-          html = renderer.to_html
-          break false if html.nil?
-
-          report_unknown_node_types(name, renderer)
-          public_send("#{name}=", html)
-          save!(validate: false) # collaboration updates should not run unrelated model validations
-          true
-        end
+      # Deprecated. Use collaborative_document(name).refresh.
+      def refresh_collaborative_rich_text(name)
+        LexxyRealtime.deprecator.warn(
+          "refresh_collaborative_rich_text(name) is deprecated. Use collaborative_document(name).refresh instead."
+        )
+        ensure_collaborative!(name)
+        collaborative_document(name).refresh
       end
 
       private
@@ -95,21 +81,6 @@ module LexxyRealtime
         return if collaborative_rich_text?(name)
 
         raise ArgumentError, "#{name.inspect} is not collaborative on #{self.class.name}"
-      end
-
-      # Editors in the browser show custom nodes that the server can't
-      # render without a rule. Logs a warning once per class, field, and
-      # set of types.
-      def report_unknown_node_types(name, renderer)
-        types = renderer.unknown_types.sort
-        return if types.empty?
-        return unless LexxyRealtime.first_sighting_of_unknown_types?([self.class.name, name.to_s, types])
-
-        Rails.logger&.warn(
-          "#{self.class.name}##{name} contains Lexical node types with no Y::Lexxy render rule: " \
-          "#{types.join(', ')}. The stored HTML drops their markup, and a decorator node renders " \
-          "nothing. Add rules with has_collaborative_rich_text :#{name}, nodes: { ... }."
-        )
       end
     end
   end

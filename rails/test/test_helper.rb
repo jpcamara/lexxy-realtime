@@ -8,6 +8,7 @@ require "global_id"
 require "y"
 require "y/action_cable"
 require "active_support/testing/time_helpers"
+require "active_support/testing/deprecation"
 require "y/collaborative"
 require "lexxy_realtime"
 # This helper doesn't boot the engine, so load the yrby models directly.

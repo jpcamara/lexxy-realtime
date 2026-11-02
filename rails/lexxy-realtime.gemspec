@@ -40,5 +40,5 @@ Gem::Specification.new do |spec|
   # yrby-rails provides the sync concern and the Y::Document models. From
   # 0.7 it calls authorized?(key), which LexxyRealtime::DocumentChannel
   # overrides.
-  spec.add_dependency "yrby-rails", "~> 0.7"
+  spec.add_dependency "yrby-rails", "~> 0.8"
 end

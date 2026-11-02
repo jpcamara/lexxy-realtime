@@ -78,7 +78,7 @@ class DocumentChannelTest < ActionCable::Channel::TestCase
   end
 
   def test_a_yrby_rails_grant_is_rejected
-    subscribe grant: @post.collaborative_sgid(:body), name: "body"
+    subscribe grant: Y::Collaborative::Attribute.new(@post, :body).grant, name: "body"
 
     assert_predicate subscription, :rejected?, "only the form helper's grant opens this channel"
   end

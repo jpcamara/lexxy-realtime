@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- For a field declared with `has_collaborative_rich_text`,
+  `collaborative_document(:body)` returns a `LexxyRealtime::Attribute`. Its
+  `grant` and `channel` are this gem's, so yrby-rails'
+  `collaborative_document_tag` and `Y::Agent` work with the field, and
+  `refresh` renders the body on demand. Requires yrby-rails 0.8.
+
+### Deprecated
+
+- `collaborative_rich_text_grant(name)`. Use
+  `collaborative_document(name).grant`.
+- `refresh_collaborative_rich_text(name)`. Use
+  `collaborative_document(name).refresh`.
+
+Both log through `LexxyRealtime.deprecator`, which the engine adds to
+`Rails.application.deprecators`, and go away in 0.10.
+
 ## [0.8.0] - 2026-10-08
 
 ### Upgrading from 0.7

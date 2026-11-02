@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
+require "active_support/deprecation"
 require "concurrent/map"
 require "lexxy_realtime/version"
 require "lexxy_realtime/collaborative"
 require "lexxy_realtime/form_builder"
 require "lexxy_realtime/engine"
+require "lexxy_realtime/attribute"
 
 # Rails integration for collaborative Lexxy editing with yrby.
 module LexxyRealtime
@@ -24,6 +26,10 @@ module LexxyRealtime
     # matters because Y::DocumentChannel doesn't render the field or run
     # the authorize_document block.
     def grant_purpose(name) = "lexxy_realtime/#{name}"
+
+    # Warns about methods that are going away. The engine adds it to
+    # Rails.application.deprecators, so the app's deprecation settings apply.
+    def deprecator = @deprecator ||= ActiveSupport::Deprecation.new("0.10", "lexxy-realtime")
 
     # Called with the view context to get the cursor name and color, as
     # { name:, color: }. When color is nil, the form helper picks one
