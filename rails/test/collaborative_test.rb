@@ -118,6 +118,12 @@ class CollaborativeTest < Minitest::Test
     assert_instance_of Y::Collaborative::Attribute, @post.collaborative_document(:title)
   end
 
+  def test_an_edit_from_ruby_renders_the_body
+    @post.collaborative_document(:body).edit { |doc| Y::Lexxy.append_paragraph(doc, "From Ruby.") }
+
+    assert_includes @post.reload.body.to_s, "From Ruby."
+  end
+
   def test_refresh_collaborative_rich_text_still_renders_and_warns
     append(lexxy_full_state)
 

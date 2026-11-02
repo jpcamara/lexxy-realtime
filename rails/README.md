@@ -113,7 +113,8 @@ The channel saves each CRDT update, renders the full document with
 happens in `post.collaborative_document(:body).refresh`, inside the
 channel's handler for each update. There's no background job, so
 `post.body` is up to date as soon as the channel finishes handling the
-update.
+update. An edit from Ruby, `post.collaborative_document(:body).edit`,
+renders the body the same way.
 
 If rendering fails, the channel logs the error and keeps the update. The
 next update renders the full document again. Until then, `post.body`
