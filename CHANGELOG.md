@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-03
+
 ### Changed
 
 - For a field declared with `has_collaborative_rich_text`,
@@ -467,7 +469,8 @@ runtime when it binds, so the packages on disk are never modified.
 
 - Uses a single lockfile, `bun.lock`. Removed `package-lock.json`.
 
-[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/jpcamara/lexxy-realtime/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/jpcamara/lexxy-realtime/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/jpcamara/lexxy-realtime/compare/v0.6.0...v0.7.0
