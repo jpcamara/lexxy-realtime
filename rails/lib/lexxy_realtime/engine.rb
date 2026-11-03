@@ -15,6 +15,10 @@ module LexxyRealtime
       ActiveSupport.on_load(:active_record) { include LexxyRealtime::Collaborative }
     end
 
+    initializer "lexxy_realtime.deprecator" do |app|
+      app.deprecators[:lexxy_realtime] = LexxyRealtime.deprecator
+    end
+
     initializer "lexxy_realtime.form_builder" do |app|
       app.config.to_prepare { ActionView::Helpers::FormBuilder.prepend(LexxyRealtime::FormBuilder) }
     end

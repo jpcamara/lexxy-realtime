@@ -50,6 +50,6 @@ Naming/PredicatePrefix:
   Exclude:
     - "test/**/*"
 
-# refresh_collaborative_rich_text reports whether it found content to save.
+# LexxyRealtime::Attribute#refresh reports whether it found content to save.
 Naming/PredicateMethod:
   Enabled: false

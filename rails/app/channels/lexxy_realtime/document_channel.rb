@@ -28,7 +28,7 @@ module LexxyRealtime
       # record, so it has to run before anything reads record.
       document.append(update)
       begin
-        record.refresh_collaborative_rich_text(params[:name])
+        record.collaborative_document(params[:name]).refresh
       rescue StandardError => e
         Rails.logger&.error("lexxy-realtime render failed for #{key}: #{e.class}: #{e.message}")
       end

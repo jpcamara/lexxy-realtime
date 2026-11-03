@@ -56,8 +56,8 @@ if BootPost.reflect_on_association(:rich_text_notes).klass != ActionText::Encryp
   abort "encrypted: true did not make Action Text use EncryptedRichText"
 end
 abort "encrypted: true did not reach yrby" if BootPost.collaborative_document_class(:notes) != Y::EncryptedDocument
-abort "declaring model lacks the instance API" unless BootPost.method_defined?(:refresh_collaborative_rich_text)
-abort "plain models have the instance API" if ActiveRecord::Base.method_defined?(:refresh_collaborative_rich_text)
+abort "declaring model lacks the instance API" unless BootPost.method_defined?(:collaborative_rich_text?)
+abort "plain models have the instance API" if ActiveRecord::Base.method_defined?(:collaborative_rich_text?)
 abort "channel is not a Y::DocumentChannel" unless LexxyRealtime::DocumentChannel < Y::DocumentChannel
 
 puts "ENGINE BOOT OK"

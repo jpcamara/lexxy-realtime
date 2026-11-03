@@ -3,6 +3,8 @@
 require "test_helper"
 
 class CollaborativeTest < Minitest::Test
+  include ActiveSupport::Testing::Deprecation
+
   def setup
     Y::DocumentUpdate.delete_all
     Y::Document.delete_all
@@ -26,7 +28,7 @@ class CollaborativeTest < Minitest::Test
     end
 
     assert_respond_to bare, :has_collaborative_rich_text, "the macro is available"
-    refute bare.method_defined?(:refresh_collaborative_rich_text), "the macro adds the instance API"
+    refute bare.method_defined?(:collaborative_rich_text?), "the macro adds the instance API"
   end
 
   # A Post subclass with an encrypted body. It keeps Post's body= override
@@ -50,7 +52,7 @@ class CollaborativeTest < Minitest::Test
     record = encrypted_post_class.create!
     append(lexxy_full_state, record)
 
-    assert record.refresh_collaborative_rich_text(:body)
+    assert record.collaborative_document(:body).refresh
     assert_equal lexxy_full_html, record.reload.body, "encryption doesn't change the rendered HTML"
 
     raw = Y::Document.connection.select_value(
@@ -107,23 +109,40 @@ class CollaborativeTest < Minitest::Test
     plain = PlainPost.find(@post.id)
     append(lexxy_full_state, plain)
 
-    assert plain.refresh_collaborative_rich_text(:body)
+    assert plain.collaborative_document(:body).refresh
     assert_equal lexxy_full_html, plain.reload.body, "rendered into the plain column"
   end
 
-  def test_materialize_raises_for_a_non_collaborative_attribute
-    assert_raises(ArgumentError) { @post.refresh_collaborative_rich_text(:title) }
+  def test_a_rich_text_field_has_this_gems_document
+    assert_instance_of LexxyRealtime::Attribute, @post.collaborative_document(:body)
+    assert_instance_of Y::Collaborative::Attribute, @post.collaborative_document(:title)
+  end
+
+  def test_an_edit_from_ruby_renders_the_body
+    @post.collaborative_document(:body).edit { |doc| Y::Lexxy.append_paragraph(doc, "From Ruby.") }
+
+    assert_includes @post.reload.body.to_s, "From Ruby."
+  end
+
+  def test_refresh_collaborative_rich_text_still_renders_and_warns
+    append(lexxy_full_state)
+
+    assert_deprecated(/collaborative_document\(name\)\.refresh/, LexxyRealtime.deprecator) do
+      assert @post.refresh_collaborative_rich_text(:body)
+      assert_raises(ArgumentError) { @post.refresh_collaborative_rich_text(:title) }
+    end
+    assert_equal lexxy_full_html, @post.reload.body
   end
 
   def test_materialize_returns_false_without_a_stored_document
-    refute @post.refresh_collaborative_rich_text(:body)
+    refute @post.collaborative_document(:body).refresh
     assert_nil @post.reload.body
   end
 
   def test_materialize_renders_the_document_to_html_and_saves
     append(lexxy_full_state)
 
-    assert @post.refresh_collaborative_rich_text(:body)
+    assert @post.collaborative_document(:body).refresh
     # Both fixtures were captured from the same Lexxy editor session, so
     # this checks that the render matches Lexxy's own HTML byte for byte.
     assert_equal lexxy_full_html, @post.reload.body
@@ -141,16 +160,16 @@ class CollaborativeTest < Minitest::Test
     refute_predicate record, :valid?
     append(lexxy_full_state, record)
 
-    assert record.refresh_collaborative_rich_text(:body)
+    assert record.collaborative_document(:body).refresh
     assert_equal lexxy_full_html, record.reload.body
   end
 
   def test_materialize_is_idempotent
     append(lexxy_full_state)
-    @post.refresh_collaborative_rich_text(:body)
+    @post.collaborative_document(:body).refresh
     first = @post.reload.body
 
-    assert @post.refresh_collaborative_rich_text(:body)
+    assert @post.collaborative_document(:body).refresh
     assert_equal first, @post.reload.body
   end
 
@@ -181,7 +200,7 @@ class CollaborativeTest < Minitest::Test
   def test_unknown_inline_node_keeps_its_text
     append(custom_nodes_state)
 
-    log = capture_log { assert @post.refresh_collaborative_rich_text(:body) }
+    log = capture_log { assert @post.collaborative_document(:body).refresh }
 
     body = @post.reload.body
 
@@ -195,8 +214,8 @@ class CollaborativeTest < Minitest::Test
     append(custom_nodes_state)
 
     log = capture_log do
-      assert @post.refresh_collaborative_rich_text(:body)
-      assert @post.refresh_collaborative_rich_text(:body)
+      assert @post.collaborative_document(:body).refresh
+      assert @post.collaborative_document(:body).refresh
     end
 
     assert_equal 1, log.scan("no Y::Lexxy render rule").length
@@ -206,7 +225,7 @@ class CollaborativeTest < Minitest::Test
     record = post_with_rules("mark" => { tag: "mark", attrs: { "class" => "comment-mark" } })
     append(custom_nodes_state, record)
 
-    log = capture_log { assert record.refresh_collaborative_rich_text(:body) }
+    log = capture_log { assert record.collaborative_document(:body).refresh }
 
     assert_includes record.reload.body, %(<mark class="comment-mark">rocks</mark>)
     refute_includes log, "render rule"
@@ -223,7 +242,7 @@ class CollaborativeTest < Minitest::Test
     record = post_with_rules("paragraph" => { tag: "section" })
     append(lexxy_full_state, record)
 
-    assert record.refresh_collaborative_rich_text(:body)
+    assert record.collaborative_document(:body).refresh
     assert_includes record.reload.body, "<section>", "the field's rules apply when rendering"
   end
 end

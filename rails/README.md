@@ -110,9 +110,11 @@ turn the setting off again. The gem doesn't include a task for this.
 
 The channel saves each CRDT update, renders the full document with
 `Y::Lexxy`, and saves the HTML through the Action Text writer. This
-happens in `refresh_collaborative_rich_text`, inside the channel's handler
-for each update. There's no background job, so `post.body` is up to date as
-soon as the channel finishes handling the update.
+happens in `post.collaborative_document(:body).refresh`, inside the
+channel's handler for each update. There's no background job, so
+`post.body` is up to date as soon as the channel finishes handling the
+update. An edit from Ruby, `post.collaborative_document(:body).edit`,
+renders the body the same way.
 
 If rendering fails, the channel logs the error and keeps the update. The
 next update renders the full document again. Until then, `post.body`
@@ -166,14 +168,17 @@ subscription is rejected:
 # app/controllers/posts_controller.rb
 def grant
   @post = current_user.posts.find(params[:id]) # your own authorization, again
-  render json: { grant: @post.collaborative_rich_text_grant(:body, expires_in: 10.minutes) }
+  render json: { grant: @post.collaborative_document(:body).grant(expires_in: 10.minutes) }
 end
 ```
 
-`collaborative_rich_text_grant` makes the same grant the form helper
-renders, for `LexxyRealtime::DocumentChannel`. A grant from yrby-rails'
-`collaborative_sgid` doesn't work here, because the channel checks a
-different purpose.
+For a field declared with `has_collaborative_rich_text`,
+`collaborative_document(:body)` returns this gem's document. Its `grant` is
+the one the form helper renders, its `channel` is
+`LexxyRealtime::DocumentChannel`, `edit` changes the document from Ruby and
+renders the body, and `refresh` renders the body on demand. Code that takes
+a yrby-rails document, such as `collaborative_document_tag`, gets this
+gem's grant and channel for the field.
 
 That action grants write access, so its check must be at least as strict
 as the page that renders the form. If it skips authorization, anyone who
