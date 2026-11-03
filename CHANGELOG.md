@@ -27,6 +27,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Both log through `LexxyRealtime.deprecator`, which the engine adds to
 `Rails.application.deprecators`, and go away in 0.10.
 
+### Fixed
+
+- The gem bundles yrby-client 0.7.1 for import-map apps. A page that
+  reconnects or renews its grant shows the person to others again; before,
+  they stayed invisible until reload. npm installs already get 0.7.1, which
+  the package now requires.
+
 ## [0.8.0] - 2026-10-08
 
 ### Upgrading from 0.7

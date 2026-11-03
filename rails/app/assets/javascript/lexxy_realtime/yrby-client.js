@@ -1317,6 +1317,12 @@ var ActionCableProvider = class {
 	#resolveSynced;
 	#onDocUpdate = () => this.#refreshStatus();
 	#page = null;
+	#presence = null;
+	#onAwarenessUpdate = ({ added, updated, removed }) => {
+		if (this.#state.phase !== "disconnected") return;
+		const id = this.awareness.clientID;
+		if (added.includes(id) || updated.includes(id) || removed.includes(id)) this.#presence = null;
+	};
 	/**
 	* Resolves once the document has first caught up with the server. Most
 	* editor bindings seed an empty document when they mount, so binding
@@ -1349,6 +1355,7 @@ var ActionCableProvider = class {
 			}
 		};
 		this.awareness = new ProviderAwareness(doc, this.#onError);
+		this.awareness.on("update", this.#onAwarenessUpdate);
 		this.session = new YProtocolSession(doc, {
 			awareness: this.awareness,
 			resendInterval: opts.resendInterval,
@@ -1397,6 +1404,10 @@ var ActionCableProvider = class {
 			phase: "subscribing",
 			attempt
 		};
+		const presence = this.#presence;
+		this.#presence = null;
+		if (presence) this.awareness.setLocalState(presence);
+		if (!this.#subscribing(attempt)) return;
 		const on = (callback) => (...args) => {
 			const run = () => {
 				if (this.#active(attempt)) callback(...args);
@@ -1499,6 +1510,7 @@ var ActionCableProvider = class {
 			};
 			this.#state = stopping;
 			this.#unwatchPage();
+			this.#presence = this.awareness.getLocalState();
 			this.session.removeLocalAwareness();
 			this.session.pause();
 			this.#unsubscribe(state.subscription);
@@ -1514,6 +1526,7 @@ var ActionCableProvider = class {
 	}
 	#destroyOwned() {
 		this.session.destroy();
+		this.awareness.off("update", this.#onAwarenessUpdate);
 		this.awareness.destroy();
 		this.doc.off("update", this.#onDocUpdate);
 	}
