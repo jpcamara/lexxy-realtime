@@ -273,6 +273,54 @@ await test('typing at an element caret keeps an unmergeable boundary', async () 
   } finally { n.close(); }
 });
 
+// Applying a remote update must not write the editor state back to the
+// document. Lexical and Lexxy can run another update from the apply
+// (ensure-not-empty, normalization, transforms). Those updates run inside the
+// apply window and have to stay local to the editor.
+await test('an editor update inside a remote apply window does not reach the document', async () => {
+  const n = network();
+  const a = n.peer('A');
+  try {
+    await n.seed();
+    const before = a.binding.root.getSharedType().toString();
+    const queued = n.pending.length;
+    a.binding.applyingRemote = true;
+    a.update(() => $paragraph().selectEnd().insertText('apply-only'));
+    await settle();
+    a.binding.applyingRemote = false;
+    assert.equal(a.binding.root.getSharedType().toString(), before, 'shared document changed during the window');
+    assert.equal(n.pending.length, queued, 'the apply wrote a new update');
+    assert.equal(a.text(), 'apply-only', 'the editor kept its update');
+  } finally { n.close(); }
+});
+
+// A binding's cached children can stop describing its editor children, for
+// example after an earlier remote apply rebuilt part of the tree. The
+// incremental sync pairs them by index, so writing through a stale cache
+// sends one node's properties and text to another node's header. It must
+// stop instead.
+await test('a stale child cache does not write to the wrong node', async () => {
+  const n = network();
+  const a = n.peer('A');
+  try {
+    await n.seed();
+    a.update(() => $paragraph().append($createTextNode('hello')));
+    await n.flush();
+    const paragraph = a.binding.root._children[0];
+    const text = paragraph._children[0];
+    const realKey = text._key;
+    text._key = 'stale-key';
+    a.binding.collabNodeMap.delete(realKey);
+    const before = a.binding.root.getSharedType().toString();
+    const queued = n.pending.length;
+    a.update(() => $paragraph().selectEnd().insertText('!'));
+    await settle();
+    assert.equal(a.binding.root.getSharedType().toString(), before, 'stale cache wrote to the document');
+    assert.equal(n.pending.length, queued, 'stale cache produced an update');
+    assert.equal(a.text(), 'hello!', 'the editor kept its local edit');
+  } finally { n.close(); }
+});
+
 // A peer's normalization cleanup arrives before the insertion it depends on.
 // This runs with plain and formatted text, and makes another local edit while
 // the text header is still missing.

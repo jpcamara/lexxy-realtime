@@ -493,6 +493,14 @@ export function createRemoteApplier(provider, binding, { onDesync, sync = syncYj
     // Skip changes this binding wrote, including text reconciliation.
     if (transaction.origin === binding || transaction.origin === reconciliationOrigin) return;
     if (desynced) return;
+    // Lexical commits the update in a microtask and runs any update Lexxy
+    // queues from it before that microtask ends. `syncEditorUpdate` treats
+    // everything in this window as remote so applying an update never writes
+    // a new one back. The version lets overlapping applies clear the flag
+    // independently.
+    const version = (binding.remoteApplyVersion || 0) + 1;
+    binding.remoteApplyVersion = version;
+    binding.applyingRemote = true;
     try {
       sync(binding, provider, events, transaction.origin instanceof UndoManager);
     } catch (error) {
@@ -502,6 +510,10 @@ export function createRemoteApplier(provider, binding, { onDesync, sync = syncYj
         error
       );
       onDesync?.(error);
+    } finally {
+      queueMicrotask(() => {
+        if (binding.remoteApplyVersion === version) binding.applyingRemote = false;
+      });
     }
   };
 }
