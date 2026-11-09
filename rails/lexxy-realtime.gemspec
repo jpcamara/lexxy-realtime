@@ -30,7 +30,9 @@ Gem::Specification.new do |spec|
   # import-map apps use the lexxy gem's own asset, so the gem needs the same
   # minimum. The bundle uses the Lexical namespace that Lexxy re-exports. A
   # major Lexxy release could change it, so the ceiling holds apps below 2.0
-  # until we test it.
+  # until we test it. The import-map asset bundles @lexical/yjs 0.44, which
+  # matches the Lexical 0.44 inside every Lexxy gem through 1.0.4 (see
+  # "Two Lexical versions" in CONTRIBUTING.md).
   spec.add_dependency "lexxy", ">= 0.9.29", "< 2.0"
   # lexxy 0.9 requires Rails >= 8.0.2.
   spec.add_dependency "rails", ">= 8.0.2"

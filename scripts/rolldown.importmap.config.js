@@ -15,9 +15,19 @@ import { fileURLToPath } from 'node:url';
 // Bare `lexical` imports are aliased to a generated shim that reaches
 // Lexxy's embedded copy through its documented `Lexical` re-export
 // (scripts/gen_lexical_shim.mjs runs before this config), so the page runs
-// one lexical: the editor's. @rails/actioncable resolves to Rails' own
-// actioncable.esm.js pin. y-protocols and lib0 have no shared state that
-// crosses assets, so they stay bundled.
+// one lexical: the editor's.
+//
+// The bundled @lexical/yjs has to match the Lexical inside the Lexxy gem's
+// asset, not the one on npm. The Lexxy gem's lexxy.js embeds Lexical 0.44
+// in every release through 1.0.4, though @37signals/lexxy 1.0.2+ on npm
+// depends on 0.52. @lexical/yjs 0.52 calls Lexical functions that 0.44
+// doesn't have, so this asset bundles @lexical/yjs 0.44 through the
+// `lexical-yjs-importmap` alias in package.json. When a Lexxy gem embeds
+// 0.52, move the alias and raise the gem's lexxy floor to that release.
+//
+// @rails/actioncable resolves to Rails' own actioncable.esm.js pin.
+// y-protocols and lib0 have no shared state that crosses assets, so they
+// stay bundled.
 //
 // IMPORTMAP_ASSETS_OUT overrides the output directory; the test suite
 // builds into the test server's public directory so test runs never
@@ -49,7 +59,7 @@ const configs = [
   }),
   build('src/index.js', 'lexxy-realtime', {
     external: ['@37signals/lexxy', 'yjs', yrbyClient, '@rails/actioncable'],
-    resolve: { alias: { lexical: shim } },
+    resolve: { alias: { lexical: shim, '@lexical/yjs': 'lexical-yjs-importmap' } },
   }),
 ];
 

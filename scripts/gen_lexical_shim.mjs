@@ -2,14 +2,15 @@
 // `lexical` imports in the bundle, ours and @lexical/yjs's, resolve to this
 // module. It re-exports Lexxy's embedded copy through Lexxy's documented
 // `Lexical` export, so the page loads only the editor's copy of lexical.
-// build:importmap regenerates the shim from the installed lexical's export
-// list, so new lexical exports are picked up automatically.
+// build:importmap regenerates the shim from the export list of the Lexical
+// that the Lexxy gem's asset embeds (the `lexical-importmap` alias in
+// package.json; see scripts/rolldown.importmap.config.js).
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const lexical = await import("lexical");
+const lexical = await import("lexical-importmap");
 
 const names = Object.keys(lexical).filter((n) => n !== "default").sort();
 const invalid = names.filter((n) => !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(n));

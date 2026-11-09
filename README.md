@@ -301,11 +301,11 @@ automatically. With Yarn, add `@lexical/yjs yjs y-protocols` yourself:
 npm install lexxy-realtime
 ```
 
-You also need a Lexxy editor and `lexical` (`^0.44`), which your app already
-has. The package depends on `yrby-client` and on `@rails/actioncable`, which
-`<yrby-document>` uses to create its default consumer. To use
-[AnyCable](#anycable), install `@anycable/web`. To use your own Yjs provider,
-install its client package, for example `y-websocket`.
+You also need `@37signals/lexxy` 1.0.2 or later and `lexical` (`^0.52`),
+which your app already has. The package depends on `yrby-client` and on
+`@rails/actioncable`, which `<yrby-document>` uses to create its default
+consumer. To use [AnyCable](#anycable), install `@anycable/web`. To use your
+own Yjs provider, install its client package, for example `y-websocket`.
 
 Either way, the entry point imports are the same:
 
@@ -450,7 +450,7 @@ lexxy-realtime does the same for `yjs` and `@lexical/yjs`. Your bundler has
 to resolve each of them to a single shared copy. Lexical relies on
 class identity and Yjs relies on constructor identity, so duplicate copies
 break syncing. Bundlers normally deduplicate matching versions
-(`lexical ^0.44`, `yjs ^13.6`). If yours doesn't, configure an alias, for
+(`lexical ^0.52`, `yjs ^13.6`). If yours doesn't, configure an alias, for
 example esbuild's `--alias:yjs=./node_modules/yjs`. Import-map apps don't
 need to do anything, because the generator's pins resolve each module to one
 build.
@@ -650,11 +650,19 @@ permanent editor doesn't survive the visit.
 
 ## Requirements
 
-Ruby 3.4+, Rails 8.0.2+, and Lexxy 0.9.29+. Both the npm peer range and the
-gem's dependency require Lexxy 0.9.29, which includes an attachment
-construction fix this package needs. lexxy-realtime also patches
-`@lexical/yjs` when it binds an editor, to work around two upstream bugs.
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for details and upstream status.
+Ruby 3.4+ and Rails 8.0.2+.
+
+- Import maps: the `lexxy` gem 0.9.29 or later. That release includes an
+  attachment construction fix this package needs.
+- Bundlers: `@37signals/lexxy` 1.0.2 or later, with `lexical` and
+  `@lexical/yjs` 0.52.
+
+The two differ because the Lexxy gem's asset still embeds Lexical 0.44.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md#two-lexical-versions).
+
+lexxy-realtime also patches `@lexical/yjs` when it binds an editor, to work
+around two upstream bugs. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
+details and upstream status.
 
 ## License
 

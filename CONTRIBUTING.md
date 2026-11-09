@@ -80,7 +80,7 @@ always rebuilds, so it doesn't depend on Lexical's private update logic.
 `createBinding` to keep browser-only values out of the shared document: the
 raw `File`, `editor`, `previewSrc`, and the upload settings.
 
-The `@37signals/lexxy` peer range starts at 0.9.29. That release constructs
+The gem's `lexxy` dependency starts at 0.9.29. That release constructs
 attachment nodes without arguments
 ([basecamp/lexxy#1196](https://github.com/basecamp/lexxy/pull/1196)), which
 the binding needs.
@@ -94,6 +94,26 @@ binding.
 - `@lexical/yjs`: `CollabElementNode.splice` should accept the empty case,
   and `applyChildrenYjsDelta` should keep text whose metadata arrives late.
   Both could be fixed upstream in facebook/lexical.
+
+## Two Lexical versions
+
+The npm package and the import-map asset use different Lexical versions,
+because Lexxy ships different ones on npm and in its gem.
+
+- `@37signals/lexxy` 1.0.2 and later on npm depend on Lexical 0.52. The npm
+  package's peers are `lexical ^0.52`, `@lexical/yjs ^0.52`, and
+  `@37signals/lexxy ^1.0.2`. Development and tests use these versions.
+- The Lexxy gem's `lexxy.js` embeds Lexical 0.44, up to at least 1.0.4.
+  The import-map asset gets lexical from that file, so it bundles
+  `@lexical/yjs` 0.44. `@lexical/yjs` 0.52 calls Lexical functions that
+  0.44 doesn't have. The `lexical-importmap` and `lexical-yjs-importmap`
+  dev dependencies are npm aliases for those 0.44 packages, and only
+  `build:importmap` uses them.
+
+When a Lexxy gem release embeds Lexical 0.52, point both aliases at 0.52
+(or remove them) and raise the gem's `lexxy` floor to that release. To see
+which Lexical a Lexxy gem embeds, search its `app/assets/javascript/lexxy.js`
+for `+prod.esm`.
 
 ## Pull requests
 
