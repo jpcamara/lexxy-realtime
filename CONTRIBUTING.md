@@ -53,12 +53,14 @@ The package patches `@lexical/yjs` at runtime, so apps don't have to change
 their `node_modules`. `editor_collaboration.js` applies both patches when it
 binds an editor.
 
-`patchCollabElementSplice` works around an `@lexical/yjs` bug with empty
-trees. When neither the existing child nor the replacement exists, `splice`
-throws in development builds and records `undefined` in production builds.
-Binding an empty document hits exactly that case. The prototype isn't
+`patchCollabElementSplice` works around an `@lexical/yjs` 0.44 bug with
+empty trees. When neither the existing child nor the replacement exists,
+`splice` throws in development builds and records `undefined` in production
+builds. Binding an empty document hits exactly that case. The prototype isn't
 exported, so we reach it through the live binding's root and make that one
-case a no-op. The patch lives in `attachment_sync.js`.
+case a no-op. The patch lives in `attachment_sync.js`. `@lexical/yjs` 0.52
+fixed the bug, so the patch only matters for the import-map asset, which
+still bundles 0.44. Remove it when that asset moves to 0.52.
 
 `registerTextReconciliation`, in `text_reconciliation.js`, overrides
 `applyChildrenYjsDelta` for bindings this package creates. A peer can
@@ -91,9 +93,11 @@ binding.
 
 ### Upstream tracking
 
-- `@lexical/yjs`: `CollabElementNode.splice` should accept the empty case,
-  and `applyChildrenYjsDelta` should keep text whose metadata arrives late.
-  Both could be fixed upstream in facebook/lexical.
+- `@lexical/yjs`: `applyChildrenYjsDelta` should keep text whose metadata
+  arrives late. Still broken in 0.52; `LEXXY_TEST_LEGACY=1` fails 12
+  text-integrity checks.
+- `@lexical/yjs`: `CollabElementNode.splice` accepts the empty case as of
+  0.52.
 
 ## Two Lexical versions
 

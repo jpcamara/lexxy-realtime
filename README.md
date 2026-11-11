@@ -661,8 +661,9 @@ The two differ because the Lexxy gem's asset still embeds Lexical 0.44.
 See [`CONTRIBUTING.md`](CONTRIBUTING.md#two-lexical-versions).
 
 lexxy-realtime also patches `@lexical/yjs` when it binds an editor, to work
-around two upstream bugs. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
-details and upstream status.
+around an upstream bug that can lose or duplicate text when peers edit at
+the same time. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for details and
+upstream status.
 
 ## License
 
