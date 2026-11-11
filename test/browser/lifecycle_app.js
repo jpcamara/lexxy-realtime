@@ -142,6 +142,14 @@ function build({ grant, refresh, value, collab = true }) {
   return { yrbyDocument, editor, element };
 }
 
+// Lexxy mounts its root element a frame after it connects, and mounting
+// sets the editor editable again. The element can bind before that frame,
+// so a scenario makes the editor read-only only after the mount.
+async function makeReadOnly(editor) {
+  await until(() => editor.editor.getRootElement(), "Lexxy mounted its root");
+  editor.editor.setEditable(false);
+}
+
 async function mount(options) {
   const parts = build(options);
   document.body.appendChild(parts.yrbyDocument);
@@ -315,7 +323,7 @@ const scenarios = {
   // whether the element recovers or is removed.
   async readOnlyKept() {
     const first = await mount({ grant: uid("lc-readonly") });
-    first.editor.editor.setEditable(false);
+    await makeReadOnly(first.editor);
     const doc = first.element.doc;
     fault(first.editor, doc);
     const recovered = await settled(() => first.element.binding && first.element.doc !== doc && first.element.provider.synced, 10000);
@@ -324,7 +332,7 @@ const scenarios = {
     await sleep(50);
 
     const second = await mount({ grant: uid("lc-readonly-remove") });
-    second.editor.editor.setEditable(false);
+    await makeReadOnly(second.editor);
     second.element.addEventListener("lexxy-realtime:desync", () => second.element.remove(), { once: true });
     fault(second.editor, second.element.doc);
     await sleep(300);

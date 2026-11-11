@@ -53,12 +53,14 @@ The package patches `@lexical/yjs` at runtime, so apps don't have to change
 their `node_modules`. `editor_collaboration.js` applies both patches when it
 binds an editor.
 
-`patchCollabElementSplice` works around an `@lexical/yjs` bug with empty
-trees. When neither the existing child nor the replacement exists, `splice`
-throws in development builds and records `undefined` in production builds.
-Binding an empty document hits exactly that case. The prototype isn't
+`patchCollabElementSplice` works around an `@lexical/yjs` 0.44 bug with
+empty trees. When neither the existing child nor the replacement exists,
+`splice` throws in development builds and records `undefined` in production
+builds. Binding an empty document hits exactly that case. The prototype isn't
 exported, so we reach it through the live binding's root and make that one
-case a no-op. The patch lives in `attachment_sync.js`.
+case a no-op. The patch lives in `attachment_sync.js`. `@lexical/yjs` 0.52
+fixed the bug, so the patch only matters for the import-map asset, which
+still bundles 0.44. Remove it when that asset moves to 0.52.
 
 `registerTextReconciliation`, in `text_reconciliation.js`, overrides
 `applyChildrenYjsDelta` for bindings this package creates. A peer can
@@ -80,7 +82,7 @@ always rebuilds, so it doesn't depend on Lexical's private update logic.
 `createBinding` to keep browser-only values out of the shared document: the
 raw `File`, `editor`, `previewSrc`, and the upload settings.
 
-The `@37signals/lexxy` peer range starts at 0.9.29. That release constructs
+The gem's `lexxy` dependency starts at 0.9.29. That release constructs
 attachment nodes without arguments
 ([basecamp/lexxy#1196](https://github.com/basecamp/lexxy/pull/1196)), which
 the binding needs.
@@ -91,9 +93,31 @@ binding.
 
 ### Upstream tracking
 
-- `@lexical/yjs`: `CollabElementNode.splice` should accept the empty case,
-  and `applyChildrenYjsDelta` should keep text whose metadata arrives late.
-  Both could be fixed upstream in facebook/lexical.
+- `@lexical/yjs`: `applyChildrenYjsDelta` should keep text whose metadata
+  arrives late. Still broken in 0.52; `LEXXY_TEST_LEGACY=1` fails 12
+  text-integrity checks.
+- `@lexical/yjs`: `CollabElementNode.splice` accepts the empty case as of
+  0.52.
+
+## Two Lexical versions
+
+The npm package and the import-map asset use different Lexical versions,
+because Lexxy ships different ones on npm and in its gem.
+
+- `@37signals/lexxy` 1.0.2 and later on npm depend on Lexical 0.52. The npm
+  package's peers are `lexical ^0.52`, `@lexical/yjs ^0.52`, and
+  `@37signals/lexxy ^1.0.2`. Development and tests use these versions.
+- The Lexxy gem's `lexxy.js` embeds Lexical 0.44, up to at least 1.0.4.
+  The import-map asset gets lexical from that file, so it bundles
+  `@lexical/yjs` 0.44. `@lexical/yjs` 0.52 calls Lexical functions that
+  0.44 doesn't have. The `lexical-importmap` and `lexical-yjs-importmap`
+  dev dependencies are npm aliases for those 0.44 packages, and only
+  `build:importmap` uses them.
+
+When a Lexxy gem release embeds Lexical 0.52, point both aliases at 0.52
+(or remove them) and raise the gem's `lexxy` floor to that release. To see
+which Lexical a Lexxy gem embeds, search its `app/assets/javascript/lexxy.js`
+for `+prod.esm`.
 
 ## Pull requests
 

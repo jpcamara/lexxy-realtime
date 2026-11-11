@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking (npm):** the package requires `@37signals/lexxy` 1.0.2 or
+  later, `lexical ^0.52`, and `@lexical/yjs ^0.52`. Lexxy 1.0.2 moved to
+  Lexical 0.52 on npm. With the old `^0.44` peers, an app on Lexxy 1.0.2+
+  loaded two copies of Lexical, and the editor failed to start. Apps on
+  Lexxy 1.0.0 or 1.0.1 from npm should upgrade Lexxy, or stay on
+  lexxy-realtime 0.9.
+- Import maps don't change. The Lexxy gem's asset embeds Lexical 0.44 in
+  every release through 1.0.4, so the gem's import-map asset still bundles
+  `@lexical/yjs` 0.44. The gem still allows `lexxy >= 0.9.29`.
+
 ## [0.9.0] - 2026-11-03
 
 ### Changed

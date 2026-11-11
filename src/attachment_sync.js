@@ -37,10 +37,11 @@ export function attachmentExclusions(editor) {
   return excludedProperties;
 }
 
-// In @lexical/yjs, CollabElementNode.splice throws in development, and
-// records `undefined` in production, when it removes a child at an index
-// that has none and has nothing to insert. Binding an empty document makes
-// exactly that call, so we turn it into a no-op. createBinding builds
+// In @lexical/yjs 0.44, CollabElementNode.splice throws in development,
+// and records `undefined` in production, when it removes a child at an
+// index that has none and has nothing to insert. Binding an empty document
+// makes exactly that call, so we turn it into a no-op. 0.52 fixed this, so
+// the patch only matters for the import-map asset, which still bundles 0.44. createBinding builds
 // binding.root without making the call, so patching right after binding is
 // early enough. The prototype isn't exported, so we reach it through
 // binding.root. Every @lexical/yjs binding on the page shares that
