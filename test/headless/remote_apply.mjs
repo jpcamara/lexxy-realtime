@@ -58,4 +58,17 @@ const fail = () => { throw new Error("apply blew up"); };
   check("works without an onDesync callback", !threw);
 }
 
+{
+  // The flag covers Lexical's microtask commit. Updates Lexxy queues from
+  // the apply see it and don't write the editor state back to Yjs.
+  const windowBinding = { root: { getSharedType: () => ({}) } };
+  const applier = createRemoteApplier(provider, windowBinding, {
+    sync: () => check("marks the binding while the remote update applies", windowBinding.applyingRemote === true),
+  });
+  applier(["events"], remote);
+  check("keeps the remote window open through the commit microtask", windowBinding.applyingRemote === true);
+  await new Promise((resolve) => queueMicrotask(resolve));
+  check("closes the remote window after the commit", windowBinding.applyingRemote === false);
+}
+
 done("remote_apply");

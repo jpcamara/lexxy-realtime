@@ -1,5 +1,5 @@
 import { Map as YMap } from 'yjs';
-import { $createTextNode, $getNodeByKey, COLLABORATION_TAG, HISTORIC_TAG } from 'lexical';
+import { $createTextNode, $getNodeByKey, $getRoot, COLLABORATION_TAG, HISTORIC_TAG } from 'lexical';
 import { syncLexicalUpdateToYjs } from '@lexical/yjs';
 
 const bindings = new WeakSet();
@@ -59,6 +59,19 @@ export function registerTextReconciliation(binding) {
       if (bindings.has(current)) releaseEmptyRepairs(this);
       return result;
     };
+    // `syncChildrenFromLexical` pairs cached children with editor children by
+    // index. A cache that points at headers from other nodes would send this
+    // node's properties and text to those headers. Skip a child whose cached
+    // key doesn't match the editor node at that index. Missing children are
+    // left to the create/remove path, as before.
+    const syncChild = proto._syncChildFromLexical;
+    proto._syncChildFromLexical = function (current, index, key, prevNodeMap, ...rest) {
+      if (bindings.has(current)) {
+        const child = this._children[index];
+        if (child && child._key !== key) return;
+      }
+      return syncChild.call(this, current, index, key, prevNodeMap, ...rest);
+    };
     patchedPrototypes.add(proto);
   }
   return () => bindings.delete(binding);
@@ -98,16 +111,24 @@ function rebuildChildren(element, binding, deltas, apply) {
   snapshot = snapshot.filter(({ insert }) => typeof insert === 'string' || typeof sharedTypeOf(insert) === 'string');
   // A cached text node may have taken part in a local merge. Reusing its
   // old text while replaying the snapshot would duplicate characters, so
-  // clear it first.
-  element._children = [];
-  for (const { insert } of snapshot) {
-    const child = typeof insert === 'object' && insert._collabNode;
-    if (child && typeof child._text === 'string') {
+  // clear every cached child first, including children the snapshot no
+  // longer contains.
+  const previous = element._children;
+  for (const child of previous) {
+    if (typeof child._text === 'string') {
       child._text = '';
       child._normalized = false;
     }
   }
+  element._children = [];
   apply.call(element, binding, snapshot);
+  // A child the snapshot dropped stays in the binding's key map otherwise,
+  // and a later update can diff against a node that is no longer attached.
+  for (const child of previous) {
+    if (child._key && !element._children.includes(child) && binding.collabNodeMap.get(child._key) === child) {
+      binding.collabNodeMap.delete(child._key);
+    }
+  }
   for (const header of headers) {
     if (header._collabNode) repairs.add(header._collabNode);
   }
@@ -193,7 +214,15 @@ function releaseEmptyRepairs(element) {
 // Yjs under reconciliationOrigin.
 export function syncEditorUpdate(binding, provider, update) {
   const { editorState, prevEditorState, dirtyElements, dirtyLeaves, tags } = update;
-  const remote = tags.has(COLLABORATION_TAG) || tags.has(HISTORIC_TAG);
+  const taggedRemote = tags.has(COLLABORATION_TAG) || tags.has(HISTORIC_TAG);
+  // Lexical applies a remote update in one update and may run another update
+  // from it, such as @lexical/yjs' ensure-not-empty repair. Treat every update
+  // in that window as remote, so applying never writes a new Yjs update back.
+  // The repair that adds a paragraph to an emptied root is the one exception:
+  // upstream deliberately syncs it so the document stays non-empty.
+  const applyingRemote = !!binding.applyingRemote && !taggedRemote;
+  const remote = taggedRemote || (applyingRemote && !isBareRootAppend(update));
+  const syncTags = remote && !taggedRemote ? new Set([...tags, COLLABORATION_TAG]) : tags;
   let { normalizedNodes } = update;
   const sync = () => editorState.read(() => {
     if (remote) {
@@ -210,9 +239,23 @@ export function syncEditorUpdate(binding, provider, update) {
         }
       }
     }
-    syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, tags);
+    syncLexicalUpdateToYjs(binding, provider, prevEditorState, editorState, dirtyElements, dirtyLeaves, normalizedNodes, syncTags);
   });
   // For a remote update, the binding writes only the normalization cleanup.
   if (remote) binding.doc.transact(sync, reconciliationOrigin);
   else sync();
+}
+
+// True when an update only appended the paragraph @lexical/yjs adds after a
+// remote change emptied the root.
+function isBareRootAppend(update) {
+  const { editorState, dirtyElements, dirtyLeaves, normalizedNodes } = update;
+  if (dirtyElements.size !== 1 || !dirtyElements.has('root')) return false;
+  if (dirtyLeaves.size > 0 || normalizedNodes.size > 0) return false;
+  return editorState.read(() => {
+    const root = $getRoot();
+    if (root.getChildrenSize() !== 1) return false;
+    const only = root.getFirstChild();
+    return only?.getType() === 'paragraph' && only.getChildrenSize() === 0;
+  });
 }
